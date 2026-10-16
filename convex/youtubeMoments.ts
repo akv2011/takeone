@@ -90,7 +90,7 @@ export const translate = action({ args: translateArgs, handler: async (ctx, args
 export const storeTranslation = internalMutation({ args: { ...translateArgs, texts: v.array(v.string()) }, handler: async (ctx, { id, moment, language, texts }) => {
   const row = await ownedMoment(ctx, id, moment), stored = storedTexts(row, moment, language);
   if (stored) return stored;
-  // ponytail: translations live in the analysis row; 3 moments x 60 cues x 12 languages at 500 characters nears the 1 MiB document limit, move them to their own table if replies run that long.
+  // ponytail: translations live in the analysis row; 3 moments x 20 cues x 12 languages at 500 characters nears the 1 MiB document limit, move them to their own table if replies run that long.
   await ctx.db.patch(id, { translations: [...row.translations, { moment, language, texts }] });
   return texts;
 }});

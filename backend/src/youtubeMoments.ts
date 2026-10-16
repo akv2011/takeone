@@ -10,46 +10,52 @@ export const MOMENT_LIMITS = { moments: 3, minSec: 15, maxSec: 60, hookWords: 6,
 const MAX_END_SEC = 14_400;
 export const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
 
-const CONTROL = /\p{Cc}/u;
-const hasExactly = (value: unknown, keys: string[]): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value) && Object.keys(value).length === keys.length && keys.every(key => Object.hasOwn(value, key));
 const seconds = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
 
 function check(condition: unknown): asserts condition {
   if (!condition) throw Error('Gemini returned invalid YouTube moments');
 }
 
-function line(value: unknown, max: number): string {
-  check(typeof value === 'string' && !CONTROL.test(value));
-  const text = value.trim();
-  check(text.length >= 1 && text.length <= max);
-  return text;
-}
+// Strict on shape, forgiving on content. Gemini's answers vary call to call: a single cue past the moment's end
+// or a seven-word hook used to discard the whole answer. Out-of-rule content is trimmed or dropped instead;
+// the call fails only when no usable moment remains.
+const clean = (value: unknown, max: number): string => {
+  if (typeof value !== 'string') return '';
+  const text = value.replace(/\p{Cc}+/gu, ' ').replace(/\s+/g, ' ').trim();
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  return (cut.includes(' ') ? cut.slice(0, cut.lastIndexOf(' ')) : cut).trim();
+};
 
 function parseCues(value: unknown, start: number, end: number): Cue[] {
-  check(Array.isArray(value) && value.length >= 1 && value.length <= MOMENT_LIMITS.cues);
-  let previous = -Infinity;
-  return value.map(cue => {
-    check(hasExactly(cue, ['start_sec', 'text']) && seconds(cue.start_sec) && cue.start_sec >= start && cue.start_sec < end && cue.start_sec > previous);
-    previous = cue.start_sec;
-    return { start_sec: cue.start_sec, text: line(cue.text, MOMENT_LIMITS.cueChars) };
-  });
+  if (!Array.isArray(value)) return [];
+  const cues = value
+    .filter((cue): cue is { start_sec: number; text: unknown } => typeof cue === 'object' && cue !== null && seconds((cue as { start_sec?: unknown }).start_sec))
+    .map(cue => ({ start_sec: cue.start_sec, text: clean(cue.text, MOMENT_LIMITS.cueChars) }))
+    .filter(cue => cue.text && cue.start_sec >= start && cue.start_sec < end)
+    .sort((a, b) => a.start_sec - b.start_sec);
+  return cues.filter((cue, index) => index === 0 || cue.start_sec > cues[index - 1].start_sec).slice(0, MOMENT_LIMITS.cues);
 }
 
 export function parseMoments(value: unknown): Moment[] {
-  check(hasExactly(value, ['moments']) && Array.isArray(value.moments));
-  check(value.moments.length >= 1 && value.moments.length <= MOMENT_LIMITS.moments);
+  check(typeof value === 'object' && value !== null && Array.isArray((value as { moments?: unknown }).moments));
+  const candidates = ((value as { moments: unknown[] }).moments)
+    .filter((moment): moment is Record<string, unknown> => typeof moment === 'object' && moment !== null && seconds((moment as { start_sec?: unknown }).start_sec) && seconds((moment as { end_sec?: unknown }).end_sec))
+    .sort((a, b) => (a.start_sec as number) - (b.start_sec as number));
+  const moments: Moment[] = [];
   let earliest = 0;
-  return value.moments.map(moment => {
-    check(hasExactly(moment, ['start_sec', 'end_sec', 'hook', 'why', 'cues']));
-    const { start_sec, end_sec } = moment;
-    check(seconds(start_sec) && seconds(end_sec) && start_sec >= earliest && end_sec <= MAX_END_SEC);
-    check(end_sec - start_sec >= MOMENT_LIMITS.minSec && end_sec - start_sec <= MOMENT_LIMITS.maxSec);
+  for (const moment of candidates) {
+    const start_sec = moment.start_sec as number;
+    const end_sec = Math.min(moment.end_sec as number, start_sec + MOMENT_LIMITS.maxSec);
+    const hook = clean(moment.hook, MOMENT_LIMITS.hookChars).split(' ').slice(0, MOMENT_LIMITS.hookWords).join(' ');
+    const why = clean(moment.why, MOMENT_LIMITS.whyChars);
+    if (start_sec < earliest || end_sec > MAX_END_SEC || end_sec - start_sec < MOMENT_LIMITS.minSec || !hook || !why) continue;
+    moments.push({ start_sec, end_sec, hook, why, cues: parseCues(moment.cues, start_sec, end_sec) });
     earliest = end_sec;
-    const hook = line(moment.hook, MOMENT_LIMITS.hookChars);
-    check(hook.split(/\s+/).length <= MOMENT_LIMITS.hookWords);
-    return { start_sec, end_sec, hook, why: line(moment.why, MOMENT_LIMITS.whyChars), cues: parseCues(moment.cues, start_sec, end_sec) };
-  });
+    if (moments.length === MOMENT_LIMITS.moments) break;
+  }
+  check(moments.length > 0);
+  return moments;
 }
 
 const MOMENTS_SCHEMA = {
