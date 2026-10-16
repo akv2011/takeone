@@ -1,0 +1,12 @@
+# Cloud Run front for the self-hosted Convex backend on the private VM.
+# Cloud Run terminates TLS; Caddy forwards HTTP and WebSocket traffic to UPSTREAM.
+{
+	admin off
+	auto_https off
+}
+
+:{$PORT:8080} {
+	reverse_proxy {$UPSTREAM} {
+		flush_interval -1
+	}
+}

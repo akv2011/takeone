@@ -252,6 +252,7 @@ try {
     if (String(url) !== 'https://staging.convex.cloud/api/storage/fixture-audio' || options.redirect !== 'error') throw Error('Unexpected uploaded-audio request');
     return new Response(bytes, { headers: { 'content-type': 'audio/wav' } });
   };
+  process.env.CONVEX_URL = 'https://staging.convex.cloud';
   await downloadSoundtrack({ storageUrl: 'https://staging.convex.cloud/api/storage/fixture-audio', volume: 0.3, duck: true }, '/tmp/owned-track', new AbortController().signal, () => { throw Error('Unexpected catalog download'); });
 } finally { globalThis.fetch = originalFetch; }
 const ownedReplies = await app.handle({ userId: 'owned-audio', platform: 'cli', text: 'Add selected soundtrack', attachmentPath: '/tmp/input.mp4', isPro: true, music: { trackPath: '/tmp/owned-track', volume: 0.3, duck: true } });

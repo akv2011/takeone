@@ -21,8 +21,9 @@ variable "image" {
 variable "convex_url" {
   type = string
   validation {
-    condition     = can(regex("^https://[a-z0-9-]+\\.convex\\.cloud$", var.convex_url))
-    error_message = "Use the intended Convex deployment URL."
+    # Hosted (*.convex.cloud) or self-hosted: the HTTPS origin of the deployment, with no path or port.
+    condition     = can(regex("^https://[a-z0-9-]+(\\.[a-z0-9-]+)+$", var.convex_url))
+    error_message = "Use the HTTPS origin of the Convex deployment, with no path or port."
   }
 }
 variable "worker_secrets" {

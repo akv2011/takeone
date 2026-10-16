@@ -1,6 +1,7 @@
 project_id = "your-gcp-project"
 region     = "us-central1"
 image      = "us-central1-docker.pkg.dev/your-gcp-project/takeone/backend:release"
+# Hosted Convex (https://<name>.convex.cloud) or the HTTPS origin of a self-hosted backend.
 convex_url = "https://your-deployment.convex.cloud"
 dispatch_secret_id = "takeone-dispatch-secret"
 worker_secrets = {

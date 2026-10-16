@@ -2,9 +2,10 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
-import { afterEach, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { downloadSoundtrack } from './soundtrack.js';
-afterEach(() => vi.unstubAllGlobals());
+beforeEach(() => { vi.stubEnv('CONVEX_URL', 'https://staging.convex.cloud'); });
+afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 const source = { storageUrl: 'https://staging.convex.cloud/api/storage/file-id', volume: 0.2, duck: true };
 test.each(['http://staging.convex.cloud/api/storage/file', 'https://evil.test/api/storage/file', 'https://staging.convex.cloud/api/other/file', 'https://staging.convex.cloud.evil.test/api/storage/file', 'https://user:pass@staging.convex.cloud/api/storage/file'])('rejects untrusted audio URL %s before fetch', async storageUrl => {
  const request = vi.fn(); vi.stubGlobal('fetch', request);
@@ -42,4 +43,22 @@ test('catalog streams from scoped GCS keys; mixed sources are rejected', async (
   expect(catalog).toHaveBeenCalledWith('music/upbeat.mp3');
   await expect(downloadSoundtrack({ ...source, storageKey: 'music/upbeat.mp3' }, join(work, 'mixed'), new AbortController().signal, catalog)).rejects.toThrow('Invalid');
  } finally { await rm(work, { recursive: true, force: true }); }
+});
+
+test('owned audio from a self-hosted deployment is accepted only for the configured origin', async () => {
+ const work = await mkdtemp(join(tmpdir(), 'takeone-audio-'));
+ try {
+  vi.stubEnv('CONVEX_URL', 'https://convex-api-example-uc.a.run.app');
+  const request = vi.fn().mockResolvedValue(new Response('audio')); vi.stubGlobal('fetch', request);
+  await downloadSoundtrack({ ...source, storageUrl: 'https://convex-api-example-uc.a.run.app/api/storage/file-id' }, join(work, 'track'), new AbortController().signal, vi.fn());
+  expect(await readFile(join(work, 'track'), 'utf8')).toBe('audio');
+  await expect(downloadSoundtrack(source, join(work, 'cloud'), new AbortController().signal, vi.fn())).rejects.toThrow('Invalid uploaded audio URL');
+  expect(request).toHaveBeenCalledTimes(1);
+ } finally { await rm(work, { recursive: true, force: true }); }
+});
+test('owned audio fails closed without a configured deployment', async () => {
+ vi.stubEnv('CONVEX_URL', '');
+ const request = vi.fn(); vi.stubGlobal('fetch', request);
+ await expect(downloadSoundtrack(source, '/tmp/unused-audio', new AbortController().signal, vi.fn())).rejects.toThrow('Invalid uploaded audio URL');
+ expect(request).not.toHaveBeenCalled();
 });
