@@ -1,4 +1,5 @@
-import { describe, it, vi, expect } from 'vitest';
+import { afterEach, describe, it, vi, expect } from 'vitest';
+afterEach(() => vi.unstubAllEnvs());
 import { renderClaim, youtubeUrl } from './pipeline.js';
 import type { ClaimedJob } from './worker.js';
 const job: ClaimedJob = { jobId: 'j', userId: 'u', mode: 'clip', aspect: '1:1', prompt: 'https://youtu.be/abc', isPro: false, leaseToken: 'l' };
@@ -74,4 +75,26 @@ it('an upload edit keeps the edit path and never stages', async () => {
  await renderClaim({ ...job, mode: 'edit', prompt: 'best moment', sourceUploadUrl: upload }, new AbortController().signal, { pick: vi.fn(), handle, source, stage });
  expect(stage).not.toHaveBeenCalled();
  expect(handle).toHaveBeenCalledWith(expect.objectContaining({ mode: 'edit', text: 'best moment', editPlan: undefined }));
+});
+
+describe('edit plans follow configured providers', () => {
+  const moment = { start: '0:05', end: '0:20', hook: 'The hook', reframe: 'crop' as const, zooms: [{ at_sec: 6, dur_sec: 1 }], broll: [{ at_sec: 8, dur_sec: 2, keywords: ['flour'] }], gifs: [{ at_sec: 12, dur_sec: 2, query: 'wow' }] };
+  const run = async () => {
+    const handle = vi.fn(async () => [{ kind: 'file' as const, filePath: '/out.mp4', caption: '' }]);
+    await renderClaim({ ...job, prompt: 'best moment', sourceStorageKey: 'videos/u/upload.mp4' }, new AbortController().signal, { pick: vi.fn(async () => [moment]), handle, source: async () => '/source.mp4', stage: vi.fn() });
+    return (handle.mock.calls[0] as any)[0].editPlan;
+  };
+  it('drops cutaways and stickers when no stock or sticker provider is configured', async () => {
+    vi.stubEnv('PEXELS_API_KEY', ''); vi.stubEnv('PIXABAY_API_KEY', ''); vi.stubEnv('GIPHY_API_KEY', '');
+    expect(await run()).toEqual({ hook: 'The hook', reframe: 'crop', zooms: moment.zooms, broll: undefined, gifs: undefined });
+  });
+  it('keeps them when the providers are configured', async () => {
+    vi.stubEnv('PEXELS_API_KEY', 'k'); vi.stubEnv('GIPHY_API_KEY', 'k');
+    expect(await run()).toMatchObject({ broll: moment.broll, gifs: moment.gifs });
+  });
+  it('reports the gateway reply when no MP4 comes back', async () => {
+    const handle = vi.fn(async () => [{ kind: 'text' as const, text: "couldn't finish that: trim end is past the video" }]);
+    await expect(renderClaim({ ...job, mode: 'edit', prompt: 'trim 0:01 to 0:02' }, new AbortController().signal, { pick: vi.fn(), handle, source: async () => '/source.mp4', stage: vi.fn() }))
+      .rejects.toThrow("Pipeline did not produce one MP4: couldn't finish that: trim end is past the video");
+  });
 });

@@ -40,7 +40,9 @@ export async function renderClaim(job: ClaimedJob, signal: AbortSignal, deps: Pi
       const [moment] = await deps.pick(source, 1, signal);
       if (!moment) throw Error('No moment found');
       text = url ? `clip ${url} ${moment.start} to ${moment.end} ${text.replace(url, '')}` : `trim ${moment.start} to ${moment.end} ${text}`;
-      editPlan = { hook: moment.hook, reframe: moment.reframe, broll: moment.broll, gifs: moment.gifs, zooms: moment.zooms };
+      // Strict renders fail on cutaways or stickers they cannot fetch, so keep only what a configured provider can supply.
+      const stock = Boolean(process.env.PEXELS_API_KEY || process.env.PIXABAY_API_KEY), stickers = Boolean(process.env.GIPHY_API_KEY);
+      editPlan = { hook: moment.hook, reframe: moment.reframe, zooms: moment.zooms, broll: stock ? moment.broll : undefined, gifs: stickers ? moment.gifs : undefined };
     }
     if (storedClip) text = `${text} captions`;
   }
@@ -52,6 +54,9 @@ export async function renderClaim(job: ClaimedJob, signal: AbortSignal, deps: Pi
     attachmentPath, isPro: job.isPro, confirmedOwnership: true, editPlan });
   signal.throwIfAborted();
   const files = replies.filter((reply): reply is Extract<Reply, {kind: 'file'}> => reply.kind === 'file');
-  if (files.length !== 1 || !files[0].filePath.endsWith('.mp4')) throw Error('Pipeline did not produce one MP4');
+  if (files.length !== 1 || !files[0].filePath.endsWith('.mp4')) {
+    const said = replies.filter((reply): reply is Extract<Reply, {kind: 'text'}> => reply.kind === 'text').map(reply => reply.text).join(' | ');
+    throw Error(`Pipeline did not produce one MP4${said ? `: ${said.slice(0, 200)}` : ''}`);
+  }
   return files[0].filePath;
 }
