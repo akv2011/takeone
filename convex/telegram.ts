@@ -169,7 +169,7 @@ export const receive = internalMutation({ args: { update: v.any() }, handler: as
     // Acknowledge it to Telegram instead of silently retrying a full queue.
     // Unexpected failures must still abort the whole mutation.
     if (error instanceof ConvexError && error.data === 'QUEUE_FULL') return reply(ctx, chatId, 'The video queue is full. No generation was used. Please resend your request in a few minutes.');
-    if (error instanceof ConvexError && typeof error.data === 'object' && error.data !== null && 'code' in error.data && error.data.code === 'RENDER_UNAVAILABLE') return reply(ctx, chatId, String(error.data.message));
+    if (error instanceof ConvexError && typeof error.data === 'object' && error.data !== null && 'code' in error.data && ['RENDER_UNAVAILABLE', 'FREE_DAILY_CAP'].includes(String(error.data.code))) return reply(ctx, chatId, String(error.data.message));
     throw error;
   }
   return reply(ctx, chatId, restyle ? 'Caption edit queued as a new version using one generation. Existing audio and source-embedded text stay. Your caption and music defaults are unchanged. I will send it here when ready.' : editSource ? 'Edit queued as a new version using one generation. Existing captions and audio are retained; your /captions and /music defaults are not reapplied. I will send it here when ready.' : 'Queued. I will send the finished video here; you can also check your dashboard.');

@@ -488,3 +488,14 @@ test.each(['STOCK_VIDEO_ENABLED', 'MANAGED_RENDERING_PAUSED'])('%s unavailabilit
  await receive(t, 3, 'A reel about mountains');
  expect(await t.run(ctx => ctx.db.query('genJobs').collect())).toHaveLength(1);
 });
+test('a spent free daily cap replies with tomorrow guidance without a job or debit', async () => {
+ vi.stubEnv('FREE_DAILY_RENDER_CAP', '1');
+ const { t, link } = await setup();
+ await receive(t, 1, `/link ${link.code}`);
+ await t.run(ctx => ctx.db.insert('genJobs', { userId: 'other-user', mode: 'generate', prompt: 'A free video', status: 'done', reservation: 'free', createdAt: Date.now() }));
+ await receive(t, 2, 'A reel about mountains');
+ const replies = await t.run(ctx => ctx.db.query('telegramMessages').collect());
+ expect(JSON.stringify(replies.map(row => row.text))).toContain("Today's free renders are used up. Try again tomorrow.");
+ expect(await t.run(ctx => ctx.db.query('genJobs').withIndex('by_user', q => q.eq('userId', 'u1')).collect())).toHaveLength(0);
+ expect((await t.run(ctx => ctx.db.query('users').first()))?.freeUsed).toBe(0);
+});

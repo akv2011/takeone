@@ -79,3 +79,10 @@ describe('queue/executor', () => {
     for (const r of results) if (r.outputPath) await cleanupOutput(r.outputPath);
   });
 });
+
+it('copies captionLanguage from the executor options into the job ctx', async () => {
+  const seen: (string | undefined)[] = [];
+  const ex = createExecutor({ runOp: async () => ({ outputPath: '' }), prepare: async (_job, ctx) => { seen.push(ctx.captionLanguage); return { ops: [] }; } }, { captionLanguage: 'hi' });
+  await ex.enqueue(job('lang', 'u-lang', []));
+  expect(seen).toEqual(['hi']);
+});

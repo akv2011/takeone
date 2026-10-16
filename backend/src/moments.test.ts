@@ -35,3 +35,13 @@ test('missing Gemini configuration fails before any subtitle download', async ()
   await expect(pickMoments({ youtubeUrl: 'https://youtu.be/abc' }, 1)).rejects.toThrow('GEMINI_MODEL');
   expect(spawn).not.toHaveBeenCalled();
 });
+// Captured from the pre-change prompt builder: an unset language must send it byte for byte.
+const MOMENTS_PROMPT = "Watch the whole video above, frames and audio together. Pick the 1 BEST 15-30 second segments for viral vertical shorts (punchlines, roasts, high-energy or surprising moments). Segments must not overlap.\nFor each segment also produce a mini edit plan:\n- \"reframe\": \"crop\" if one person talking is the focus, \"fit\" if the wide frame matters (on-screen text, gameplay, multiple people spread out).\n- \"broll\": 0-2 cutaway windows where stock footage of what is being SAID would boost retention (never cover the punchline; 2-4s each). Use absolute video seconds and 2-4 concrete stock-search keywords.\n- \"gifs\": 0-1 reaction-sticker moments (a joke landing, a shocking claim) with a short GIPHY search query like \"mind blown\" or \"laughing\".\n- \"zooms\": 0-2 punch-in moments on the most emphatic words (1-2s each).\nReply as JSON: {\"moments\":[{\"start_sec\":int,\"end_sec\":int,\"hook\":\"<=6 word overlay\",\"reframe\":\"crop\"|\"fit\",\"broll\":[{\"at_sec\":int,\"dur_sec\":int,\"keywords\":[\"...\"]}],\"gifs\":[{\"at_sec\":int,\"dur_sec\":int,\"query\":\"...\"}],\"zooms\":[{\"at_sec\":int,\"dur_sec\":int}]}]}";
+test.each([
+  [undefined, MOMENTS_PROMPT],
+  ['hi', `${MOMENTS_PROMPT}\nWrite each hook in Hindi.`],
+] as const)('moment prompt with caption language %s', async (language, prompt) => {
+  const fetcher = vi.fn(async (_url: string, _init: RequestInit) => answer({ moments: [moment] })); vi.stubGlobal('fetch', fetcher);
+  await pickMoments({ gcsUri: 'gs://bucket/videos/u/j.mp4' }, 1, undefined, language);
+  expect(JSON.parse(fetcher.mock.calls[0][1].body as string).contents[0].parts[1].text).toBe(prompt);
+});

@@ -1,7 +1,9 @@
 import { convexTest } from 'convex-test';
 import { beforeEach, afterEach, expect, test, vi } from 'vitest';
 import { makeFunctionReference as ref } from 'convex/server';
+import { ConvexError } from 'convex/values';
 import schema from '../convex/schema';
+import { freeDailyRenderCap } from '../convex/config';
 const modules = import.meta.glob('../convex/**/*.ts');
 const fn = (name: string) => ref<'mutation'>(`generate:${name}`);
 const outputMetadata = { mediaDurationMs: 1_000, mediaWidth: 1080, mediaHeight: 1920, mediaHasAudio: true };
@@ -301,4 +303,62 @@ test.each([
  expect(await claim(t, jobId)).toBeNull();
  expect(await t.run(ctx => ctx.db.get(jobId))).toEqual(before);
  expect((await t.run(ctx => ctx.db.query('users').first()))?.freeUsed).toBe(1);
+});
+
+const account = (t: ReturnType<typeof convexTest>, user: string) => t.run(ctx => ctx.db.query('users').withIndex('by_token', q => q.eq('tokenIdentifier', user)).unique());
+test('caption language is stored on the job, guards its request ID, and reaches the worker claim', async () => {
+ const t = await setup(2); const actor = t.withIdentity({ subject: 'u0' });
+ const args = { mode: 'generate', prompt: 'A reel about space', aspect: '9:16', requestId: 'language-request-1', captionLanguage: 'hi' };
+ const { jobId } = await actor.mutation(fn('requestGeneration'), args);
+ expect((await t.run(ctx => ctx.db.get(jobId)))?.captionLanguage).toBe('hi');
+ await expect(actor.mutation(fn('requestGeneration'), { ...args, captionLanguage: 'ta' })).rejects.toThrow('REQUEST_CONTENT_CONFLICT');
+ const { captionLanguage: _hi, ...unset } = args;
+ await expect(actor.mutation(fn('requestGeneration'), unset)).rejects.toThrow('REQUEST_CONTENT_CONFLICT');
+ const plain = await submit(t, 'u1');
+ expect(await t.run(ctx => ctx.db.get(plain.jobId))).not.toHaveProperty('captionLanguage');
+ await pump(t);
+ expect((await claim(t, jobId)).captionLanguage).toBe('hi');
+ expect((await claim(t, plain.jobId)).captionLanguage).toBeUndefined();
+ expect((await account(t, 'u0'))?.freeUsed).toBe(1);
+});
+test('unlisted caption languages and AI caption languages reject before billing', async () => {
+ const t = await setup(); const actor = t.withIdentity({ subject: 'u0' });
+ const args = { mode: 'generate', prompt: 'A reel about space', requestId: 'bad-language-request' };
+ await expect(actor.mutation(fn('requestGeneration'), { ...args, captionLanguage: 'xx' })).rejects.toThrow();
+ vi.stubEnv('AI_VIDEO_ENABLED', 'true');
+ await expect(actor.mutation(fn('requestGeneration'), { ...args, generationKind: 'ai', captionLanguage: 'hi' })).rejects.toThrow('AI_CAPTIONS_UNAVAILABLE');
+ expect(await t.run(ctx => ctx.db.query('genJobs').collect())).toEqual([]);
+ expect((await account(t, 'u0'))?.freeUsed).toBe(0);
+});
+
+test('free daily render cap reads a whole non-negative number and otherwise defaults to 150', () => {
+ for (const [raw, cap] of [[undefined, 150], ['0', 0], [' 7 ', 7], ['abc', 150], ['-1', 150], ['1.5', 150], ['', 150]] as const) {
+  expect(freeDailyRenderCap(raw === undefined ? {} : { FREE_DAILY_RENDER_CAP: raw }), `FREE_DAILY_RENDER_CAP=${String(raw)}`).toBe(cap);
+ }
+});
+test('free renders stop at the UTC daily cap without blocking retries or paid renders, then reopen the next day', async () => {
+ const dayStart = Date.UTC(2026, 9, 17); vi.setSystemTime(dayStart + 12 * 3_600_000);
+ vi.stubEnv('FREE_DAILY_RENDER_CAP', '2');
+ const t = await setup(4);
+ await t.run(async ctx => {
+  const payer = await ctx.db.query('users').withIndex('by_token', q => q.eq('tokenIdentifier', 'u3')).unique();
+  await ctx.db.patch(payer!._id, { freeUsed: 3, credits: 5 });
+  // Neither yesterday's free render nor today's paid render may count toward today's free cap.
+  await ctx.db.insert('genJobs', { userId: 'earlier', mode: 'generate', prompt: 'Yesterday free video', status: 'done', reservation: 'free', createdAt: dayStart - 1 });
+  await ctx.db.insert('genJobs', { userId: 'payer', mode: 'generate', prompt: 'Paid video', status: 'done', reservation: 'credit', createdAt: dayStart + 1 });
+ });
+ const first = await submit(t, 'u0', 'cap-request-0');
+ expect(first.billing).toBe('free');
+ expect((await submit(t, 'u1', 'cap-request-1')).billing).toBe('free');
+ const capped = await submit(t, 'u2', 'cap-request-2').catch(error => error);
+ expect(capped).toBeInstanceOf(ConvexError);
+ expect(capped.data).toEqual({ code: 'FREE_DAILY_CAP', message: "Today's free renders are used up. Try again tomorrow. No allowance was used." });
+ expect(await t.run(ctx => ctx.db.query('genJobs').withIndex('by_user', q => q.eq('userId', 'u2')).collect())).toEqual([]);
+ expect((await account(t, 'u2'))?.freeUsed).toBe(0);
+ expect(await submit(t, 'u0', 'cap-request-0')).toEqual(first);
+ expect(await submit(t, 'u3', 'cap-request-3')).toMatchObject({ billing: 'credit' });
+ expect(await account(t, 'u3')).toMatchObject({ freeUsed: 3, credits: 4 });
+ vi.setSystemTime(dayStart + 86_400_000 + 1_000);
+ expect(await submit(t, 'u2', 'cap-request-2')).toMatchObject({ billing: 'free' });
+ expect((await account(t, 'u2'))?.freeUsed).toBe(1);
 });

@@ -234,3 +234,68 @@ test('expiry processes bounded pending sessions and preserves ready sources used
  expect((await t.run(ctx => ctx.db.get(jobId)))?.sourceStorageId).toBe(storageId);
  await expect(actor.mutation(ref<'mutation'>('uploads:finish'), { uploadId: ids[0], storageId })).rejects.toThrow('UPLOAD_EXPIRED');
 });
+
+const requestEdit = ref<'mutation'>('uploads:requestEdit');
+const freeUsed = (t: ReturnType<typeof convexTest>, user = 'u1') => t.run(ctx => ctx.db.query('users').withIndex('by_token', q => q.eq('tokenIdentifier', user)).unique()).then(u => u?.freeUsed);
+const allJobs = (t: ReturnType<typeof convexTest>) => t.run(ctx => ctx.db.query('genJobs').collect());
+async function readyUpload() {
+  // Frozen timers keep scheduled probe and render dispatch from reaching the network.
+  vi.useFakeTimers();
+  const ready = await setup();
+  await ready.actor.mutation(ref<'mutation'>('uploads:finish'), { uploadId: ready.session.uploadId, storageId: ready.storageId });
+  await completeProbe(ready.t, ready.session.uploadId, ready.storageId);
+  const clip = { uploadId: ready.session.uploadId, mode: 'clip', aspect: '1:1', confirmedOwnership: true, requestId: 'upload-clip-0001' };
+  return { ...ready, clip };
+}
+
+test('upload clip queues one picked-moment job from the upload, replays exactly, and cannot be reused as an ordinary edit', async () => {
+  const { t, actor, storageId, clip } = await readyUpload();
+  const args = { ...clip, captionLanguage: 'ta' };
+  const first = await actor.mutation(requestEdit, args);
+  expect(first.billing).toBe('free');
+  expect(await t.run(ctx => ctx.db.get(first.jobId))).toMatchObject({
+    userId: 'u1', mode: 'clip', sourceStorageId: storageId, prompt: 'Best moment picked by Gemini', reservation: 'free', captionLanguage: 'ta',
+  });
+  expect(await freeUsed(t)).toBe(1);
+  expect(await actor.mutation(requestEdit, args)).toEqual(first);
+  const { mode: _clip, ...ordinary } = args;
+  await expect(actor.mutation(requestEdit, { ...ordinary, instruction: 'Make this square' })).rejects.toThrow('REQUEST_CONTENT_CONFLICT');
+  expect(await freeUsed(t)).toBe(1);
+  expect(await allJobs(t)).toHaveLength(1);
+});
+
+test('upload clip with an instruction or transforms is ambiguous and reserves nothing', async () => {
+  const { t, actor, clip } = await readyUpload();
+  await expect(actor.mutation(requestEdit, { ...clip, instruction: 'Make this square' })).rejects.toThrow('AMBIGUOUS_EDIT');
+  await expect(actor.mutation(requestEdit, { ...clip, transforms: { fit: 'crop' } })).rejects.toThrow('AMBIGUOUS_EDIT');
+  expect(await allJobs(t)).toEqual([]);
+  expect(await freeUsed(t)).toBe(0);
+});
+
+test('upload clips need only managed rendering while YouTube clips also need ingest', async () => {
+  const { t, actor, clip } = await readyUpload();
+  vi.stubEnv('YOUTUBE_INGEST_ENABLED', 'false');
+  const { jobId } = await actor.mutation(requestEdit, clip);
+  expect((await t.run(ctx => ctx.db.get(jobId)))?.mode).toBe('clip');
+  await expect(actor.mutation(ref<'mutation'>('generate:requestGeneration'), {
+    mode: 'clip', prompt: 'Clip https://youtube.com/watch?v=test', confirmedOwnership: true, aspect: '9:16', requestId: 'youtube-clip-0001',
+  })).rejects.toMatchObject({ data: { code: 'RENDER_UNAVAILABLE' } });
+  expect(await allJobs(t)).toHaveLength(1);
+  expect(await freeUsed(t)).toBe(1);
+});
+
+test('paused managed rendering rejects an upload clip without a debit', async () => {
+  const { t, actor, clip } = await readyUpload();
+  vi.stubEnv('MANAGED_RENDERING_PAUSED', 'true');
+  await expect(actor.mutation(requestEdit, clip)).rejects.toMatchObject({ data: { code: 'RENDER_UNAVAILABLE' } });
+  expect(await allJobs(t)).toEqual([]);
+  expect(await freeUsed(t)).toBe(0);
+});
+
+test("another user's upload cannot be clipped", async () => {
+  const { t, clip } = await readyUpload();
+  await t.run(ctx => ctx.db.insert('users', { tokenIdentifier: 'u2', freeUsed: 0, credits: 0 }));
+  await expect(t.withIdentity({ subject: 'u2' }).mutation(requestEdit, clip)).rejects.toThrow('UPLOAD_NOT_READY');
+  expect(await allJobs(t)).toEqual([]);
+  expect(await freeUsed(t, 'u2')).toBe(0);
+});

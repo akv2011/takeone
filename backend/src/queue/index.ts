@@ -22,6 +22,7 @@ export interface ExecutorOptions {
   onRenderStage?: import('../managed/progress.js').ReportProgress;
   onCaptionLayer?: (inputPath: string, caption: Extract<Op, { op: 'captions' }>, followingOps: Op[], ctx: JobCtx) => Promise<void>;
   strictMedia?: boolean;
+  captionLanguage?: import('../languages.js').CaptionLanguage;
   signal?: AbortSignal;
   maxConcurrent?: number;   // default cores - 1
   maxQueueDepth?: number;   // default 20
@@ -52,7 +53,7 @@ export function createExecutor(deps: ExecutorDeps, opts: ExecutorOptions = {}) {
     opts.signal?.addEventListener('abort', externalAbort, { once: true });
     if (opts.signal?.aborted) controller.abort();
     const timer = setTimeout(() => controller.abort(), job.limits.timeoutSec * 1000);
-    const ctx: JobCtx = { onRenderStage: opts.onRenderStage, onScenePlan: opts.onScenePlan, strictMedia: opts.strictMedia, tmpDir: work, isPro: job.isPro, signal: controller.signal };
+    const ctx: JobCtx = { onRenderStage: opts.onRenderStage, onScenePlan: opts.onScenePlan, strictMedia: opts.strictMedia, tmpDir: work, isPro: job.isPro, signal: controller.signal, captionLanguage: opts.captionLanguage };
     let current = job.source.path;                  // undefined for mode 'generate'
     let ops = job.ops;
     let uncaptionedInput: string | undefined;

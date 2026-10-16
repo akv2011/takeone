@@ -5,7 +5,7 @@ declare const process: { env: Record<string, string | undefined> };
 import { internalMutationGeneric as internalMutation, internalActionGeneric as internalAction, makeFunctionReference as ref } from 'convex/server';
 import { v, ConvexError } from 'convex/values';
 import { resolveOwnedMusic } from './music';
-import { FREE_LIMIT } from './config';
+import { FREE_LIMIT, freeDailyRenderCap } from './config';
 
 export const renderingPaused = () => process.env.MANAGED_RENDERING_PAUSED === 'true';
 export const MAX_ACTIVE = 10;
@@ -33,7 +33,7 @@ export async function owner(ctx: any) {
 }
 // Compare render inputs only; leases, output paths and billing evolve after admission.
 function submissionContent(input: any) {
-  const fields = ['speakerReframe', 'hookTitle', 'mode', 'captionTransform', 'captionFont', 'captionPosition', 'captionStyle', 'captionTexts', 'sourceStorageKey', 'sourceCaptionStorageKey', 'sourceStorageId', 'telegramFileId', 'telegramChatId', 'parentJobId', 'rootJobId', 'projectId', 'projectRevisionId'];
+  const fields = ['speakerReframe', 'hookTitle', 'mode', 'captionTransform', 'captionFont', 'captionPosition', 'captionStyle', 'captionLanguage', 'captionTexts', 'sourceStorageKey', 'sourceCaptionStorageKey', 'sourceStorageId', 'telegramFileId', 'telegramChatId', 'parentJobId', 'rootJobId', 'projectId', 'projectRevisionId'];
   const result: Record<string, unknown> = { prompt: input.prompt.trim(), aspect: input.aspect ?? '9:16', generationKind: input.generationKind ?? 'stock' };
   for (const field of fields) result[field] = input[field];
   // Canonical key ordering avoids request conflicts after Convex serialization.
@@ -66,7 +66,7 @@ export async function enqueue(ctx: any, user: any, input: any) {
   const capabilities = productCapabilities(process.env);
   const capability = input.mode === 'generate'
     ? (input.generationKind === 'ai' ? capabilities.aiVideo : capabilities.stockVideo)
-    : input.mode === 'clip' ? capabilities.youtubeClips : capabilities.rendering;
+    : input.mode === 'clip' && !input.sourceStorageId ? capabilities.youtubeClips : capabilities.rendering;
   if (!capability.available) throw new ConvexError({ code: "RENDER_UNAVAILABLE", message: `${capability.reason} No allowance was used.` });
   const brand = await resolveBrand(ctx, user.tokenIdentifier, input.brandKit);
   if (brand && input.generationKind === 'ai') throw new ConvexError('AI_BRAND_UNAVAILABLE');
@@ -77,6 +77,13 @@ export async function enqueue(ctx: any, user: any, input: any) {
   if (queued.length >= 1000) throw new ConvexError('QUEUE_FULL');
   const reservation = user.freeUsed < FREE_LIMIT ? 'free' : 'credit';
   if (reservation === 'credit' && user.credits < 1) throw new ConvexError({ code: 'NO_CREDITS' });
+  if (reservation === 'free') {
+    const cap = freeDailyRenderCap(process.env), dayStart = Math.floor(Date.now() / 86_400_000) * 86_400_000;
+    // ponytail: an index scan bounded by the cap; move to a per-day counter row if the cap grows past about a thousand.
+    if (cap === 0 || (await ctx.db.query('genJobs').withIndex('by_reservation_created', (q: any) => q.eq('reservation', 'free').gte('createdAt', dayStart)).take(cap)).length >= cap) {
+      throw new ConvexError({ code: 'FREE_DAILY_CAP', message: "Today's free renders are used up. Try again tomorrow. No allowance was used." });
+    }
+  }
   await ctx.db.patch(user._id, reservation === 'free' ? { freeUsed: user.freeUsed + 1 } : { credits: user.credits - 1 });
   const jobId = await ctx.db.insert('genJobs', {
     ...input, brand: brand ?? input.brand, ...(brand ? { captionStyle: brand.captionStyle, captionFont: brand.font } : {}), music, musicStorageId: music?.storageId, prompt: input.prompt.trim(), userId: user.tokenIdentifier, reservation,

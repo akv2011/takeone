@@ -122,3 +122,22 @@ it.each(['TTS_VOICE', 'TTS_LANGUAGE'])('narration without %s fails closed before
   await expect(synthesizeNarration('Hello there.', join(dir, 'voice'))).rejects.toThrow(`${missing} is required`);
   expect(fetcher).not.toHaveBeenCalled(); expect(getAccessToken).not.toHaveBeenCalled();
 });
+
+it.each([
+  [undefined, { languageCode: 'en-US', name: 'en-US-Chirp3-HD-Charon' }],
+  ['hi', { languageCode: 'hi-IN', name: 'hi-IN-Chirp3-HD-Charon' }],
+] as const)('narration with caption language %s sends voice %j', async (language, expected) => {
+  vi.stubEnv('TTS_VOICE', voice.voiceName); vi.stubEnv('TTS_LANGUAGE', voice.languageCode);
+  const fetcher = vi.fn(async (_url: string, _init: RequestInit) => Response.json({ audioContent: mp3.toString('base64') }));
+  vi.stubGlobal('fetch', fetcher);
+  await synthesizeNarration('नमस्ते दुनिया।', join(dir, 'voice'), undefined, language);
+  expect(fetcher).toHaveBeenCalledOnce();
+  expect(JSON.parse(fetcher.mock.calls[0][1].body as string)).toEqual({ input: { text: 'नमस्ते दुनिया।' }, voice: expected, audioConfig: { audioEncoding: 'MP3' } });
+});
+
+it('a voice with no counterpart in the caption language fails closed before credentials or network', async () => {
+  vi.stubEnv('TTS_VOICE', 'en-US-Neural2-A'); vi.stubEnv('TTS_LANGUAGE', 'en-US');
+  const fetcher = vi.fn(); vi.stubGlobal('fetch', fetcher); getAccessToken.mockClear();
+  await expect(synthesizeNarration('வணக்கம் உலகம்', join(dir, 'voice'), undefined, 'ta')).rejects.toThrow('No Tamil narration voice: TTS_VOICE must be a Chirp 3 HD voice');
+  expect(fetcher).not.toHaveBeenCalled(); expect(getAccessToken).not.toHaveBeenCalled();
+});

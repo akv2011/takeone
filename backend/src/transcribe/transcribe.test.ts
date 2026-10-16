@@ -96,3 +96,20 @@ it('Japanese and Thai words come back as unspaced cue text, Latin and Korean kee
   expect(th.words).toEqual([{ text: 'สวัสดีครับ', start: 0, end: 0.6 }]);
   expect(parseSpeech(speech([word('안녕하세요', '0s', '0.5s'), word('여러분', '0.5s', '1s')])).srt).toContain('\n안녕하세요 여러분\n');
 });
+
+it('returns the language Speech-to-Text detected for the first result with words', () => {
+  const json = { results: [
+    { languageCode: 'fr-fr', resultEndOffset: '1s' },
+    { alternatives: [{ transcript: 'hello', words: [word('hello', '1s', '1.5s')] }], languageCode: 'cmn-hans-cn', resultEndOffset: '2s' },
+    { alternatives: [{ transcript: 'again', words: [word('again', '2s', '2.5s')] }], languageCode: 'en-us', resultEndOffset: '3s' },
+  ] };
+  expect(parseSpeech(json).language).toBe('cmn-hans-cn');
+  const zeroDuration = { ...speech([word('hi', '0s', '0s'), word('there', '0.5s', '1s')]).results[0], languageCode: 'hi-in' };
+  expect(parseSpeech({ results: [zeroDuration] }).language).toBe('hi-in');
+});
+
+it.each([undefined, 7, '', 'en_US', 'english', 'en-us<script>', ['en-us']])('omits a missing or malformed language tag %j', languageCode => {
+  const result = parseSpeech({ results: [{ ...speech([word('hi', '0s', '0.5s')]).results[0], languageCode }] });
+  expect(result).not.toHaveProperty('language');
+  expect(result.words).toEqual([{ text: 'hi', start: 0, end: 0.5 }]);
+});

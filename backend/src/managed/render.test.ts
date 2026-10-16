@@ -87,9 +87,23 @@ test.each([false, true])('clip highlight selection is recorded only for automati
 test('a stored clip sends its bucket object to moment picking and rejects foreign keys', async () => {
   const { render, stages } = setup();
   await render({ ...base, mode: 'clip', prompt: 'best moment', sourceStorageKey: 'videos/u/upload.mp4' }, new AbortController().signal);
-  expect(mocks.pick).toHaveBeenCalledWith({ gcsUri: 'gs://configured/videos/u/upload.mp4' }, 1, expect.any(AbortSignal));
+  expect(mocks.pick).toHaveBeenCalledWith({ gcsUri: 'gs://configured/videos/u/upload.mp4' }, 1, expect.any(AbortSignal), undefined);
   expect(stages).toEqual(['moments', 'source', 'checking']);
   await expect(render({ ...base, mode: 'clip', prompt: 'best moment', sourceStorageKey: '../other/x.mp4' }, new AbortController().signal)).rejects.toThrow('Invalid source key');
+});
+test.each(['fr', 'toString', null])('a claim with caption language %j is rejected before any download', async captionLanguage => {
+  const { render, stages } = setup();
+  await expect(render({ ...base, mode: 'clip', prompt: 'best moment', sourceStorageKey: 'videos/u/upload.mp4', captionLanguage: captionLanguage as never }, new AbortController().signal)).rejects.toThrow('Unsupported caption language');
+  expect(stages).toEqual([]);
+  expect(mocks.download).not.toHaveBeenCalled(); expect(mocks.pick).not.toHaveBeenCalled(); expect(createTakeOne).not.toHaveBeenCalled();
+});
+test('a listed caption language reaches the executor and both moment sources', async () => {
+  const { render } = setup();
+  await render({ ...base, mode: 'clip', prompt: 'best moment', sourceStorageKey: 'videos/u/upload.mp4', captionLanguage: 'hi' }, new AbortController().signal);
+  expect(vi.mocked(createTakeOne).mock.lastCall![0]!.executor!.captionLanguage).toBe('hi');
+  expect(mocks.pick).toHaveBeenLastCalledWith({ gcsUri: 'gs://configured/videos/u/upload.mp4' }, 1, expect.any(AbortSignal), 'hi');
+  await render({ ...base, mode: 'clip', prompt: 'https://youtu.be/abc123', captionLanguage: 'ta' }, new AbortController().signal);
+  expect(mocks.pick).toHaveBeenLastCalledWith({ youtubeUrl: 'https://youtu.be/abc123' }, 1, expect.any(AbortSignal), 'ta');
 });
 function uploadSetup() {
   vi.stubGlobal('fetch', vi.fn(async () => new Response('uploaded video')));
@@ -114,7 +128,7 @@ test.each([
   expect(ffArgs.slice(0, 4)).toEqual(['-protocol_whitelist', 'file', '-i', '/tmp/source.mp4']);
   expect(ffArgs.join(' ')).toContain(args.join(' ')); expect(ffArgs.at(-1)).toBe('/tmp/gemini-source.mp4');
   expect(mocks.upload).toHaveBeenCalledWith(bucket, [{ path: '/tmp/gemini-source.mp4', key: 'sources/job1.mp4', contentType: 'video/mp4' }], expect.any(AbortSignal), expect.any(Function));
-  expect(mocks.pick).toHaveBeenCalledWith({ gcsUri: 'gs://takeone-bucket/sources/job1.mp4' }, 1, expect.any(AbortSignal));
+  expect(mocks.pick).toHaveBeenCalledWith({ gcsUri: 'gs://takeone-bucket/sources/job1.mp4' }, 1, expect.any(AbortSignal), undefined);
   expect(mocks.handle).toHaveBeenCalledWith(expect.objectContaining({ mode: 'edit', attachmentPath: '/tmp/source.mp4' }));
   expect(stages).toEqual(['moments', 'checking']);
 });
@@ -122,7 +136,7 @@ test('a retried upload clip reuses the copy its earlier attempt made', async () 
   const { render } = uploadSetup();
   mocks.upload.mockRejectedValueOnce(Object.assign(Error('Precondition Failed'), { code: 412 }));
   await render(uploadClip, new AbortController().signal);
-  expect(mocks.pick).toHaveBeenCalledWith({ gcsUri: 'gs://takeone-bucket/sources/job1.mp4' }, 1, expect.any(AbortSignal));
+  expect(mocks.pick).toHaveBeenCalledWith({ gcsUri: 'gs://takeone-bucket/sources/job1.mp4' }, 1, expect.any(AbortSignal), undefined);
 });
 test('an upload clip fails on other copy errors and on a source without video', async () => {
   const { render } = uploadSetup();

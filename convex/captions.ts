@@ -16,6 +16,16 @@ export const captionPositionValidator = v.union(v.literal('auto'), v.literal('to
 
 export const captionFontValidator = v.union(v.literal('sans'), v.literal('serif'), v.literal('mono'));
 
+// Every code has a Cloud Translation target and a Chirp 3 HD voice. backend/src/languages.ts maps
+// each one to those provider codes, and tests/caption-languages.test.ts keeps the two lists equal.
+export const CAPTION_LANGUAGES = [
+  { code: 'en', label: 'English' }, { code: 'hi', label: 'Hindi' }, { code: 'ta', label: 'Tamil' },
+  { code: 'te', label: 'Telugu' }, { code: 'bn', label: 'Bengali' }, { code: 'mr', label: 'Marathi' },
+  { code: 'ja', label: 'Japanese' }, { code: 'ko', label: 'Korean' }, { code: 'zh', label: 'Chinese (Simplified)' },
+  { code: 'th', label: 'Thai' }, { code: 'id', label: 'Indonesian' }, { code: 'vi', label: 'Vietnamese' },
+] as const;
+export const captionLanguageValidator = v.union(...CAPTION_LANGUAGES.map(({ code }) => v.literal(code)));
+
 export function captionTransformSource(source: { cleanStorageKey?: string; captionStorageKey?: string; captionStyle?: string; captionFont?: string; captionPosition?: string }) {
   const archive = captionArchiveSource(source);
   return archive ? { ...archive, captionTransform: true, captionStyle: source.captionStyle,

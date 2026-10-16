@@ -31,6 +31,7 @@ export interface ClaimedJob {
   jobId: string; userId: string; mode: Mode; prompt: string; aspect: '9:16' | '1:1' | '16:9';
   queueWaitMs?: number;
   captionStyle?: 'none' | 'clean' | 'meme' | 'karaoke';
+  captionLanguage?: import('../languages.js').CaptionLanguage;
   generationKind?: 'stock' | 'ai'; aiOperation?: string;
   music?: { storageKey?: string; storageUrl?: string; volume: number; duck: boolean; replaceSourceAudio?: boolean };
   sourceCaptionStorageKey?: string;

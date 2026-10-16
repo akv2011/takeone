@@ -66,7 +66,7 @@ export interface JobResult {
 
 export interface SavedScenePlan { version: 1; durationSec: number; scenes: { startSec: number; endSec: number; purpose: string; searchTerms: string[]; shotType: string; motion: string }[] }
 
-export interface JobCtx { onRenderStage?: import('./managed/progress.js').ReportProgress; onScenePlan?: (plan: SavedScenePlan) => Promise<void>; strictMedia?: boolean; tmpDir: string; isPro: boolean; signal?: AbortSignal; }
+export interface JobCtx { onRenderStage?: import('./managed/progress.js').ReportProgress; onScenePlan?: (plan: SavedScenePlan) => Promise<void>; strictMedia?: boolean; tmpDir: string; isPro: boolean; signal?: AbortSignal; captionLanguage?: import('./languages.js').CaptionLanguage; }
 export interface ChatCtx { userId: string; platform: Platform; attachmentPath?: string; isPro: boolean; mode?: Mode; aspect?: '9:16' | '1:1' | '16:9'; }
 
 // Default per-job limits (safety caps). Overridable per job.
@@ -80,8 +80,8 @@ export interface Ingest {
   ingest(source: JobSpec['source'], limits: JobSpec['limits'], ctx?: JobCtx): Promise<{ path: string; meta: MediaMeta }>;
   probe(path: string, signal?: AbortSignal): Promise<MediaMeta>;
 }
-export interface Transcriber { transcribe(path: string, signal?: AbortSignal): Promise<{ srt: string; words: Word[] }>; }
-export interface ContentOptions { strict?: boolean; signal?: AbortSignal }
+export interface Transcriber { transcribe(path: string, signal?: AbortSignal): Promise<{ srt: string; words: Word[]; language?: string }>; }
+export interface ContentOptions { strict?: boolean; signal?: AbortSignal; language?: import('./languages.js').CaptionLanguage }
 export interface Content {
   brainstorm(topic: string, facts?: string[], options?: ContentOptions): Promise<Angle[]>;
   script(angle: Angle, facts?: string[], options?: ContentOptions): Promise<{ script: string; captions: string }>;

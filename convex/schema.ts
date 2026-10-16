@@ -2,7 +2,7 @@ import { brandSettings, brandSelection } from './brandValues';
 import { savedScenePlanValidator } from './scenePlanValues';
 import { renderProgressValidator } from './renderProgress';
 import { transformsValidator } from './transforms';
-import { captionStyleValidator, captionPositionValidator, captionFontValidator } from './captions';
+import { captionStyleValidator, captionPositionValidator, captionFontValidator, captionLanguageValidator } from './captions';
 import { timelineDocumentValidator } from './timelineValues';
 import { defineSchema, defineTable } from "convex/server";
 import { musicSnapshot, musicSelection } from "./music";
@@ -132,6 +132,7 @@ export default defineSchema({
     userId: v.string(),
     mode: v.string(),
     captionStyle: v.optional(captionStyleValidator),
+    captionLanguage: v.optional(captionLanguageValidator),
     captionTexts: v.optional(v.array(v.string())),
     captionPosition: v.optional(captionPositionValidator),
     captionFont: v.optional(captionFontValidator),
@@ -202,5 +203,6 @@ export default defineSchema({
     .index("by_status_created", ["status", "createdAt"])
     .index("by_status_lease", ["status", "leaseExpiresAt"])
     .index("by_status_reservation", ["status", "reservation"])
+    .index("by_reservation_created", ["reservation", "createdAt"])
     .index("by_user", ["userId"]),
 });

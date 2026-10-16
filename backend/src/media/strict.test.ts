@@ -26,8 +26,13 @@ test.each([[['/voice-0.mp3'], []], [['/voice-0.mp3', '/voice-1.mp3', '/voice-2.m
   vi.mocked(synthesizeNarration).mockResolvedValueOnce(parts);
   const signal = new AbortController().signal;
   const { outputPath } = await mediaCore.runOp('', { op: 'voiceover', script: 'A long script.' }, { ...ctx, signal });
-  expect(synthesizeNarration).toHaveBeenCalledWith('A long script.', expect.stringMatching(/^\/tmp\/strict-test\/tts-/), signal);
+  expect(synthesizeNarration).toHaveBeenCalledWith('A long script.', expect.stringMatching(/^\/tmp\/strict-test\/tts-/), signal, undefined);
   expect(vi.mocked(ff).mock.calls[0]).toEqual([[...parts.flatMap(part => ['-i', part]), ...concat, '-c:a', 'aac', outputPath], signal]);
+});
+test('production narration speaks the caption language', async () => {
+  vi.mocked(synthesizeNarration).mockResolvedValueOnce(['/voice-0.mp3']);
+  await mediaCore.runOp('', { op: 'voiceover', script: 'नमस्ते' }, { ...ctx, captionLanguage: 'hi' });
+  expect(synthesizeNarration).toHaveBeenCalledWith('नमस्ते', expect.stringMatching(/^\/tmp\/strict-test\/tts-/), undefined, 'hi');
 });
 test('a provider failure stops production narration and keeps the cause', async () => {
   vi.mocked(synthesizeNarration).mockRejectedValueOnce(Error('Text-to-Speech rejected the request (403)'));

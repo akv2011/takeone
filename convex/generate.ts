@@ -1,7 +1,7 @@
 import { brandSelection } from './brandValues';
 import { renderStages, renderStageValidator, finishProgress } from './renderProgress';
 import { transformsValidator, normalizeTransforms } from './transforms';
-import { captionStyleValidator, captionPositionValidator, captionFontValidator, captionArchiveSource, captionTransformSource, validCaptionTexts } from './captions';
+import { captionStyleValidator, captionLanguageValidator, captionPositionValidator, captionFontValidator, captionArchiveSource, captionTransformSource, validCaptionTexts } from './captions';
 declare const process: { env: Record<string, string | undefined> };
 import { paginationOptsValidator, queryGeneric as query, internalQueryGeneric as internalQuery, mutationGeneric as mutation, actionGeneric as action, makeFunctionReference as ref } from 'convex/server';
 import { musicSelection } from './music';
@@ -11,10 +11,10 @@ import { hasManagedVideoOutput, hasTrustedMediaMetadata, mediaMetadataArgs, vali
 import { productCapabilities } from './capabilities';
 
 export const requestGeneration = mutation({
-  args: { brandKit: v.optional(brandSelection), captionStyle: v.optional(captionStyleValidator), generationKind: v.optional(v.union(v.literal('stock'), v.literal('ai'))), music: v.optional(musicSelection), mode: modeValidator, prompt: v.string(), requestId: v.string(), aspect: v.optional(aspectValidator), confirmedOwnership: v.optional(v.boolean()) },
+  args: { brandKit: v.optional(brandSelection), captionStyle: v.optional(captionStyleValidator), captionLanguage: v.optional(captionLanguageValidator), generationKind: v.optional(v.union(v.literal('stock'), v.literal('ai'))), music: v.optional(musicSelection), mode: modeValidator, prompt: v.string(), requestId: v.string(), aspect: v.optional(aspectValidator), confirmedOwnership: v.optional(v.boolean()) },
   handler: async (ctx: any, args: any) => {
     const user = await owner(ctx);
-    if (args.generationKind === 'ai' && args.captionStyle !== undefined) throw new ConvexError('AI_CAPTIONS_UNAVAILABLE');
+    if (args.generationKind === 'ai' && (args.captionStyle !== undefined || args.captionLanguage !== undefined)) throw new ConvexError('AI_CAPTIONS_UNAVAILABLE');
     if (args.generationKind === 'ai' && (args.mode !== 'generate' || args.aspect === '1:1')) throw new ConvexError('AI_VIDEO_UNAVAILABLE');
     if (args.mode === 'edit') throw new ConvexError('SELECT_SOURCE_VIDEO');
     if (args.mode === 'clip' && (!args.confirmedOwnership || !/https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\//i.test(args.prompt))) throw new ConvexError('CONFIRM_VIDEO_RIGHTS');
@@ -205,7 +205,7 @@ export const claimJob = mutation({ args: { workerSecret: v.string(), jobId: v.id
   return { sceneReplacement: job.sceneReplacement, timelineExport: job.timelineExport, assemblySources: job.timelineExport ? assemblySources : undefined, queueWaitMs: job.startedAt === undefined ? Math.max(0, Date.now() - job.createdAt) : undefined, jobId: job._id, userId: job.userId, mode: job.mode, prompt: job.prompt, aspect: job.aspect ?? '9:16',
     sourceUploadUrl: job.sourceStorageId ? await ctx.storage.getUrl(job.sourceStorageId) : undefined,
     brand: job.brand ? { ...job.brand, logo: job.brand.logo ? Array.from(new Uint8Array(job.brand.logo)) : undefined } : undefined,
-    speakerReframe: job.speakerReframe, hookTitle: job.hookTitle, transforms: job.transforms, captionTransform: job.captionTransform, captionFont: job.captionFont, captionPosition: job.captionPosition, captionTexts: job.captionTexts, captionStyle: job.captionStyle, sourceCaptionStorageKey: job.sourceCaptionStorageKey, generationKind: job.generationKind, aiOperation: job.aiOperation,
+    speakerReframe: job.speakerReframe, hookTitle: job.hookTitle, transforms: job.transforms, captionTransform: job.captionTransform, captionFont: job.captionFont, captionPosition: job.captionPosition, captionTexts: job.captionTexts, captionStyle: job.captionStyle, captionLanguage: job.captionLanguage, sourceCaptionStorageKey: job.sourceCaptionStorageKey, generationKind: job.generationKind, aiOperation: job.aiOperation,
     music: job.music ? { ...job.music, storageUrl: job.music.storageId ? await ctx.storage.getUrl(job.music.storageId) : undefined } : undefined, sourceStorageKey: job.sourceStorageKey, telegramFileId: job.telegramFileId, telegramChatId: job.telegramChatId,
     isPro: job.reservation === 'credit', leaseToken };
 }});

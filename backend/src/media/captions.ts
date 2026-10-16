@@ -80,7 +80,9 @@ const POP = '\\fad(100,60)\\fscx80\\fscy80\\t(0,110,\\fscx112\\fscy112)\\t(110,2
 // choices apply to Latin only. Kana precedes Han so Japanese with kanji picks JP.
 const SCRIPT_FONTS: [RegExp, string][] = [
   [/\p{Script=Devanagari}/u, 'Noto Sans Devanagari'],
+  [/\p{Script=Bengali}/u, 'Noto Sans Bengali'],
   [/\p{Script=Tamil}/u, 'Noto Sans Tamil'],
+  [/\p{Script=Telugu}/u, 'Noto Sans Telugu'],
   [/\p{Script=Thai}/u, 'Noto Sans Thai'],
   [/[\p{Script=Hiragana}\p{Script=Katakana}]/u, 'Noto Sans CJK JP'],
   [/\p{Script=Hangul}/u, 'Noto Sans CJK KR'],

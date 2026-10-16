@@ -199,7 +199,7 @@ export const mediaCore: MediaCore = {
         const raw = join(ctx.tmpDir, `tts-${Math.random().toString(36).slice(2)}`);
         let parts: string[];
         try {
-          parts = await synthesizeNarration(op.script, raw, sig);
+          parts = await synthesizeNarration(op.script, raw, sig, ctx.captionLanguage);
         } catch (error) {
           sig?.throwIfAborted();
           if (ctx.strictMedia) throw new MediaError('Voice provider failed; narration was not generated', { cause: error });

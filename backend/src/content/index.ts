@@ -4,6 +4,7 @@
 import type { Content, ContentOptions, Angle, Word } from '../types.js';
 import { generateJson, geminiConfigured } from '../gemini.js';
 import { joinWords } from '../media/captions.js';
+import { CAPTION_LANGUAGES, type CaptionLanguage } from '../languages.js';
 
 const SYSTEM = 'You are a short-form video strategist. Be specific, punchy, no fluff.';
 
@@ -37,9 +38,13 @@ const SCRIPT_SCHEMA = {
   type: 'object', properties: { script: { type: 'string' }, captions: { type: 'string' } },
   required: ['script'], propertyOrdering: ['script', 'captions'],
 };
-function parseScript(parsed: any): { script: string; captions: string } {
+// Japanese, Chinese and Thai put no spaces between words, so a set language counts dictionary words.
+const countWords = (script: string, language?: CaptionLanguage) => language
+  ? [...new Intl.Segmenter(language, { granularity: 'word' }).segment(script)].filter(s => s.isWordLike).length
+  : script.split(/\s+/).length;
+function parseScript(parsed: any, language?: CaptionLanguage): { script: string; captions: string } {
   const script = typeof parsed?.script === 'string' ? parsed.script.trim() : '';
-  const words = script.split(/\s+/).length;
+  const words = countWords(script, language);
   if (script.length < 20 || script.length > 2000 || words < 10 || words > 120) throw Error('Script provider returned invalid narration');
   return { script, captions: typeof parsed.captions === 'string' && parsed.captions.trim() ? parsed.captions : script };
 }
@@ -57,7 +62,8 @@ export const content: Content = {
 
   async script(angle: Angle, facts: string[] = [], options: ContentOptions = {}): Promise<{ script: string; captions: string }> {
     const grounding = facts.length ? ` Ground it in: ${facts.slice(0, 3).join(' ')}` : '';
-    const written = await ask(`Write a 45-55 word voiceover script for this angle. Hook first line.${grounding} JSON {script, captions}. Angle: ${JSON.stringify(angle)}`, SCRIPT_SCHEMA, parseScript, options);
+    const language = options.language ? ` Write the script and captions in ${CAPTION_LANGUAGES[options.language].name}.` : '';
+    const written = await ask(`Write a 45-55 word voiceover script for this angle. Hook first line.${grounding} JSON {script, captions}. Angle: ${JSON.stringify(angle)}${language}`, SCRIPT_SCHEMA, value => parseScript(value, options.language), options);
     if (written) return written;
     const fact = facts[0] ? ` ${facts[0]}` : '';
     const script = `${angle.hook}.${fact} ${angle.premise}. here's the part that actually matters, and why most people get it wrong. remember this next time.`;

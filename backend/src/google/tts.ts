@@ -1,6 +1,7 @@
 // Cloud Text-to-Speech: synthesize calls written to disk as MP3, one per request-sized piece of a script.
 import { writeFile } from 'node:fs/promises';
 import { googleJson, requireEnv } from './auth.js';
+import { narrationVoice, type CaptionLanguage } from '../languages.js';
 
 const MAX_INPUT_BYTES = 5000;
 const LANGUAGE_CODE = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})+$/;
@@ -47,9 +48,13 @@ export function narrationChunks(text: string, maxBytes = MAX_INPUT_BYTES): strin
   return chunks;
 }
 
-/** Narrates a script of any length with TTS_VOICE in TTS_LANGUAGE. Returns the MP3 parts in speaking order. */
-export async function synthesizeNarration(script: string, outPrefix: string, signal?: AbortSignal): Promise<string[]> {
-  const voice = { voiceName: requireEnv('TTS_VOICE'), languageCode: requireEnv('TTS_LANGUAGE') };
+/**
+ * Narrates a script of any length with TTS_VOICE in TTS_LANGUAGE, or that voice's counterpart in
+ * `language` when one is set. Returns the MP3 parts in speaking order.
+ */
+export async function synthesizeNarration(script: string, outPrefix: string, signal?: AbortSignal, language?: CaptionLanguage): Promise<string[]> {
+  const configured = { voiceName: requireEnv('TTS_VOICE'), languageCode: requireEnv('TTS_LANGUAGE') };
+  const voice = language ? narrationVoice(language, configured) : configured;
   const chunks = narrationChunks(script);
   if (!chunks.length) throw Error('Narration text is empty');
   const parts: string[] = [];

@@ -7,7 +7,7 @@ import { handleMessage, type GatewayDeps, type Incoming, type Reply } from './ga
 import { mediaCore } from './media/index.js';
 import { ff, ffprobe } from './media/ffmpeg.js';
 import { wordsAtCaption } from './media/timeline.js';
-import { wordsToCues } from './media/captions.js';
+import { joinWords, wordsToCues } from './media/captions.js';
 import { detectFocusX } from './media/focus.js';
 import { ingest } from './ingest/index.js';
 import { transcriber } from './transcribe/index.js';
@@ -17,6 +17,8 @@ import { scenePlanAtOutput } from './content/sceneProjection.js';
 import { renderStockScenes } from './media/scenes.js';
 import { search } from './search/index.js';
 import { data } from './data/index.js';
+import { translateCues } from './google/translate.js';
+import { CAPTION_LANGUAGES, sameLanguage } from './languages.js';
 import type { JobSpec, JobCtx, Op } from './types.js';
 
 export async function prepare(job: JobSpec, ctx: JobCtx): Promise<{ inputPath?: string; ops: Op[] }> {
@@ -27,7 +29,7 @@ export async function prepare(job: JobSpec, ctx: JobCtx): Promise<{ inputPath?: 
     const topic = job.source.topic ?? '';
     const research = await search(topic);                 // Linkup: live facts to ground the reel
     ctx.signal?.throwIfAborted();
-    const contentOptions = { strict: ctx.strictMedia, signal: ctx.signal };
+    const contentOptions = { strict: ctx.strictMedia, signal: ctx.signal, language: ctx.captionLanguage };
     const angles = await content.brainstorm(topic, research.facts, contentOptions);
     ctx.signal?.throwIfAborted();
     const { script } = await content.script(angles[0], research.facts, contentOptions);
@@ -91,12 +93,19 @@ export async function prepare(job: JobSpec, ctx: JobCtx): Promise<{ inputPath?: 
   if (cap && path) {
     await ctx.onRenderStage?.('transcription');
     try {
-      const { words } = await transcriber.transcribe(path, ctx.signal);
+      const { words, language } = await transcriber.transcribe(path, ctx.signal);
       if (ctx.strictMedia && !words.length) throw new Error('Transcription returned no speech');
-      const text = await content.captionText(words, (cap as any).style);
       const upper = (cap as any).style === 'meme';
       const alignedWords = wordsAtCaption(words, ops.slice(0, ops.indexOf(cap)));
-      const cues = wordsToCues(alignedWords, 3).map((c) => (upper ? { ...c, text: c.text.toUpperCase() } : c));
+      let cues = wordsToCues(alignedWords, 3);
+      let text: string;
+      const target = ctx.captionLanguage;
+      if (target && !sameLanguage(language, target)) {
+        cues = await translateCues(cues, CAPTION_LANGUAGES[target].translate, ctx.signal);
+        text = joinWords(cues.map((c) => c.text));
+        if (upper) text = text.toUpperCase();
+      } else text = await content.captionText(words, (cap as any).style);
+      cues = cues.map((c) => (upper ? { ...c, text: c.text.toUpperCase() } : c));
       ops = ops.map((o) => (o === cap ? { ...o, text, cues } : o));
     } catch (error) { if (ctx.strictMedia) throw error; /* Offline harness permits a caption placeholder. */ }
   }

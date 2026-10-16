@@ -10,6 +10,8 @@ const line = (ass: string) => ass.split('\n').find(l => l.startsWith('Dialogue')
 it('picks a Noto family by script, kana before Han', () => {
   expect(scriptFont('नमस्ते दुनिया')).toBe('Noto Sans Devanagari');
   expect(scriptFont('வணக்கம்')).toBe('Noto Sans Tamil');
+  expect(scriptFont('বাংলা ভাষা')).toBe('Noto Sans Bengali');
+  expect(scriptFont('తెలుగు భాష')).toBe('Noto Sans Telugu');
   expect(scriptFont('สวัสดี')).toBe('Noto Sans Thai');
   expect(scriptFont('こんにちは世界')).toBe('Noto Sans CJK JP');
   expect(scriptFont('世界')).toBe('Noto Sans CJK SC');

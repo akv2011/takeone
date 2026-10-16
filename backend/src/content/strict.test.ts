@@ -43,3 +43,20 @@ test('a lost worker lease aborts an in-flight script provider request', async ()
  await expect(result).rejects.toThrow('lease lost');
 });
 
+// Captured from the pre-change prompt builder: an unset language must send it byte for byte.
+const SCRIPT_PROMPT = 'Write a 45-55 word voiceover script for this angle. Hook first line. Ground it in: Fact one. JSON {script, captions}. Angle: {"hook":"Watch the sunrise","premise":"Light changes the mountain view","whyViral":"A clear visual story"}';
+test.each([
+  [undefined, SCRIPT_PROMPT],
+  ['ja', `${SCRIPT_PROMPT} Write the script and captions in Japanese.`],
+] as const)('script prompt with caption language %s', async (language, prompt) => {
+ const fetcher = vi.fn().mockResolvedValue(response({ script })); vi.stubGlobal('fetch', fetcher);
+ expect(await content.script(angle, ['Fact one.'], { strict: true, language })).toEqual({ script, captions: script });
+ expect(JSON.parse(fetcher.mock.calls[0][1].body).contents[0].parts[0].text).toBe(prompt);
+});
+test('a Japanese script without spaces is counted in dictionary words only when the language is set', async () => {
+ const japanese = '朝の光が山の稜線を照らし始めると、影はゆっくりと谷の奥へ退いていきます。毎朝同じ景色なのに、少しずつ表情が変わりますね。';
+ expect([...japanese]).toHaveLength(60); expect(japanese).not.toMatch(/\s/);
+ vi.stubGlobal('fetch', vi.fn(async () => response({ script: japanese })));
+ expect((await content.script(angle, [], { strict: true, language: 'ja' })).script).toBe(japanese);
+ await expect(content.script(angle, [], { strict: true })).rejects.toThrow('invalid narration');
+});

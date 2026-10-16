@@ -12,3 +12,8 @@ export const PACKS = [
 
 export type PackId = (typeof PACKS)[number]["id"];
 export const packById = (id: string) => PACKS.find((p) => p.id === id);
+
+export function freeDailyRenderCap(env: Record<string, string | undefined>): number {
+  const raw = env.FREE_DAILY_RENDER_CAP?.trim() ?? "";
+  return /^\d+$/.test(raw) && Number.isSafeInteger(Number(raw)) ? Number(raw) : 150;
+}

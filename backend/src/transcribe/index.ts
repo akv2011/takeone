@@ -7,19 +7,22 @@ import { recognizeSpeech } from '../google/speech.js';
 export class TranscribeError extends Error {}
 
 const invalidWord = () => new TranscribeError('Invalid transcription timing or text');
+const LANGUAGE_TAG = /^[a-z]{2,3}(-[a-z0-9]{2,8})*$/i;
 
 // proto Duration JSON such as "3.5s". Anything else is NaN so the finite checks reject it.
 function seconds(value: unknown): number {
   return typeof value === 'string' && /^\d+(\.\d{1,9})?s$/.test(value) ? Number(value.slice(0, -1)) : NaN;
 }
 
-// pure: BatchRecognizeResults -> { srt, words }
-export function parseSpeech(json: unknown): { srt: string; words: Word[] } {
+// pure: BatchRecognizeResults -> { srt, words, language? }. language is the tag Speech-to-Text detected
+// for the first result with words, such as "en-us" or "cmn-hans-cn".
+export function parseSpeech(json: unknown): { srt: string; words: Word[]; language?: string } {
   if (!json || typeof json !== 'object') throw new TranscribeError('Invalid transcription response');
   const { results = [] } = json as { results?: unknown };
   if (!Array.isArray(results)) throw new TranscribeError('Invalid transcription response');
   const words: Word[] = [];
   let duration: number | undefined;
+  let tag: unknown;
   for (const result of results) {
     if (!result || typeof result !== 'object' || (result.alternatives !== undefined && !Array.isArray(result.alternatives))) throw new TranscribeError('Invalid transcription response');
     const resultEnd = seconds(result.resultEndOffset);
@@ -30,6 +33,7 @@ export function parseSpeech(json: unknown): { srt: string; words: Word[] } {
     if (!Array.isArray(entries)) throw new TranscribeError('Invalid transcription response');
     if (!entries.length && typeof alternative.transcript === 'string' && alternative.transcript.trim()) throw new TranscribeError('Transcription is missing word timings');
     if (words.length + entries.length > 10000) throw new TranscribeError('Transcription exceeds word limit');
+    if (entries.length && !words.length) tag = result.languageCode;
     for (const entry of entries) {
       const text = entry?.word;
       // proto3 JSON can omit a zero duration. The chronological check still rejects a missing start after a later word.
@@ -39,7 +43,8 @@ export function parseSpeech(json: unknown): { srt: string; words: Word[] } {
       words.push({ text: text.trim(), start, end });
     }
   }
-  if (!words.some(word => word.start === word.end)) return { srt: toSrt(wordsToCues(words, 3)), words };
+  const language = typeof tag === 'string' && LANGUAGE_TAG.test(tag) ? { language: tag } : {};
+  if (!words.some(word => word.start === word.end)) return { srt: toSrt(wordsToCues(words, 3)), words, ...language };
   if (duration === undefined || duration <= 0 || !words.some(word => word.end > word.start)) throw invalidWord();
   const repaired: Word[] = [];
   for (let i = 0; i < words.length; i++) {
@@ -58,7 +63,7 @@ export function parseSpeech(json: unknown): { srt: string; words: Word[] } {
     if (end <= word.start) throw invalidWord();
     repaired.push({ ...word, end });
   }
-  return { srt: toSrt(wordsToCues(repaired, 3)), words: repaired };
+  return { srt: toSrt(wordsToCues(repaired, 3)), words: repaired, ...language };
 }
 
 export const transcriber: Transcriber = {

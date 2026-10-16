@@ -1,6 +1,6 @@
 import { brandSelection } from './brandValues';
 import { transformsValidator, normalizeTransforms } from './transforms';
-import { captionStyleValidator } from './captions';
+import { captionStyleValidator, captionLanguageValidator } from './captions';
 import { mutationGeneric as mutation, internalMutationGeneric as internalMutation, internalActionGeneric as internalAction, makeFunctionReference as ref, queryGeneric as query } from 'convex/server';
 import { v, ConvexError } from 'convex/values';
 import { owner, enqueue, aspectValidator, checkWorker, dispatcher } from './jobs';
@@ -15,6 +15,8 @@ const PROBE_LEASE_MS = 90_000;
 const MAX_PROBE_ATTEMPTS = 3;
 const PROBE_DISPATCH_GRACE_MS = 90_000;
 const dispatchProbeRef = ref<'action'>('uploads:dispatchProbe');
+// The worker reads this prompt as edit text, so it must carry no time range, aspect or caption words.
+const MOMENT_PROMPT = 'Best moment picked by Gemini';
 export const expirePending = internalMutation({ args: {}, handler: async (ctx) => {
   const expired = await ctx.db.query('uploads').withIndex('by_status_created', (q: any) => q.eq('status', 'pending').lt('createdAt', Date.now() - 3600000)).take(100);
   for (const upload of expired) await ctx.db.patch(upload._id, { status: 'expired' });
@@ -167,14 +169,15 @@ export const recoverProbe = internalMutation({
 });
 
 export const requestEdit = mutation({
-  args: { brandKit: v.optional(brandSelection), captionStyle: v.optional(captionStyleValidator), uploadId: v.id('uploads'), transforms: v.optional(transformsValidator), instruction: v.optional(v.string()), requestId: v.string(), aspect: aspectValidator, confirmedOwnership: v.boolean(), music: v.optional(musicSelection) },
+  args: { brandKit: v.optional(brandSelection), captionStyle: v.optional(captionStyleValidator), captionLanguage: v.optional(captionLanguageValidator), mode: v.optional(v.literal('clip')), uploadId: v.id('uploads'), transforms: v.optional(transformsValidator), instruction: v.optional(v.string()), requestId: v.string(), aspect: aspectValidator, confirmedOwnership: v.boolean(), music: v.optional(musicSelection) },
   handler: async (ctx, args) => {
     const user = await owner(ctx), upload = await ctx.db.get(args.uploadId);
     if (!args.confirmedOwnership) throw new ConvexError('CONFIRM_VIDEO_RIGHTS');
     if (!upload || upload.userId !== user.tokenIdentifier || upload.status !== 'ready' || upload.kind === 'audio' || !upload.storageId || !hasTrustedMediaMetadata(upload)) throw new ConvexError('UPLOAD_NOT_READY');
+    if (args.mode === 'clip' && (args.transforms !== undefined || args.instruction !== undefined)) throw new ConvexError('AMBIGUOUS_EDIT');
     const transforms = normalizeTransforms(args.transforms, args.aspect, args.instruction);
     if (transforms && args.aspect !== transforms.aspect) throw new ConvexError('AMBIGUOUS_EDIT');
-    return enqueue(ctx, user, { brandKit: args.brandKit, transforms, mode: 'edit', captionStyle: args.captionStyle, prompt: transforms ? 'Apply Studio transforms' : args.instruction ?? '', requestId: args.requestId, aspect: args.aspect, music: args.music, sourceStorageId: upload.storageId });
+    return enqueue(ctx, user, { brandKit: args.brandKit, transforms, mode: args.mode ?? 'edit', captionStyle: args.captionStyle, captionLanguage: args.captionLanguage, prompt: args.mode === 'clip' ? MOMENT_PROMPT : transforms ? 'Apply Studio transforms' : args.instruction ?? '', requestId: args.requestId, aspect: args.aspect, music: args.music, sourceStorageId: upload.storageId });
   },
 });
 

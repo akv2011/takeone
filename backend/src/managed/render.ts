@@ -26,6 +26,7 @@ import { renderClaim } from './pipeline.js';
 import { validVideoKey, type ClaimedJob } from './worker.js';
 import { progressReporter, type RenderStage } from './progress.js';
 import { renderAssembly } from '../media/assembly.js';
+import { isCaptionLanguage } from '../languages.js';
 
 interface RendererDeps {
   work: string; bucket: Pick<Bucket, 'file'>;
@@ -39,6 +40,7 @@ interface RendererDeps {
 export function createManagedRenderer({ work, bucket, env, call, sendProgress, saveScenePlan, telegram, onArchive }: RendererDeps) {
   const leaseArgs = (job: ClaimedJob) => ({ jobId: job.jobId, leaseToken: job.leaseToken });
   return async (job: ClaimedJob, signal: AbortSignal): Promise<string> => {
+    if (job.captionLanguage !== undefined && !isCaptionLanguage(job.captionLanguage)) throw Error('Unsupported caption language');
     if (job.brand) validateBrand(job.brand);
     const runOp: typeof mediaCore.runOp = (input, op, ctx) => mediaCore.runOp(input, op.op === 'captions' && job.brand ? { ...op, font: op.font ?? job.brand.font, colors: job.brand } : op, ctx);
     const report = progressReporter(stage => sendProgress(job, stage), signal);
@@ -167,7 +169,7 @@ export function createManagedRenderer({ work, bucket, env, call, sendProgress, s
     };
     // Gemini reads only gs:// objects, and the clip path cuts the same local download afterwards.
     const stagedKey = `sources/${job.jobId}.mp4`;
-    const app = createTakeOne({ runOp, executor: { onRenderStage: report, strictMedia: true, maxConcurrent: 1, outDir: join(work, 'out'), signal,
+    const app = createTakeOne({ runOp, executor: { onRenderStage: report, strictMedia: true, captionLanguage: job.captionLanguage, maxConcurrent: 1, outDir: join(work, 'out'), signal,
       onScenePlan: async plan => {
         signal.throwIfAborted();
         if (!await saveScenePlan(job, plan)) throw Error('Scene plan lease lost');
@@ -192,9 +194,9 @@ export function createManagedRenderer({ work, bucket, env, call, sendProgress, s
     const rendered = await renderClaim(job, signal, { handle: app.handle,
       async pick(source, count, signal) {
         await report('moments');
-        if ('youtubeUrl' in source) return pickMoments(source, count, signal);
+        if ('youtubeUrl' in source) return pickMoments(source, count, signal, job.captionLanguage);
         if (!validVideoKey(source.storageKey) && source.storageKey !== stagedKey) throw Error('Invalid source key');
-        return pickMoments({ gcsUri: `gs://${env('GCS_BUCKET')}/${source.storageKey}` }, count, signal);
+        return pickMoments({ gcsUri: `gs://${env('GCS_BUCKET')}/${source.storageKey}` }, count, signal, job.captionLanguage);
       },
       async music(job, signal) {
         if (!job.music) throw Error('Invalid music selection');

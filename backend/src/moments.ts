@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os';
 
 import type { BrollSegment, GifOverlay, ZoomWindow } from './types.js';
 import { generateJson, geminiConfigured, type GeminiPart } from './gemini.js';
+import { CAPTION_LANGUAGES, type CaptionLanguage } from './languages.js';
 
 export interface Moment {
   start: string; end: string; hook: string;
@@ -120,7 +121,7 @@ const MOMENTS_SCHEMA = {
   } } },
 };
 
-export async function pickMoments(source: MomentSource, count = 3, signal?: AbortSignal): Promise<Moment[]> {
+export async function pickMoments(source: MomentSource, count = 3, signal?: AbortSignal, language?: CaptionLanguage): Promise<Moment[]> {
   signal?.throwIfAborted();
   if (!geminiConfigured()) throw new Error('Auto-moments needs GEMINI_PROJECT and GEMINI_MODEL');
   let media: GeminiPart, from: string;
@@ -149,7 +150,8 @@ export async function pickMoments(source: MomentSource, count = 3, signal?: Abor
       `- "zooms": 0-2 punch-in moments on the most emphatic words (1-2s each).\n` +
       `Reply as JSON: {"moments":[{"start_sec":int,"end_sec":int,"hook":"<=6 word overlay",` +
       `"reframe":"crop"|"fit","broll":[{"at_sec":int,"dur_sec":int,"keywords":["..."]}],` +
-      `"gifs":[{"at_sec":int,"dur_sec":int,"query":"..."}],"zooms":[{"at_sec":int,"dur_sec":int}]}]}` }],
+      `"gifs":[{"at_sec":int,"dur_sec":int,"query":"..."}],"zooms":[{"at_sec":int,"dur_sec":int}]}]}` +
+      (language ? `\nWrite each hook in ${CAPTION_LANGUAGES[language].name}.` : '') }],
     parse: (value) => {
       const raw = (value as { moments?: unknown } | null)?.moments;
       const moments = (Array.isArray(raw) ? raw : [])
