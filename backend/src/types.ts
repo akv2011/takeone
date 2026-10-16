@@ -15,7 +15,7 @@ export type Op =
   | { op: 'watermark'; platform?: boolean; text: string; show: boolean; position?: 'br' | 'bl' | 'tr' | 'tl' }
   | { op: 'sticker' }
   | { op: 'thumbnail'; at: string }
-  | { op: 'voiceover'; voiceId: string; script: string }
+  | { op: 'voiceover'; script: string }
   | { op: 'broll';     keywords: string[]; durationSec?: number }
   | { op: 'cutaways';  segments: BrollSegment[] }    // b-roll cutaways over an A-roll clip
   | { op: 'title';     text: string; durationSec?: number }   // hook card over the first seconds

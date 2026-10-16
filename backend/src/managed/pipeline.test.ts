@@ -47,3 +47,31 @@ it('clips a stored video without a YouTube link by picking from the stored file 
 it('rejects a clip with neither a YouTube link nor a stored video', async () => {
  await expect(renderClaim({ ...job, prompt: 'best moment' }, new AbortController().signal, { pick: vi.fn(), handle: vi.fn(), source: vi.fn() })).rejects.toThrow('YouTube URL or a stored video');
 });
+
+const upload = 'https://example.convex.cloud/api/storage/owned';
+it('clips an upload by staging it for Gemini, then cutting the staged download as an edit', async () => {
+ const stage = vi.fn(async () => ({ path: '/source.mp4', storageKey: 'sources/j.mp4' }));
+ const pick = vi.fn(async () => [{ start: '0:05', end: '0:25', hook: 'The hook' }]);
+ const source = vi.fn();
+ const handle = vi.fn(async () => [{ kind: 'file' as const, filePath: '/out.mp4', caption: '' }]);
+ await renderClaim({ ...job, prompt: 'best moment', sourceUploadUrl: upload }, new AbortController().signal, { pick, handle, source, stage });
+ expect(pick).toHaveBeenCalledWith({ storageKey: 'sources/j.mp4' }, 1, expect.any(AbortSignal));
+ expect(source).not.toHaveBeenCalled();
+ expect(handle).toHaveBeenCalledWith(expect.objectContaining({ mode: 'edit', attachmentPath: '/source.mp4', text: 'trim 0:05 to 0:25 best moment captions', editPlan: expect.objectContaining({ hook: 'The hook' }) }));
+});
+
+it('an upload clip with an explicit range neither stages nor picks', async () => {
+ const stage = vi.fn(), pick = vi.fn(), source = vi.fn(async () => '/source.mp4');
+ const handle = vi.fn(async () => [{ kind: 'file' as const, filePath: '/out.mp4', caption: '' }]);
+ await renderClaim({ ...job, prompt: '0:10 to 0:30', sourceUploadUrl: upload }, new AbortController().signal, { pick, handle, source, stage });
+ expect(stage).not.toHaveBeenCalled(); expect(pick).not.toHaveBeenCalled();
+ expect(handle).toHaveBeenCalledWith(expect.objectContaining({ mode: 'edit', attachmentPath: '/source.mp4', text: '0:10 to 0:30 captions' }));
+});
+
+it('an upload edit keeps the edit path and never stages', async () => {
+ const stage = vi.fn(), source = vi.fn(async () => '/source.mp4');
+ const handle = vi.fn(async () => [{ kind: 'file' as const, filePath: '/out.mp4', caption: '' }]);
+ await renderClaim({ ...job, mode: 'edit', prompt: 'best moment', sourceUploadUrl: upload }, new AbortController().signal, { pick: vi.fn(), handle, source, stage });
+ expect(stage).not.toHaveBeenCalled();
+ expect(handle).toHaveBeenCalledWith(expect.objectContaining({ mode: 'edit', text: 'best moment', editPlan: undefined }));
+});

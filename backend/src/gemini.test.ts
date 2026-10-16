@@ -59,7 +59,7 @@ test('non-JSON model text is rejected', async () => {
 test('non-200 responses are rejected without echoing the provider body', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => new Response('quota detail with project secrets', { status: 429 })));
   const error = await generateJson(request()).catch((e: Error) => e);
-  expect(error.message).toBe('Gemini provider failed (429)');
+  expect(error.message).toBe('Gemini rejected the request (429)');
 });
 test('safety blocks and empty candidates are rejected', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => answer('', { finishReason: 'SAFETY' })));

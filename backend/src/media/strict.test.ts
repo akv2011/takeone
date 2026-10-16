@@ -1,21 +1,39 @@
 import { afterEach, expect, test, vi } from 'vitest';
 vi.mock('./gifs.js', () => ({ fetchSticker: vi.fn(async () => null) }));
 vi.mock('./broll.js', () => ({ fetchStockBroll: vi.fn(async () => null) }));
+vi.mock('../google/tts.js', async original => ({ ...await original<object>(), synthesizeNarration: vi.fn((await original<typeof import('../google/tts.js')>()).synthesizeNarration) }));
 vi.mock('./ffmpeg.js', () => ({ ff: vi.fn(), ffprobe: vi.fn(async () => ({ hasVideo: true, hasAudio: true, durationSec: 20, width: 720, height: 1280 })), hasFilter: vi.fn(async () => true), fontFile: vi.fn() }));
 import { mediaCore } from './index.js';
 import { ff } from './ffmpeg.js';
 import { fetchSticker } from './gifs.js';
 import { fetchStockBroll } from './broll.js';
+import { synthesizeNarration } from '../google/tts.js';
 import { runWorker } from '../managed/worker.js';
-afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks(); });
+afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.clearAllMocks(); });
 const ctx = { tmpDir: '/tmp/strict-test', isPro: true, strictMedia: true };
 test('production does not fabricate stock footage when the provider fails', async () => {
   await expect(mediaCore.runOp('', { op: 'broll', keywords: ['city'] }, ctx)).rejects.toThrow('Stock footage');
   expect(ff).not.toHaveBeenCalled();
 });
-test('production does not silently substitute system speech for missing provider voice', async () => {
-  vi.stubEnv('TTS_API_KEY', ''); vi.stubEnv('ELEVENLABS_API_KEY', '');
-  await expect(mediaCore.runOp('', { op: 'voiceover', script: 'The requested voice', voiceId: '' }, ctx)).rejects.toThrow('Voice provider');
+test.each(['TTS_VOICE', 'TTS_LANGUAGE'])('production without %s does not substitute system speech', async missing => {
+  vi.stubEnv('TTS_VOICE', 'en-US-Chirp3-HD-Charon'); vi.stubEnv('TTS_LANGUAGE', 'en-US'); vi.stubEnv(missing, '');
+  const fetcher = vi.fn(); vi.stubGlobal('fetch', fetcher);
+  await expect(mediaCore.runOp('', { op: 'voiceover', script: 'The requested voice' }, ctx)).rejects.toThrow('Voice provider');
+  expect(fetcher).not.toHaveBeenCalled(); expect(ff).not.toHaveBeenCalled();
+});
+test.each([[['/voice-0.mp3'], []], [['/voice-0.mp3', '/voice-1.mp3', '/voice-2.mp3'], ['-filter_complex', '[0:a][1:a][2:a]concat=n=3:v=0:a=1']]])(
+  'production narration joins %j in speaking order', async (parts, concat) => {
+  vi.mocked(synthesizeNarration).mockResolvedValueOnce(parts);
+  const signal = new AbortController().signal;
+  const { outputPath } = await mediaCore.runOp('', { op: 'voiceover', script: 'A long script.' }, { ...ctx, signal });
+  expect(synthesizeNarration).toHaveBeenCalledWith('A long script.', expect.stringMatching(/^\/tmp\/strict-test\/tts-/), signal);
+  expect(vi.mocked(ff).mock.calls[0]).toEqual([[...parts.flatMap(part => ['-i', part]), ...concat, '-c:a', 'aac', outputPath], signal]);
+});
+test('a provider failure stops production narration and keeps the cause', async () => {
+  vi.mocked(synthesizeNarration).mockRejectedValueOnce(Error('Text-to-Speech rejected the request (403)'));
+  const error = await mediaCore.runOp('', { op: 'voiceover', script: 'Hello' }, ctx).catch((e: Error) => e);
+  expect(error.message).toBe('Voice provider failed; narration was not generated');
+  expect((error.cause as Error).message).toContain('403');
   expect(ff).not.toHaveBeenCalled();
 });
 test('production does not render a blank caption bar as successful captions', async () => {

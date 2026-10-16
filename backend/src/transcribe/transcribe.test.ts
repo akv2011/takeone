@@ -88,3 +88,11 @@ it('transcriber recognizes the file with the caller signal and returns parsed wo
   expect(result.words).toEqual([{ text: 'hi', start: 0, end: 0.5 }]);
   expect(result.srt).toContain('hi');
 });
+
+it('Japanese and Thai words come back as unspaced cue text, Latin and Korean keep spaces', () => {
+  const ja = parseSpeech(speech([word('今日', '0s', '0.3s'), word('は', '0.3s', '0.5s'), word('晴れ', '0.5s', '0.9s')]));
+  expect(ja.srt).toContain('\n今日は晴れ\n');
+  const th = parseSpeech(speech([word('สวัสดี', '0s', '0s'), word('ครับ', '0s', '0.6s')]));
+  expect(th.words).toEqual([{ text: 'สวัสดีครับ', start: 0, end: 0.6 }]);
+  expect(parseSpeech(speech([word('안녕하세요', '0s', '0.5s'), word('여러분', '0.5s', '1s')])).srt).toContain('\n안녕하세요 여러분\n');
+});

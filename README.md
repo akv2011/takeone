@@ -26,8 +26,16 @@ The app reads a server-owned capability snapshot and hides any action whose prov
 - Rendering: a Cloud Run dispatcher service starts one Cloud Run Job execution per admitted job. The worker in `backend/` renders with FFmpeg and exits.
 - Storage: a private GCS bucket with public access prevention enforced. The app shows videos through short-lived signed URLs.
 - Infrastructure: Terraform in `infra/`, with a manual `Deploy GCP` GitHub Actions workflow.
-- Scripts and moment picking: any OpenAI-compatible chat completions endpoint, set by `LLM_BASE_URL` and `LLM_MODEL`. Transcription uses an OpenAI-compatible Whisper endpoint. Narration uses ElevenLabs or an OpenAI-compatible speech endpoint. Stock footage comes from Pexels or Pixabay, reaction stickers from GIPHY.
+- Google Cloud access: the worker calls every Google API with its own service account through ADC. There are no Google API keys, and a missing required setting fails the job.
+- Scripts, scene plans, moment picking and subject crops: Gemini on Vertex AI, set by `GEMINI_PROJECT`, `GEMINI_LOCATION` and `GEMINI_MODEL` (for example `gemini-3.8-flash`). Gemini picks a YouTube moment from the video's transcript and a stored video's moment from the video file itself.
+- Captions: Speech-to-Text v2 with Chirp 3, set by `SPEECH_LOCATION` and `SPEECH_MODEL`. Audio goes through a short-lived `speech/` object in the bucket. Non-Latin captions use the Noto fonts in the worker image.
+- Narration: Cloud Text-to-Speech Chirp 3 HD voices, set by `TTS_VOICE` and `TTS_LANGUAGE`. Scripts over 5,000 UTF-8 bytes are split on sentence boundaries and joined with FFmpeg.
+- Stock footage comes from Pexels or Pixabay, reaction stickers from GIPHY.
+- Render progress mirror: the worker copies each render stage to Firestore `renders/{jobId}` when `FIRESTORE_PROJECT` is set. The copy is best effort and Convex stays the source of truth. The web app still reads progress from Convex.
+- Hosting config: `firebase.json` serves `dist/` on the Firebase Hosting site `takeone`, rewrites `/create`, `/studio` and `/review` to `app.html`, and sends `no-store` and `noindex` headers on review links. `.firebaserc` holds a placeholder project ID, and no workflow deploys it yet.
 - AI scenes: an optional Veo adapter on Vertex AI, enabled through the `veo` Terraform input and the `AI_VIDEO_ENABLED` Convex flag.
+
+Two Google modules are in the backend without a caller in the app yet. Cloud Translation v3 (`backend/src/google/translate.ts`) translates caption cues and keeps their timing. Gemini cover images (`backend/src/google/coverImage.ts`, set by `IMAGE_MODEL` and `IMAGE_LOCATION`) draw a 9:16 PNG. The worker can also have Gemini pick a moment from an uploaded video. For a `clip` job on an upload with no time range, it first copies the file to `gs://$GCS_BUCKET/sources/<jobId>.mp4`. Convex and Studio do not send that job yet. The bucket deletes `sources/` and `speech/` objects after one day.
 
 Convex admits at most ten running jobs at once and one per account. A worker holds a 90-second lease and Convex retries a lost job up to three times before it refunds the allowance. Sources are capped at 50 MiB and 300 seconds.
 

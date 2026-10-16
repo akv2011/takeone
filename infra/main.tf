@@ -27,7 +27,7 @@ variable "convex_url" {
 }
 variable "worker_secrets" {
   type        = map(string)
-  description = "Environment variable to existing Secret Manager secret ID. WORKER_SECRET is mandatory; add WHISPER_API_KEY, TTS_API_KEY, ELEVENLABS_API_KEY, TELEGRAM_BOT_TOKEN and stock provider keys."
+  description = "Environment variable to existing Secret Manager secret ID. WORKER_SECRET is mandatory; add TELEGRAM_BOT_TOKEN and stock provider keys such as PEXELS_API_KEY."
   validation {
     condition     = contains(keys(var.worker_secrets), "WORKER_SECRET")
     error_message = "WORKER_SECRET must be supplied."
@@ -41,7 +41,7 @@ variable "dispatch_secret_id" { type = string }
 variable "worker_env" {
   type        = map(string)
   default     = {}
-  description = "Non-secret provider configuration such as WHISPER_BASE_URL, WHISPER_MODEL and TTS_MODEL."
+  description = "Non-secret worker settings such as YT_MAX_HEIGHT or SMART_CROP. Google services are configured through their dedicated inputs."
   validation {
     condition     = length(setintersection(toset(keys(var.worker_env)), toset(["CONVEX_URL", "GCS_BUCKET", "TAKEONE_JOB_ID", "TAKEONE_UPLOAD_ID", "WORKER_SECRET"]))) == 0
     error_message = "Worker environment cannot override managed deployment, bucket, worker identity or worker authentication."
@@ -73,13 +73,71 @@ variable "gemini_location" {
     error_message = "Use global or a regional Vertex AI location such as us-central1."
   }
 }
+variable "speech_location" {
+  type        = string
+  description = "Speech-to-Text v2 location for batch recognition, for example the us or eu multi-region where Chirp 3 runs."
+  validation {
+    condition     = can(regex("^[a-z]+(-[a-z]+[0-9]+)?$", var.speech_location))
+    error_message = "Use a Speech-to-Text location such as us, eu or a region like asia-southeast1."
+  }
+}
+variable "speech_model" {
+  type        = string
+  description = "Speech-to-Text v2 model ID, for example chirp_3."
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9_]{1,62}$", var.speech_model))
+    error_message = "Specify an explicit Speech-to-Text model ID."
+  }
+}
+variable "tts_voice" {
+  type        = string
+  description = "Text-to-Speech voice name for narration, for example a Chirp 3 HD voice."
+  validation {
+    condition     = can(regex("^[a-z]{2,3}-[A-Za-z0-9-]{2,100}$", var.tts_voice))
+    error_message = "Specify an explicit Text-to-Speech voice name."
+  }
+}
+variable "tts_language" {
+  type        = string
+  description = "BCP-47 language code of the narration voice."
+  validation {
+    condition     = can(regex("^[a-z]{2,3}(-[A-Za-z0-9]{2,8})+$", var.tts_language))
+    error_message = "Use a BCP-47 language code with a region, such as en-US."
+  }
+}
+variable "image_model" {
+  type        = string
+  default     = null
+  description = "Gemini image model for cover images. Null keeps cover images disabled and injects no IMAGE_* settings."
+  validation {
+    condition     = var.image_model == null ? true : can(regex("^gemini-[a-z0-9.-]+$", var.image_model))
+    error_message = "Specify an explicit Gemini image model ID or leave it null."
+  }
+}
+variable "image_location" {
+  type        = string
+  default     = "global"
+  description = "Vertex AI location for cover image calls, either global or a regional endpoint."
+  validation {
+    condition     = can(regex("^(global|[a-z]+-[a-z]+[0-9])$", var.image_location))
+    error_message = "Use global or a regional Vertex AI location such as us-central1."
+  }
+}
 locals {
-  apis = toset(["run.googleapis.com", "storage.googleapis.com", "secretmanager.googleapis.com", "iamcredentials.googleapis.com", "aiplatform.googleapis.com", "firestore.googleapis.com"])
+  apis = toset(["run.googleapis.com", "storage.googleapis.com", "secretmanager.googleapis.com", "iamcredentials.googleapis.com", "aiplatform.googleapis.com", "firestore.googleapis.com", "speech.googleapis.com", "texttospeech.googleapis.com", "translate.googleapis.com"])
   google_env = {
     GEMINI_PROJECT    = var.project_id
     GEMINI_LOCATION   = var.gemini_location
     GEMINI_MODEL      = var.gemini_model
     FIRESTORE_PROJECT = var.project_id
+    SPEECH_LOCATION   = var.speech_location
+    SPEECH_MODEL      = var.speech_model
+    TTS_VOICE         = var.tts_voice
+    TTS_LANGUAGE      = var.tts_language
+  }
+  image_env = var.image_model == null ? {} : {
+    IMAGE_MODEL    = var.image_model
+    IMAGE_LOCATION = var.image_location
   }
   veo_env = var.veo == null ? {} : {
     VEO_PROJECT = var.project_id
@@ -112,6 +170,21 @@ resource "google_project_iam_member" "worker_firestore" {
   member     = "serviceAccount:${google_service_account.worker.email}"
   depends_on = [google_project_service.api]
 }
+# Text-to-Speech has no predefined IAM role; a service account calling it in its own project
+# needs only the enabled API. Speech-to-Text and Vertex AI read same-project gs:// objects
+# through their service agents, so the bucket needs no extra grant.
+resource "google_project_iam_member" "worker_speech" {
+  project    = var.project_id
+  role       = "roles/speech.client"
+  member     = "serviceAccount:${google_service_account.worker.email}"
+  depends_on = [google_project_service.api]
+}
+resource "google_project_iam_member" "worker_translate" {
+  project    = var.project_id
+  role       = "roles/cloudtranslate.user"
+  member     = "serviceAccount:${google_service_account.worker.email}"
+  depends_on = [google_project_service.api]
+}
 variable "web_origins" {
   description = "Exact HTTPS web origins allowed to read private signed videos for canvas frame previews."
   type        = list(string)
@@ -141,6 +214,14 @@ resource "google_storage_bucket" "videos" {
     method          = ["GET", "HEAD"]
     response_header = ["Content-Type", "Content-Length", "Content-Range", "Accept-Ranges"]
     max_age_seconds = 3600
+  }
+  # Speech-to-Text audio and Gemini copies of uploaded sources are scratch objects.
+  lifecycle_rule {
+    condition {
+      age            = 1
+      matches_prefix = ["sources/", "speech/"]
+    }
+    action { type = "Delete" }
   }
   dynamic "lifecycle_rule" {
     for_each = var.video_retention_days == null ? [] : [var.video_retention_days]
@@ -189,8 +270,8 @@ resource "google_cloud_run_v2_job" "video" {
       error_message = "A worker environment variable cannot be both plaintext and a Secret Manager reference."
     }
     precondition {
-      condition     = length(setintersection(setunion(toset(keys(var.worker_env)), toset(keys(var.worker_secrets))), toset(concat(["VEO_PROJECT", "VEO_REGION", "VEO_MODEL"], keys(local.google_env))))) == 0
-      error_message = "Configure Veo, Gemini and Firestore through their dedicated inputs, not worker_env or worker_secrets."
+      condition     = length(setintersection(setunion(toset(keys(var.worker_env)), toset(keys(var.worker_secrets))), toset(concat(["VEO_PROJECT", "VEO_REGION", "VEO_MODEL", "IMAGE_MODEL", "IMAGE_LOCATION"], keys(local.google_env))))) == 0
+      error_message = "Configure Veo, Gemini, Firestore, Speech-to-Text, Text-to-Speech and cover images through their dedicated inputs, not worker_env or worker_secrets."
     }
   }
   template {
@@ -215,7 +296,7 @@ resource "google_cloud_run_v2_job" "video" {
           value = google_storage_bucket.videos.name
         }
         dynamic "env" {
-          for_each = merge(var.worker_env, local.google_env, local.veo_env)
+          for_each = merge(var.worker_env, local.google_env, local.veo_env, local.image_env)
           content {
             name  = env.key
             value = env.value
@@ -236,7 +317,7 @@ resource "google_cloud_run_v2_job" "video" {
       }
     }
   }
-  depends_on = [google_project_service.api, google_secret_manager_secret_iam_member.worker, google_project_iam_member.worker_vertex, google_project_iam_member.worker_firestore]
+  depends_on = [google_project_service.api, google_secret_manager_secret_iam_member.worker, google_project_iam_member.worker_vertex, google_project_iam_member.worker_firestore, google_project_iam_member.worker_speech, google_project_iam_member.worker_translate]
 }
 resource "google_cloud_run_v2_job_iam_member" "dispatch" {
   project  = var.project_id

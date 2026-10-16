@@ -10,7 +10,7 @@ Build with `backend/` as the Docker context. The default image command is `node 
 
 See [managed runtime configuration](docs/DEPLOY-GCP.md) and [generation lifecycle](docs/WEB-GENERATION.md). Deployment and billing setup are separate operations.
 
-Managed topic generation requires `LLM_API_KEY` and an explicit `LLM_MODEL` available to that API account, plus working narration, transcription and stock providers. It rejects missing configuration, failed language-model calls and malformed angles/scripts instead of using offline templates. Script requests abort when a worker lease is lost. These checks do not establish provider quota, factual accuracy or creative quality; validate real outputs in staging.
+Managed topic generation needs Gemini on Vertex AI (`GEMINI_PROJECT` and an explicit `GEMINI_MODEL`), Text-to-Speech Chirp 3 HD narration (`TTS_VOICE`, `TTS_LANGUAGE`), Speech-to-Text Chirp 3 captions (`SPEECH_LOCATION`, `SPEECH_MODEL`, `GCS_BUCKET`) and a stock footage provider. The worker reaches Google with its service account through ADC, never an API key. It rejects missing configuration, failed model calls and malformed angles or scripts instead of using offline templates. Script requests abort when a worker lease is lost. These checks do not establish quota, factual accuracy or creative quality, so validate real outputs in staging.
 
 ## Local development
 
@@ -46,6 +46,7 @@ The scoped `gaxios@6.7.1` → `uuid@11.1.1` override patches the UUID dependency
 - `router/` and `gateway/`: validated operation plans and platform-independent request handling.
 - `queue/`: one-job executor, timeout/abort propagation, and intermediate-file cleanup.
 - `ingest/`, `media/`, `content/`, `transcribe/`, `search/`: source acquisition and rendering pipeline.
+- `gemini.ts` and `google/`: Gemini on Vertex AI plus REST clients for Speech-to-Text, Text-to-Speech, Cloud Translation and Gemini cover images, all on one ADC token. Nothing in the app calls translation or cover images yet.
 - `data/`: legacy local CLI quota adapter; production account/billing state belongs to root Convex.
 
 MIT; see [LICENSE](LICENSE).

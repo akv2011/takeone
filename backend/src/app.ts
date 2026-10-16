@@ -33,7 +33,7 @@ export async function prepare(job: JobSpec, ctx: JobCtx): Promise<{ inputPath?: 
     const { script } = await content.script(angles[0], research.facts, contentOptions);
     ctx.signal?.throwIfAborted();
     await ctx.onRenderStage?.('narration');
-    const voice = await mediaCore.runOp('', { op: 'voiceover', voiceId: '', script }, ctx);
+    const voice = await mediaCore.runOp('', { op: 'voiceover', script }, ctx);
     const voiceDur = (await ffprobe(voice.outputPath)).durationSec;
     if (!Number.isFinite(voiceDur) || voiceDur <= 0) throw Error('Invalid narration duration');
     ctx.signal?.throwIfAborted();

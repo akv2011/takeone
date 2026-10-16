@@ -3,6 +3,7 @@
 // offline tests working at lower quality. Strict (production) calls never fall back.
 import type { Content, ContentOptions, Angle, Word } from '../types.js';
 import { generateJson, geminiConfigured } from '../gemini.js';
+import { joinWords } from '../media/captions.js';
 
 const SYSTEM = 'You are a short-form video strategist. Be specific, punchy, no fluff.';
 
@@ -64,7 +65,7 @@ export const content: Content = {
   },
 
   async captionText(words: Word[], style: 'karaoke' | 'meme' | 'clean'): Promise<string> {
-    const text = words.map((w) => w.text).join(' ').trim();
+    const text = joinWords(words.map((w) => w.text)).trim();
     if (style === 'meme') return text.toUpperCase();
     return text;
   },

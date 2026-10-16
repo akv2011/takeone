@@ -12,6 +12,7 @@ import { seconds } from './timeline.js';
 import { toAss, titleAss } from './captions.js';
 import { fetchStockBroll } from './broll.js';
 import { fetchSticker } from './gifs.js';
+import { synthesizeNarration } from '../google/tts.js';
 import { formatFilter, cutawayGraph, clampSegments, zoomFilter, clampZooms, gifGraph, clampGifs } from './filters.js';
 
 const out = (ctx: JobCtx, op: string, ext = 'mp4') =>
@@ -193,20 +194,21 @@ export const mediaCore: MediaCore = {
         return { outputPath: o };
       }
       case 'voiceover': {
-        // voice chain: ElevenLabs -> OpenAI TTS -> local (say/espeak). Each rung survives the
-        // next one failing (ElevenLabs free tier 402s from datacenter IPs).
+        // Google Text-to-Speech. Only offline mode falls back to the local system voice.
         const o = out(ctx, 'voice', 'm4a');
         const raw = join(ctx.tmpDir, `tts-${Math.random().toString(36).slice(2)}`);
-        let src: string | null = null;
-        if (process.env.ELEVENLABS_API_KEY) {
-          src = await elevenVoice(op.script, op.voiceId, `${raw}.el.mp3`).then(() => `${raw}.el.mp3`).catch(() => null);
+        let parts: string[];
+        try {
+          parts = await synthesizeNarration(op.script, raw, sig);
+        } catch (error) {
+          sig?.throwIfAborted();
+          if (ctx.strictMedia) throw new MediaError('Voice provider failed; narration was not generated', { cause: error });
+          await sayTTS(op.script, `${raw}.aiff`);
+          parts = [`${raw}.aiff`];
         }
-        if (!src && process.env.TTS_API_KEY) {
-          src = await openaiVoice(op.script, `${raw}.oa.mp3`).then(() => `${raw}.oa.mp3`).catch(() => null);
-        }
-        if (!src && ctx.strictMedia) throw new MediaError('Voice provider failed; narration was not generated');
-        if (!src) { await sayTTS(op.script, `${raw}.aiff`); src = `${raw}.aiff`; }
-        await ff(['-i', src, '-c:a', 'aac', o], sig);
+        // A long script comes back as several synthesize calls, joined here in speaking order.
+        const concat = parts.length > 1 ? ['-filter_complex', `${parts.map((_, i) => `[${i}:a]`).join('')}concat=n=${parts.length}:v=0:a=1`] : [];
+        await ff([...parts.flatMap(part => ['-i', part]), ...concat, '-c:a', 'aac', o], sig);
         return { outputPath: o };
       }
       case 'broll': {
@@ -248,27 +250,4 @@ function sayTTS(text: string, aiff: string): Promise<void> {
     p.on('error', rej); p.on('close', (c) => (c === 0 ? res() : rej(new Error(`tts exit ${c}`))));
   });
 }
-async function elevenVoice(script: string, voiceId: string, outPath: string): Promise<void> {
-  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId || '21m00Tcm4TlvDq8ikWAM'}`, {
-    signal: AbortSignal.timeout(45_000),
-    method: 'POST',
-    headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY!, 'content-type': 'application/json' },
-    body: JSON.stringify({ text: script, model_id: 'eleven_turbo_v2' }),
-  });
-  if (!res.ok) throw new Error(`elevenlabs ${res.status}`);
-  await writeFile(outPath, Buffer.from(await res.arrayBuffer()));
-}
-async function openaiVoice(script: string, outPath: string): Promise<void> {
-  const base = process.env.TTS_BASE_URL ?? 'https://api.openai.com/v1';
-  const res = await fetch(`${base}/audio/speech`, {
-    signal: AbortSignal.timeout(45_000),
-    method: 'POST',
-    headers: { authorization: `Bearer ${process.env.TTS_API_KEY}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ model: process.env.TTS_MODEL ?? 'gpt-4o-mini-tts',
-      voice: process.env.TTS_VOICE ?? 'alloy', input: script.slice(0, 3000) }),
-  });
-  if (!res.ok) throw new Error(`openai tts ${res.status}`);
-  await writeFile(outPath, Buffer.from(await res.arrayBuffer()));
-}
-
 export { ffprobe };

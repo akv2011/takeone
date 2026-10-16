@@ -16,12 +16,15 @@ const mocks = vi.hoisted(() => ({
   handle: vi.fn(async () => [{ kind: 'file', filePath: '/tmp/render.mp4' }]),
   pick: vi.fn(async () => [{ start: 1, end: 3 }]),
   assembly: vi.fn(async () => '/tmp/assembly.mp4'),
+  ff: vi.fn(async () => {}), probe: vi.fn(async () => ({ hasVideo: true, hasAudio: true, videoCodec: 'h264', audioCodec: 'aac' })),
+  upload: vi.fn(async () => {}),
 }));
 vi.mock('../media/sceneReplacement.js', () => ({ replaceSceneVideo: vi.fn(async () => '/tmp/caption-free.mp4') }));
 vi.mock('../media/brand.js', async original => ({ ...await original<object>(), applyBrandLogo: mocks.logo }));
 vi.mock('../video/veo.js', () => ({ generateScene: mocks.scene }));
 vi.mock('../video/motion.js', () => ({ assertGeneratedVideoMotion: mocks.motion }));
-vi.mock('google-auth-library', () => ({ GoogleAuth: class { async getClient() { return {}; } } }));
+vi.mock('../media/ffmpeg.js', async original => ({ ...await original<object>(), ff: mocks.ff, ffprobe: mocks.probe }));
+vi.mock('./artifacts.js', () => ({ uploadArtifacts: mocks.upload }));
 vi.mock('../media/index.js', () => ({ mediaCore: { runOp: mocks.op } }));
 vi.mock('../media/captionRestyle.js', () => ({ restyleCaptionArchive: mocks.restyle, replaceCaptionTexts: vi.fn() }));
 vi.mock('../media/captionTransform.js', () => ({ transformCaptionArchive: mocks.transform }));
@@ -87,6 +90,52 @@ test('a stored clip sends its bucket object to moment picking and rejects foreig
   expect(mocks.pick).toHaveBeenCalledWith({ gcsUri: 'gs://configured/videos/u/upload.mp4' }, 1, expect.any(AbortSignal));
   expect(stages).toEqual(['moments', 'source', 'checking']);
   await expect(render({ ...base, mode: 'clip', prompt: 'best moment', sourceStorageKey: '../other/x.mp4' }, new AbortController().signal)).rejects.toThrow('Invalid source key');
+});
+function uploadSetup() {
+  vi.stubGlobal('fetch', vi.fn(async () => new Response('uploaded video')));
+  const stages: string[] = [];
+  const bucket = { file: () => ({ createReadStream: () => ({}) }) } as unknown as Pick<Bucket, 'file'>;
+  const render = createManagedRenderer({ work: '/tmp', bucket, saveScenePlan: async () => true,
+    env: key => key === 'CONVEX_URL' ? 'https://example.convex.cloud' : 'takeone-bucket', call: async () => true, telegram: async () => ({}), onArchive: () => {},
+    sendProgress: async (_job, stage) => { stages.push(stage); return true; } });
+  return { render, stages, bucket };
+}
+const uploadClip = { ...base, mode: 'clip' as const, prompt: 'best moment', sourceUploadUrl: 'https://example.convex.cloud/api/storage/owned' };
+test.each([
+  ['an MP4 upload is rewrapped', { videoCodec: 'h264', audioCodec: 'aac' }, ['-c', 'copy']],
+  ['a WebM upload is re-encoded', { videoCodec: 'vp9', audioCodec: 'opus' }, ['-c:v', 'libx264']],
+])('%s, copied create-only to sources/<jobId>.mp4 and watched by Gemini', async (_name, codecs, args) => {
+  const { render, stages, bucket } = uploadSetup();
+  mocks.probe.mockResolvedValueOnce({ hasVideo: true, hasAudio: true, ...codecs });
+  await render(uploadClip, new AbortController().signal);
+  expect(mocks.download).toHaveBeenCalledOnce();
+  expect(mocks.download.mock.calls[0]).toContain('/tmp/source.mp4');
+  const ffArgs = mocks.ff.mock.calls[0]![0] as string[];
+  expect(ffArgs.slice(0, 4)).toEqual(['-protocol_whitelist', 'file', '-i', '/tmp/source.mp4']);
+  expect(ffArgs.join(' ')).toContain(args.join(' ')); expect(ffArgs.at(-1)).toBe('/tmp/gemini-source.mp4');
+  expect(mocks.upload).toHaveBeenCalledWith(bucket, [{ path: '/tmp/gemini-source.mp4', key: 'sources/job1.mp4', contentType: 'video/mp4' }], expect.any(AbortSignal), expect.any(Function));
+  expect(mocks.pick).toHaveBeenCalledWith({ gcsUri: 'gs://takeone-bucket/sources/job1.mp4' }, 1, expect.any(AbortSignal));
+  expect(mocks.handle).toHaveBeenCalledWith(expect.objectContaining({ mode: 'edit', attachmentPath: '/tmp/source.mp4' }));
+  expect(stages).toEqual(['moments', 'checking']);
+});
+test('a retried upload clip reuses the copy its earlier attempt made', async () => {
+  const { render } = uploadSetup();
+  mocks.upload.mockRejectedValueOnce(Object.assign(Error('Precondition Failed'), { code: 412 }));
+  await render(uploadClip, new AbortController().signal);
+  expect(mocks.pick).toHaveBeenCalledWith({ gcsUri: 'gs://takeone-bucket/sources/job1.mp4' }, 1, expect.any(AbortSignal));
+});
+test('an upload clip fails on other copy errors and on a source without video', async () => {
+  const { render } = uploadSetup();
+  mocks.upload.mockRejectedValueOnce(Object.assign(Error('Forbidden'), { code: 403 }));
+  await expect(render(uploadClip, new AbortController().signal)).rejects.toThrow('Forbidden');
+  mocks.probe.mockResolvedValueOnce({ hasVideo: false, hasAudio: true });
+  await expect(render(uploadClip, new AbortController().signal)).rejects.toThrow('no video');
+  expect(mocks.pick).not.toHaveBeenCalled();
+});
+test('an upload clip rejects a foreign upload URL before downloading', async () => {
+  const { render } = uploadSetup();
+  await expect(render({ ...uploadClip, sourceUploadUrl: 'https://evil.test/api/storage/x' }, new AbortController().signal)).rejects.toThrow('Invalid uploaded source');
+  expect(mocks.download).not.toHaveBeenCalled(); expect(mocks.upload).not.toHaveBeenCalled();
 });
 test('pre-aborted render stops before downloading or executing media', async () => {
   const { render, stages } = setup();

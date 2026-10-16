@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 const getAccessToken = vi.hoisted(() => vi.fn(async () => 'fixture-token' as string | null));
 vi.mock('google-auth-library', () => ({ GoogleAuth: class { getAccessToken = getAccessToken; } }));
-const { synthesizeSpeech } = await import('./tts.js');
+const { narrationChunks, synthesizeNarration, synthesizeSpeech } = await import('./tts.js');
 
 const voice = { languageCode: 'en-US', voiceName: 'en-US-Chirp3-HD-Charon' };
 const mp3 = Buffer.from([0x49, 0x44, 0x33, 0x04, 0x00, 0xff, 0xfb, 0x90]);
@@ -69,4 +69,56 @@ it.each([
   const fetcher = vi.fn(); vi.stubGlobal('fetch', fetcher);
   await expect(synthesizeSpeech(request, out)).rejects.toThrow(message);
   expect(fetcher).not.toHaveBeenCalled();
+});
+
+const bytes = (text: string) => Buffer.byteLength(text, 'utf8');
+it('keeps a script under the limit as one piece', () => {
+  expect(narrationChunks('  First line. Second line!  ')).toEqual(['First line. Second line!']);
+  expect(narrationChunks('   ')).toEqual([]);
+});
+
+it.each([
+  ['English', 'This sentence has a few words in it. '.repeat(160)],
+  ['Hindi', 'यह एक लंबा हिंदी वाक्य है जो कई बार दोहराया गया है। '.repeat(60)],
+  ['Japanese', '今日はとても良い天気ですね、散歩に行きましょう。'.repeat(120)],
+])('splits a long %s script on sentence boundaries under 5,000 bytes', (_language, script) => {
+  expect(bytes(script.trim())).toBeGreaterThan(5000);
+  const chunks = narrationChunks(script);
+  expect(chunks.length).toBeGreaterThan(1);
+  for (const chunk of chunks) expect(bytes(chunk)).toBeLessThanOrEqual(5000);
+  const sentence = new Intl.Segmenter(undefined, { granularity: 'sentence' }).segment(script).containing(0)!.segment.trim();
+  for (const chunk of chunks) expect(chunk.startsWith(sentence)).toBe(true);
+  expect(chunks.join(' ').replace(/\s+/g, '')).toBe(script.replace(/\s+/g, ''));
+});
+
+it('splits unpunctuated Thai on word boundaries', () => {
+  const script = 'สวัสดีครับวันนี้อากาศดีมาก'.repeat(80);
+  const chunks = narrationChunks(script);
+  expect(chunks.length).toBeGreaterThan(1);
+  for (const chunk of chunks) expect(bytes(chunk)).toBeLessThanOrEqual(5000);
+  const words = new Set([...new Intl.Segmenter('th', { granularity: 'word' }).segment(script)].map(s => s.index));
+  let offset = 0;
+  for (const chunk of chunks.slice(0, -1)) { offset += chunk.length; expect(words.has(offset)).toBe(true); }
+  expect(chunks.join('')).toBe(script);
+});
+
+it('narrates a long script as one synthesize call per piece, in order', async () => {
+  vi.stubEnv('TTS_VOICE', voice.voiceName); vi.stubEnv('TTS_LANGUAGE', voice.languageCode);
+  const fetcher = vi.fn(async (_url: string, _init: RequestInit) => Response.json({ audioContent: mp3.toString('base64') }));
+  vi.stubGlobal('fetch', fetcher);
+  const script = 'Sentence number one is here. '.repeat(400);
+  const parts = await synthesizeNarration(script, join(dir, 'voice'));
+  const texts = fetcher.mock.calls.map(([, init]) => JSON.parse(init.body as string).input.text as string);
+  expect(parts).toEqual(texts.map((_, i) => join(dir, `voice-${i}.mp3`)));
+  expect(texts).toEqual(narrationChunks(script));
+  expect(texts.length).toBeGreaterThan(1);
+  for (const part of parts) expect(await readFile(part)).toEqual(mp3);
+  for (const [, init] of fetcher.mock.calls) expect(JSON.parse(init.body as string).voice).toEqual({ languageCode: 'en-US', name: 'en-US-Chirp3-HD-Charon' });
+});
+
+it.each(['TTS_VOICE', 'TTS_LANGUAGE'])('narration without %s fails closed before credentials or network', async (missing) => {
+  vi.stubEnv('TTS_VOICE', voice.voiceName); vi.stubEnv('TTS_LANGUAGE', voice.languageCode); vi.stubEnv(missing, '');
+  const fetcher = vi.fn(); vi.stubGlobal('fetch', fetcher); getAccessToken.mockClear();
+  await expect(synthesizeNarration('Hello there.', join(dir, 'voice'))).rejects.toThrow(`${missing} is required`);
+  expect(fetcher).not.toHaveBeenCalled(); expect(getAccessToken).not.toHaveBeenCalled();
 });

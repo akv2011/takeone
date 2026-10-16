@@ -1,7 +1,7 @@
 // B3 transcribe. Speech-to-Text v2 (BatchRecognize) returns word timings; parseSpeech is the
 // pure, strict adapter from its results to { srt, words }.
 import type { Transcriber, Word } from '../types.js';
-import { wordsToCues, toSrt } from '../media/captions.js';
+import { joinWords, wordsToCues, toSrt } from '../media/captions.js';
 import { recognizeSpeech } from '../google/speech.js';
 
 export class TranscribeError extends Error {}
@@ -47,7 +47,7 @@ export function parseSpeech(json: unknown): { srt: string; words: Word[] } {
     if (word.end > word.start) { repaired.push(word); continue; }
     const next = words[i + 1];
     if (next?.start === word.start) {
-      const text = `${word.text} ${next.text}`;
+      const text = joinWords([word.text, next.text]);
       if (text.length > 4000) throw invalidWord();
       words[i + 1] = { ...next, text };
       continue;

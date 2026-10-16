@@ -1,7 +1,9 @@
 import { replaceSceneVideo } from '../media/sceneReplacement.js';
 import { applyBrandLogo, validateBrand } from '../media/brand.js';
 import { hookOp } from '../media/hook.js';
-import { GoogleAuth } from 'google-auth-library';
+import { googleJson } from '../google/auth.js';
+import { ff, ffprobe } from '../media/ffmpeg.js';
+import { uploadArtifacts } from './artifacts.js';
 import type { Bucket } from '@google-cloud/storage';
 import { Readable } from 'node:stream';
 import { readFile, writeFile, copyFile } from 'node:fs/promises';
@@ -129,8 +131,6 @@ export function createManagedRenderer({ work, bucket, env, call, sendProgress, s
     if (job.generationKind === 'ai') {
       if (job.aspect === '1:1') throw Error('AI scenes support portrait or landscape');
       await report('footage');
-      const auth = new GoogleAuth({ scopes: ['https://www.googleapis.com/auth/cloud-platform'] });
-      const client = await auth.getClient();
       const directedPrompt = buildDirectorPrompt({
         concept: job.prompt,
         durationSeconds: 8,
@@ -140,7 +140,7 @@ export function createManagedRenderer({ work, bucket, env, call, sendProgress, s
         { jobId: job.jobId, prompt: directedPrompt, aspect: job.aspect, operation: job.aiOperation }, {
           begin: async () => await call('beginAi', leaseArgs(job)) as boolean,
           save: async operation => { await call('saveAiOperation', { ...leaseArgs(job), operation }); },
-          post: async (url, data, signal) => (await client.request({ url, data, method: 'POST', signal, timeout: 30000, retry: false })).data,
+          post: (url, data, signal) => googleJson('Veo', url, { json: data, signal, timeoutMs: 30_000 }),
           wait: async signal => { await delay(10000, undefined, { signal }); },
         }, signal);
       const source = join(work, 'ai-scene.mp4');
@@ -157,6 +157,16 @@ export function createManagedRenderer({ work, bucket, env, call, sendProgress, s
       }
       return deliverable(branded.outputPath, true);
     }
+    const downloadUpload = async (href: string, dest: string, signal: AbortSignal) => {
+      const url = new URL(href);
+      const deployment = new URL(env('CONVEX_URL'));
+      if (url.protocol !== 'https:' || url.origin !== deployment.origin || !url.pathname.startsWith('/api/storage/')) throw Error('Invalid uploaded source');
+      const response = await fetch(url, { redirect: 'error', signal: AbortSignal.any([signal, AbortSignal.timeout(60_000)]) });
+      if (!response.ok || !response.body) throw Error('Upload download failed');
+      await boundedDownload(Readable.fromWeb(response.body as never), dest, DEFAULT_LIMITS.maxBytes, signal);
+    };
+    // Gemini reads only gs:// objects, and the clip path cuts the same local download afterwards.
+    const stagedKey = `sources/${job.jobId}.mp4`;
     const app = createTakeOne({ runOp, executor: { onRenderStage: report, strictMedia: true, maxConcurrent: 1, outDir: join(work, 'out'), signal,
       onScenePlan: async plan => {
         signal.throwIfAborted();
@@ -183,7 +193,7 @@ export function createManagedRenderer({ work, bucket, env, call, sendProgress, s
       async pick(source, count, signal) {
         await report('moments');
         if ('youtubeUrl' in source) return pickMoments(source, count, signal);
-        if (!validVideoKey(source.storageKey)) throw Error('Invalid source key');
+        if (!validVideoKey(source.storageKey) && source.storageKey !== stagedKey) throw Error('Invalid source key');
         return pickMoments({ gcsUri: `gs://${env('GCS_BUCKET')}/${source.storageKey}` }, count, signal);
       },
       async music(job, signal) {
@@ -199,12 +209,7 @@ export function createManagedRenderer({ work, bucket, env, call, sendProgress, s
           if (!validVideoKey(job.sourceStorageKey)) throw Error('Invalid source key');
           await boundedDownload(bucket.file(job.sourceStorageKey).createReadStream(), dest, DEFAULT_LIMITS.maxBytes, signal);
         } else if (job.sourceUploadUrl) {
-          const url = new URL(job.sourceUploadUrl);
-          const deployment = new URL(env('CONVEX_URL'));
-          if (url.protocol !== 'https:' || url.origin !== deployment.origin || !url.pathname.startsWith('/api/storage/')) throw Error('Invalid uploaded source');
-          const response = await fetch(url, { redirect: 'error', signal: AbortSignal.any([signal, AbortSignal.timeout(60_000)]) });
-          if (!response.ok || !response.body) throw Error('Upload download failed');
-          await boundedDownload(Readable.fromWeb(response.body as never), dest, DEFAULT_LIMITS.maxBytes, signal);
+          await downloadUpload(job.sourceUploadUrl, dest, signal);
         } else if (job.telegramFileId) {
           const file = await telegram('getFile', { file_id: job.telegramFileId });
           if (!file.file_path || !/^[A-Za-z0-9_/-]+\.[A-Za-z0-9]+$/.test(file.file_path) || file.file_path.split('/').includes('..') || (file.file_size ?? 0) > DEFAULT_LIMITS.maxBytes) throw Error('Invalid Telegram source');
@@ -213,6 +218,25 @@ export function createManagedRenderer({ work, bucket, env, call, sendProgress, s
           await boundedDownload(Readable.fromWeb(response.body as never), dest, DEFAULT_LIMITS.maxBytes, signal);
         } else throw Error('Edit mode requires a source');
         return dest;
+      },
+      async stage(job, signal) {
+        if (!job.sourceUploadUrl) throw Error('Invalid uploaded source');
+        const path = join(work, 'source.mp4');
+        await downloadUpload(job.sourceUploadUrl, path, signal);
+        const meta = await ffprobe(path, signal);
+        if (!meta.hasVideo) throw Error('Uploaded source has no video');
+        // Gemini is told video/mp4, so a QuickTime or WebM upload is rewrapped or re-encoded first.
+        const copyable = (meta.videoCodec === 'h264' || meta.videoCodec === 'hevc') && (!meta.hasAudio || meta.audioCodec === 'aac');
+        const copy = join(work, 'gemini-source.mp4');
+        await ff(['-protocol_whitelist', 'file', '-i', path, '-map', '0:v:0', '-map', '0:a:0?',
+          ...(copyable ? ['-c', 'copy'] : ['-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac']), '-movflags', '+faststart', copy], signal);
+        try {
+          await uploadArtifacts(bucket, [{ path: copy, key: stagedKey, contentType: 'video/mp4' }], signal, event => console.warn(event));
+        } catch (error) {
+          // Create-only: a retry of this job finds the copy an earlier attempt made from the same upload.
+          if ((error as { code?: unknown }).code !== 412) throw error;
+        }
+        return { path, storageKey: stagedKey };
       },
     });
     return deliverable(rendered, job.mode === 'generate');

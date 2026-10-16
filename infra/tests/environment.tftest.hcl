@@ -6,11 +6,15 @@ variables {
   dispatch_secret_id = "dispatch-secret"
   worker_secrets     = { WORKER_SECRET = "worker-secret" }
   gemini_model       = "gemini-fixture"
+  speech_location    = "us"
+  speech_model       = "chirp_3"
+  tts_voice          = "en-US-Chirp3-HD-Charon"
+  tts_language       = "en-US"
 }
 run "provider_configuration" {
   command = plan
   variables {
-    worker_env = { WHISPER_MODEL = "fixture-model" }
+    worker_env = { YT_MAX_HEIGHT = "720" }
   }
 }
 run "reject_managed_environment_override" {
@@ -48,8 +52,8 @@ run "reject_upload_identity_secret" {
 run "reject_plaintext_secret_collision" {
   command = plan
   variables {
-    worker_env     = { TTS_API_KEY = "plaintext" }
-    worker_secrets = { WORKER_SECRET = "worker-secret", TTS_API_KEY = "tts-secret" }
+    worker_env     = { PEXELS_API_KEY = "plaintext" }
+    worker_secrets = { WORKER_SECRET = "worker-secret", PEXELS_API_KEY = "pexels-secret" }
   }
   expect_failures = [google_cloud_run_v2_job.video]
 }
@@ -161,5 +165,78 @@ run "worker_google_grants" {
       grant.project == var.project_id && grant.member == "serviceAccount:takeone-worker@test-project.iam.gserviceaccount.com"
     ]) && google_project_iam_member.worker_vertex.role == "roles/aiplatform.user" && google_project_iam_member.worker_firestore.role == "roles/datastore.user"
     error_message = "The worker needs Vertex AI and Firestore access on its own project."
+  }
+}
+run "speech_tts_translate_enabled" {
+  command = plan
+  override_resource {
+    target          = google_service_account.worker
+    override_during = plan
+    values          = { email = "takeone-worker@test-project.iam.gserviceaccount.com" }
+  }
+  assert {
+    condition     = length(setsubtract(toset(["speech.googleapis.com", "texttospeech.googleapis.com", "translate.googleapis.com"]), toset(keys(google_project_service.api)))) == 0
+    error_message = "Speech-to-Text, Text-to-Speech and Cloud Translation APIs must be enabled."
+  }
+  assert {
+    condition = alltrue([for grant in [google_project_iam_member.worker_speech, google_project_iam_member.worker_translate] :
+      grant.project == var.project_id && grant.member == "serviceAccount:takeone-worker@test-project.iam.gserviceaccount.com"
+    ]) && google_project_iam_member.worker_speech.role == "roles/speech.client" && google_project_iam_member.worker_translate.role == "roles/cloudtranslate.user"
+    error_message = "The worker needs Speech-to-Text and Cloud Translation access on its own project."
+  }
+  assert {
+    condition = alltrue([for name, value in { SPEECH_LOCATION = "us", SPEECH_MODEL = "chirp_3", TTS_VOICE = "en-US-Chirp3-HD-Charon", TTS_LANGUAGE = "en-US" } :
+      one([for env in google_cloud_run_v2_job.video.template[0].template[0].containers[0].env : env.value if env.name == name]) == value
+    ])
+    error_message = "Speech-to-Text and Text-to-Speech settings must come from their inputs."
+  }
+}
+run "cover_images_disabled_by_default" {
+  command = plan
+  assert {
+    condition     = length(setintersection(toset([for env in google_cloud_run_v2_job.video.template[0].template[0].containers[0].env : env.name]), toset(["IMAGE_MODEL", "IMAGE_LOCATION"]))) == 0
+    error_message = "A null image_model must not inject cover image settings."
+  }
+}
+run "cover_images_opt_in" {
+  command = plan
+  variables {
+    image_model = "gemini-image-fixture"
+  }
+  assert {
+    condition = alltrue([for name, value in { IMAGE_MODEL = "gemini-image-fixture", IMAGE_LOCATION = "global" } :
+      one([for env in google_cloud_run_v2_job.video.template[0].template[0].containers[0].env : env.value if env.name == name]) == value
+    ])
+    error_message = "An explicit image_model must reach the worker with its location."
+  }
+}
+run "reject_image_override" {
+  command = plan
+  variables {
+    worker_env = { IMAGE_MODEL = "gemini-other" }
+  }
+  expect_failures = [google_cloud_run_v2_job.video]
+}
+run "reject_invalid_speech_model" {
+  command = plan
+  variables {
+    speech_model = "Chirp-3/../x"
+  }
+  expect_failures = [var.speech_model]
+}
+run "reject_invalid_tts_voice" {
+  command = plan
+  variables {
+    tts_voice = "en-US/../../v1beta1"
+  }
+  expect_failures = [var.tts_voice]
+}
+run "scratch_prefixes_expire" {
+  command = plan
+  assert {
+    condition = length([for rule in google_storage_bucket.videos.lifecycle_rule : rule
+      if one(rule.action).type == "Delete" && one(rule.condition).age == 1 && toset(one(rule.condition).matches_prefix) == toset(["sources/", "speech/"])
+    ]) == 1
+    error_message = "Speech audio and Gemini source copies must be deleted after one day."
   }
 }

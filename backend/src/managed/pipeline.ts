@@ -11,6 +11,8 @@ export function youtubeUrl(text: string): string | null {
 export interface PipelineDeps {
   music?(job: ClaimedJob, signal: AbortSignal): Promise<Incoming['music']>;
   source(job: ClaimedJob, signal: AbortSignal): Promise<string | undefined>;
+  /** Downloads an uploaded source and copies it into the bucket, where Gemini can read it. */
+  stage(job: ClaimedJob, signal: AbortSignal): Promise<{ path: string; storageKey: string }>;
   pick(source: { youtubeUrl: string } | { storageKey: string }, count: number, signal: AbortSignal): Promise<Moment[]>;
   handle(inc: Incoming): Promise<Reply[]>;
 }
@@ -18,15 +20,23 @@ export async function renderClaim(job: ClaimedJob, signal: AbortSignal, deps: Pi
   signal.throwIfAborted();
   let text = job.prompt;
   let editPlan: Incoming['editPlan'];
-  // A clip of a video already in our bucket is cut from the downloaded source as an edit,
+  // A clip of a stored or uploaded video is cut from the downloaded source as an edit,
   // captioned like every YouTube clip.
   let storedClip = false;
+  let attachmentPath: string | undefined;
   if (job.mode === 'clip') {
     const url = youtubeUrl(text);
-    const source = url ? { youtubeUrl: url } : job.sourceStorageKey ? { storageKey: job.sourceStorageKey } : null;
-    if (!source) throw Error('Clip mode requires a YouTube URL or a stored video');
+    if (!url && !job.sourceStorageKey && !job.sourceUploadUrl) throw Error('Clip mode requires a YouTube URL or a stored video');
     storedClip = !url;
     if (!timestampRange(text)) {
+      let source: Parameters<PipelineDeps['pick']>[0];
+      if (url) source = { youtubeUrl: url };
+      else if (job.sourceStorageKey) source = { storageKey: job.sourceStorageKey };
+      else {
+        const staged = await deps.stage(job, signal);
+        attachmentPath = staged.path;
+        source = { storageKey: staged.storageKey };
+      }
       const [moment] = await deps.pick(source, 1, signal);
       if (!moment) throw Error('No moment found');
       text = url ? `clip ${url} ${moment.start} to ${moment.end} ${text.replace(url, '')}` : `trim ${moment.start} to ${moment.end} ${text}`;
@@ -34,7 +44,7 @@ export async function renderClaim(job: ClaimedJob, signal: AbortSignal, deps: Pi
     }
     if (storedClip) text = `${text} captions`;
   }
-  const attachmentPath = job.mode === 'edit' || storedClip ? await deps.source(job, signal) : undefined;
+  attachmentPath ??= job.mode === 'edit' || storedClip ? await deps.source(job, signal) : undefined;
   signal.throwIfAborted();
   const music = job.music ? await deps.music?.(job, signal) : undefined;
   if (job.music && !music) throw Error('Selected soundtrack could not be loaded');

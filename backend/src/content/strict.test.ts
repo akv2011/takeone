@@ -16,8 +16,8 @@ test('production requires explicit provider/model configuration before making a 
 });
 test('production rejects provider failures instead of generic fallback narration', async () => {
  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('not authorized', { status: 401 })));
- await expect(content.brainstorm('mountains', [], { strict: true })).rejects.toThrow('provider failed');
- await expect(content.script(angle, [], { strict: true })).rejects.toThrow('provider failed');
+ await expect(content.brainstorm('mountains', [], { strict: true })).rejects.toThrow('Gemini rejected the request (401)');
+ await expect(content.script(angle, [], { strict: true })).rejects.toThrow('Gemini rejected the request (401)');
  expect((await content.script(angle)).script).toContain(angle.hook);
 });
 test.each([[], [{}], [{ ...angle, hook: 1 }], 'invalid'])('production rejects malformed angle output %j', async value => {

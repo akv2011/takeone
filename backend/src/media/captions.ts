@@ -8,13 +8,23 @@ function ts(sec: number): string {
   return `${h}:${String(m).padStart(2, '0')}:${ss}`;
 }
 
+// Chinese, Japanese, Thai, Lao, Khmer and Myanmar put no spaces between words. Script_Extensions
+// also covers the shared CJK marks (。、ー). Two words get a space only when neither side touching
+// the boundary is one of these, so mixed text keeps "iPhone 15" and Latin stays unchanged.
+const UNSPACED = String.raw`[\p{scx=Han}\p{scx=Hiragana}\p{scx=Katakana}\p{scx=Thai}\p{scx=Lao}\p{scx=Khmer}\p{scx=Myanmar}\uFF01-\uFF60]`;
+const ENDS_UNSPACED = new RegExp(`${UNSPACED}$`, 'u'), STARTS_UNSPACED = new RegExp(`^${UNSPACED}`, 'u');
+export function joinWords(words: readonly string[]): string {
+  return words.reduce((text, word, i) =>
+    i === 0 ? word : text + (ENDS_UNSPACED.test(text) || STARTS_UNSPACED.test(word) ? '' : ' ') + word, '');
+}
+
 // Group words into short caption cues (~3 words each for karaoke feel).
 export function wordsToCues(words: Word[], perCue = 3): { start: number; end: number; text: string }[] {
   const cues: { start: number; end: number; text: string }[] = [];
   if (!Number.isInteger(perCue) || perCue < 1) throw new Error('Invalid caption group size');
   let chunk: Word[] = [];
   const flush = () => {
-    if (chunk.length) cues.push({ start: chunk[0].start, end: chunk[chunk.length - 1].end, text: chunk.map(w => w.text).join(' ') });
+    if (chunk.length) cues.push({ start: chunk[0].start, end: chunk[chunk.length - 1].end, text: joinWords(chunk.map(w => w.text)) });
     chunk = [];
   };
   for (const word of words) {

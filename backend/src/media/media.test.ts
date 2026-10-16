@@ -76,7 +76,7 @@ describe('media-core (real ffmpeg)', () => {
   }, 30000);
 
   it('voiceover (say fallback) -> audio file', async () => {
-    const { outputPath } = await run({ op: 'voiceover', voiceId: '', script: 'this is a test reel about upi' }, '');
+    const { outputPath } = await run({ op: 'voiceover', script: 'this is a test reel about upi' }, '');
     expect((await ffprobe(outputPath)).hasAudio).toBe(true);
     await rm((globalThis as any).__last, { recursive: true, force: true });
   }, 30000);

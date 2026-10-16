@@ -1,6 +1,6 @@
-// One Gemini client for the worker: Vertex AI generateContent over REST with an ADC token,
+// One Gemini client for the worker: Vertex AI generateContent over the shared Google REST helper,
 // JSON output constrained by responseSchema, then the caller's own strict validator.
-import { GoogleAuth } from 'google-auth-library';
+import { googleFetch, PROJECT_ID } from './google/auth.js';
 
 export type GeminiPart =
   | { text: string }
@@ -19,7 +19,6 @@ export interface GenerateJsonRequest<T> {
 }
 
 const MAX_RESPONSE_BYTES = 1024 * 1024;
-let auth: GoogleAuth | undefined;
 
 export function geminiConfigured(): boolean {
   return !!process.env.GEMINI_PROJECT?.trim() && !!process.env.GEMINI_MODEL?.trim();
@@ -30,7 +29,7 @@ function endpoint(): string {
   const location = process.env.GEMINI_LOCATION?.trim() || 'global';
   if (!project) throw Error('GEMINI_PROJECT is required for Gemini');
   if (!model) throw Error('GEMINI_MODEL is required for Gemini');
-  if (!/^[a-z][a-z0-9-]{4,61}[a-z0-9]$/.test(project) || !/^gemini-[a-z0-9.-]+$/.test(model) ||
+  if (!PROJECT_ID.test(project) || !/^gemini-[a-z0-9.-]+$/.test(model) ||
       !(location === 'global' || /^[a-z]+-[a-z]+\d$/.test(location))) throw Error('Invalid Gemini configuration');
   const host = location === 'global' ? 'aiplatform.googleapis.com' : `${location}-aiplatform.googleapis.com`;
   return `https://${host}/v1/projects/${project}/locations/${location}/publishers/google/models/${model}:generateContent`;
@@ -54,31 +53,16 @@ async function readCapped(response: Response): Promise<string> {
 
 export async function generateJson<T>(request: GenerateJsonRequest<T>): Promise<T> {
   request.signal?.throwIfAborted();
-  const url = endpoint();
-  auth ??= new GoogleAuth({ scopes: ['https://www.googleapis.com/auth/cloud-platform'] });
-  const token = await auth.getAccessToken();
-  if (!token) throw Error('Gemini credentials unavailable');
-  request.signal?.throwIfAborted();
-  const timeout = AbortSignal.timeout(request.timeoutMs);
-  let raw: string;
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      signal: request.signal ? AbortSignal.any([request.signal, timeout]) : timeout,
-      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: request.parts }],
-        ...(request.system ? { systemInstruction: { parts: [{ text: request.system }] } } : {}),
-        generationConfig: { responseMimeType: 'application/json', responseSchema: request.schema },
-      }),
-    });
-    if (!response.ok) { await response.body?.cancel().catch(() => {}); throw Error(`Gemini provider failed (${response.status})`); }
-    raw = await readCapped(response);
-  } catch (error) {
-    request.signal?.throwIfAborted();
-    if (timeout.aborted) throw Error('Gemini request timed out');
-    throw error;
-  }
+  const response = await googleFetch('Gemini', endpoint(), {
+    json: {
+      contents: [{ role: 'user', parts: request.parts }],
+      ...(request.system ? { systemInstruction: { parts: [{ text: request.system }] } } : {}),
+      generationConfig: { responseMimeType: 'application/json', responseSchema: request.schema },
+    },
+    signal: request.signal,
+    timeoutMs: request.timeoutMs,
+  });
+  const raw = await readCapped(response).catch((error) => { request.signal?.throwIfAborted(); throw error; });
   let data: any;
   try { data = JSON.parse(raw); } catch { throw Error('Gemini provider returned a malformed response'); }
   const blocked = data?.promptFeedback?.blockReason;
