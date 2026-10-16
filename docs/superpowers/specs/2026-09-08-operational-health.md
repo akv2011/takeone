@@ -1,0 +1,5 @@
+# Internal operational health
+
+Add an internal-only read-only snapshot and a five-minute internal logging action. Use indexed first-row probes, never table scans/counts, for oldest queued job, expired dispatched/processing leases, and failed Telegram text/video deliveries. A queue wait over five minutes is actionable; expired leases remain actionable until the existing recovery cron reconciles them. Failed-delivery flags cover unresolved historical failures, not recent failure rates. Expose aggregate booleans, queue age, timestamp and stable issue codes only. No prompts, identifiers, URLs, secrets or raw errors. An empty snapshot means no detected conditions, not proof of provider readiness, capacity or end-to-end health. Logs are emitted even when clear so external monitoring can detect a missing heartbeat. No outgoing notifications, automatic remediation or production deployment.
+
+Verify registration privacy, empty state, exact queue/lease boundaries, legacy missing leases, old queued jobs ordered by createdAt, resolved failures, state immutability and log redaction. Document staging query, log interpretation and remaining alert setup.

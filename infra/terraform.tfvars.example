@@ -1,0 +1,19 @@
+project_id = "your-gcp-project"
+region     = "us-central1"
+image      = "us-central1-docker.pkg.dev/your-gcp-project/takeone/backend:release"
+convex_url = "https://your-deployment.convex.cloud"
+dispatch_secret_id = "takeone-dispatch-secret"
+worker_secrets = {
+  WORKER_SECRET      = "takeone-worker-secret"
+  LLM_API_KEY        = "takeone-llm-key"
+  WHISPER_API_KEY    = "takeone-whisper-key"
+  ELEVENLABS_API_KEY = "takeone-voice-key"
+  TELEGRAM_BOT_TOKEN = "takeone-telegram-token"
+  PEXELS_API_KEY     = "takeone-pexels-key"
+}
+worker_env = {
+  LLM_BASE_URL = "https://api.openai.com/v1"
+  LLM_MODEL    = "set-a-model-available-to-your-api-account"
+}
+# Leave null until the product notice and retention policy match the chosen period.
+video_retention_days = null

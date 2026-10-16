@@ -1,0 +1,5 @@
+# Complete Studio version history
+
+Keep the original version pinned and page edits in groups of 20, with a Load older edits control and loading state. Use the existing versions query in rootOnly mode for the original; retain the old default behavior for compatibility. A new listVersions query validates selected-job and root ownership, accountKey and page bounds before querying the existing root/user index. Return only display fields, not worker leases, caption arrays or storage metadata. Account-key and selected-job changes reset client pagination. Opening a version remains free, and earlier-version editing uses the existing request path. Loaded pages may reset when navigating between versions; users can load them again.
+
+Test a history exceeding 50 edits, all pages without duplicates or foreign records, root/selected-job ownership, malformed IDs, page bounds and no balance changes. UI checks Load older edits and loading/disabled state while preserving the original link. No backend media or billing behavior changes.

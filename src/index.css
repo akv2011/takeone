@@ -1,0 +1,54 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+@layer base {
+  :root {
+    --paper: #EEF0F3;
+    --ink: #1A1F36;
+    --line: #D6DAE1;
+    --cue: #FFD23F;
+    color-scheme: light;
+  }
+
+  body {
+    background-color: var(--paper);
+    color: var(--ink);
+    font-family: 'Atkinson Hyperlegible Next', 'Atkinson Hyperlegible', system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background-color: rgba(255, 210, 63, 0.55);
+    color: var(--ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: var(--paper); }
+  ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 9999px; }
+  ::-webkit-scrollbar-thumb:hover { background: #B9BFCA; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+.glass-panel {
+  background: #FFFFFF;
+  border: 1px solid var(--line);
+}
+
+.glass-panel-dark {
+  background: var(--ink);
+  border: 1px solid #2A3150;
+}

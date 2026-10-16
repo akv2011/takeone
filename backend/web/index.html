@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>takeone — a content studio in your chat</title>
+<meta property="og:title" content="takeone — send a clip, an idea, or a youtube link. get a captioned short back.">
+<meta property="og:description" content="TakeOne writes the words, ffmpeg cuts the video. no capcut, no converter sites.">
+<style>
+  :root{--v:#7c5cff;--ink:#141220;--bg:#0e0d12}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;background:var(--bg);color:#eee;
+    min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
+    background-image:radial-gradient(circle at 80% 10%,rgba(124,92,255,.35),transparent 45%)}
+  .card{max-width:560px;text-align:center}
+  h1{font-size:64px;letter-spacing:-.03em}h1 span{color:var(--v)}
+  p.tag{font-size:19px;color:#c9c7d4;margin:16px 0 8px;line-height:1.4}
+  .modes{display:flex;gap:8px;margin:22px 0;flex-wrap:wrap;justify-content:center}
+  .m{border:1px solid #2c2842;border-radius:10px;padding:10px 14px;font-size:13px;color:#c9c7d4}
+  .m b{color:#fff;display:block}
+  form{display:flex;gap:8px;margin-top:20px}
+  input{flex:1;padding:14px 16px;border-radius:10px;border:1px solid #2c2842;background:#17151f;color:#fff;font-size:15px}
+  button{padding:14px 20px;border:0;border-radius:10px;background:var(--v);color:#fff;font-weight:700;font-size:15px;cursor:pointer}
+  small{color:#8681a0;display:block;margin-top:14px}
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>takeone<span>.</span></h1>
+    <p class="tag">a content studio that lives in your chat. send a clip, an idea, or a youtube link — get a captioned vertical short back.</p>
+    <div class="modes">
+      <div class="m"><b>generate</b>idea → viral reel</div>
+      <div class="m"><b>edit</b>clip → captioned short</div>
+      <div class="m"><b>clip</b>youtube + timestamp → short</div>
+    </div>
+    <form onsubmit="event.preventDefault();this.querySelector('button').textContent='on the list ✓'">
+      <input type="email" placeholder="your email" required>
+      <button type="submit">get early access</button>
+    </form>
+    <small>free to try · ₹99 to drop the watermark · powered by TakeOne</small>
+  </div>
+</body>
+</html>

@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "brief": {
+    "audience": "People who enjoy a calm, intentional daily skincare routine.",
+    "promise": "A natural-feeling soap ritual that brings simplicity and quiet to the start of the day.",
+    "visualNouns": [
+      "artisan soap bar",
+      "soap texture",
+      "soft foam",
+      "hands",
+      "ceramic sink",
+      "linen towel",
+      "eucalyptus",
+      "dried flowers",
+      "water droplets"
+    ],
+    "setting": "Minimal, serene bathroom sink with natural materials and subtle botanical accents.",
+    "lighting": "Soft diffused morning light, warm neutral tones, gentle highlights on water and foam.",
+    "cameraMotion": "Slow macro push-ins, smooth lateral slides and steady close-up tracking.",
+    "pacing": "Unhurried cuts every 3\u20135 seconds, synchronized with each narration phrase.",
+    "restrictedTerms": [
+      "healing",
+      "medicated",
+      "antibacterial",
+      "acne treatment",
+      "eczema relief",
+      "anti-aging",
+      "cure",
+      "detox",
+      "clinically proven"
+    ]
+  },
+  "scenes": [
+    {
+      "startSec": 0,
+      "endSec": 4,
+      "purpose": "Open on a tactile bar beside botanicals, establishing a calm everyday ritual.",
+      "searchTerms": "natural soap botanical flatlay",
+      "shotType": "Macro product detail",
+      "motion": "Slow push-in across the bar\u2019s surface."
+    },
+    {
+      "startSec": 4,
+      "endSec": 8,
+      "purpose": "Show hands lifting the fresh bar and wetting it beneath a gentle stream.",
+      "searchTerms": "hands wetting artisan soap",
+      "shotType": "Tight sink close-up",
+      "motion": "Steady side track following the hands."
+    },
+    {
+      "startSec": 8,
+      "endSec": 12,
+      "purpose": "Highlight creamy texture as the bar builds soft foam between palms.",
+      "searchTerms": "soap foam hands closeup",
+      "shotType": "Extreme macro",
+      "motion": "Subtle orbit around the lathering action."
+    },
+    {
+      "startSec": 12,
+      "endSec": 16,
+      "purpose": "Create a quiet pause with rinsing hands, droplets and a peaceful sink setting.",
+      "searchTerms": "rinsing hands ceramic sink",
+      "shotType": "Close-up lifestyle shot",
+      "motion": "Locked frame with natural hand and water movement."
+    },
+    {
+      "startSec": 16,
+      "endSec": 20,
+      "purpose": "End with the bar resting beside linen and botanicals, suggesting a simple morning beginning.",
+      "searchTerms": "soap linen morning bathroom",
+      "shotType": "Styled detail shot",
+      "motion": "Slow pull-back to reveal the serene arrangement."
+    }
+  ]
+}

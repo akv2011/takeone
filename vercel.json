@@ -1,0 +1,127 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/guides",
+      "destination": "/guides/index.html"
+    },
+    {
+      "source": "/pricing",
+      "destination": "/pricing/index.html"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/privacy/index.html"
+    },
+    {
+      "source": "/terms",
+      "destination": "/terms/index.html"
+    },
+    {
+      "source": "/acceptable-use",
+      "destination": "/acceptable-use/index.html"
+    },
+    {
+      "source": "/copyright",
+      "destination": "/copyright/index.html"
+    },
+    {
+      "source": "/refund-policy",
+      "destination": "/refund-policy/index.html"
+    },
+    {
+      "source": "/guides/ai-video-editing",
+      "destination": "/guides/ai-video-editing/index.html"
+    },
+    {
+      "source": "/guides/youtube-to-shorts",
+      "destination": "/guides/youtube-to-shorts/index.html"
+    },
+    {
+      "source": "/guides/resize-video-for-reels",
+      "destination": "/guides/resize-video-for-reels/index.html"
+    },
+    {
+      "source": "/guides/edit-video-captions",
+      "destination": "/guides/edit-video-captions/index.html"
+    },
+    {
+      "source": "/guides/change-video-speed",
+      "destination": "/guides/change-video-speed/index.html"
+    },
+    {
+      "source": "/create",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/studio/:path*",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/review",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/review/:path*",
+      "destination": "/app.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/review/:path*",
+      "headers": [
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        },
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    },
+    {
+      "source": "/create",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/studio/:path*",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/app.html",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/404.html",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    }
+  ]
+}

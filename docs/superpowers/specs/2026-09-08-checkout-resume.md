@@ -1,0 +1,5 @@
+# Continue an existing checkout
+
+History offers Continue checkout only for a known recent pending/customer-action/method/confirmation session. The owner action shares the refresh throttle, fetches canonical session/payment state, validates provider age and explicit payment-field shape, applies normal reconciliation, then rechecks the persisted owner/session/state before returning its saved HTTPS URL. Only the environment's standard Dodo checkout host is accepted. No create call and no new request ID occur. Success/dispute/merchant-review/capture states cannot resume. A session older than 23 hours uses status/expiry recovery instead. This margin intentionally closes before the provider's default 24-hour expiry.
+
+Tests: resuming an empty known checkout issues GET only; captured/foreign/disputed/old/malformed responses fail closed; UI calls the order-scoped action without touching attempt storage. Existing checkout and refresh tests remain relevant. Real hosted browser resume needs the merchant sandbox.

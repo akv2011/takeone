@@ -1,0 +1,7 @@
+# Preserve editable captions through ordinary edits
+
+Owned source versions with valid clean/timing archives should retain their editable layer after timeline, framing and soundtrack edits. Currently ordinary edits download the flattened output and disable archival. Add a server-derived captionTransform flag, paired clean/timing keys and inherited caption style/font/position to those jobs. Old jobs without the flag keep their existing restyle/flattened behavior. Client input cannot choose storage keys or transform flags. Include the flag in request identity and worker claims.
+
+The worker uses the existing deterministic router and allowed reproducible operations on the clean source. Transform saved cues through trim/clip/speed, then burn captions once on the final canvas (unless source style is none or no cues remain). Preserve creator effects and selected audio, create a new clean/timing archive, and apply entitlement branding at finalization. Avoid retranscription of saved speech. Preserve the existing optional smart-reframe vision lookup and safe fit fallback. Non-reproducible output formats fail clearly rather than claim a valid editable MP4. Existing source-embedded caption pixels remain untouched.
+
+Tests: web/Telegram ownership and inherited payload, idempotency/claim; timing and style preservation with real media transformation; two successive edits followed by font restyle/removal in a real Linux container. Empty-speech trims must export cleanly without fabricated captions. Hosted delivery/concurrency remains a connection gate.

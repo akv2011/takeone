@@ -1,0 +1,66 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  web-and-convex:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run typecheck:convex
+      - run: npm run lint
+      - run: npm test
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install Linux media tools
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg espeak-ng yt-dlp
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm test
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build production image
+        run: docker build -t takeone-test backend
+      - name: Render a real video in the production container
+        run: docker run --rm --network none -v "$PWD/scripts/container-smoke.sh:/smoke.sh:ro" --entrypoint sh takeone-test /smoke.sh
+      - name: Verify runtime dependencies and HTTP health
+        run: |
+          docker run --rm --entrypoint sh takeone-test -c 'ffmpeg -version && yt-dlp --version && espeak-ng --version && test -f dist/managed/run.js'
+          docker run -d --name takeone-http -p 8080:8080 -e DISPATCH_SECRET=test-only-secret -e GCP_PROJECT=test-project -e GCP_REGION=us-central1 -e CLOUD_RUN_JOB=takeone-video -e GCS_BUCKET=test-bucket takeone-test
+          trap 'docker logs takeone-http; docker rm -f takeone-http' EXIT
+          for attempt in $(seq 1 20); do
+            if curl --fail http://localhost:8080/healthz; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+  infrastructure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.12.2
+      - run: terraform -chdir=infra init -backend=false
+      - run: terraform -chdir=infra fmt -check
+      - run: terraform -chdir=infra validate
+      - run: terraform -chdir=infra test

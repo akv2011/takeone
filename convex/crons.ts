@@ -1,0 +1,10 @@
+import { cronJobs, makeFunctionReference } from 'convex/server';
+const crons = cronJobs();
+crons.interval('recover Telegram text replies', { minutes: 1 }, makeFunctionReference<'mutation'>('telegramMessages:recover'), {});
+crons.interval('reconcile payment orders', { minutes: 1 }, makeFunctionReference<'mutation'>('payments:scheduleReconciliation'), {});
+crons.interval('recover and dispatch video jobs', { minutes: 1 }, makeFunctionReference<'mutation'>('jobs:pump'), {});
+crons.interval('recover Telegram deliveries', { minutes: 1 }, makeFunctionReference<'mutation'>('telegramDelivery:recover'), {});
+crons.interval('expire abandoned upload sessions', { minutes: 15 }, makeFunctionReference<'mutation'>('uploads:expirePending'), {});
+crons.interval('maintain abandoned upload storage', { minutes: 1 }, makeFunctionReference<'mutation'>('storageCleanup:run'), {});
+crons.interval('log operational health', { minutes: 5 }, makeFunctionReference<'action'>('operations:logHealth'), {});
+export default crons;

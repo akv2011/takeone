@@ -1,0 +1,9 @@
+# Shareable video review
+
+An owner can create a one-day or seven-day review link for one completed private MP4. The page shows that fixed version and timestamped guest notes, with click-to-seek. Creating a new link revokes the prior live link for that version. The owner can resolve notes, revoke access and delete inactive feedback history. Creation is always an explicit user action and never sends the link.
+
+The capability is 256 random bits generated in a Convex action. Only its SHA-256 digest is stored. The raw token appears in the URL fragment, with no Clerk or analytics on the public route and no-referrer response policy. Public queries project only expiry, declared duration and bounded notes. An internal transaction validates the token, exact completed job/storage binding and signing quota before the configured authenticated dispatcher signs the MP4 for two minutes. Revocation is checked again after signing. Already issued URLs may last up to two minutes and downloaded copies cannot be recalled.
+
+Owners may create five links per hour and retain at most 100 links. Each link allows 200 notes total, ten per minute globally, and 20 signing requests per minute. Notes have bounded guest names, text and timestamps, and request IDs make exact retries idempotent. Guests cannot change the version or choose a storage key. Owner-supplied duration comes from the Studio player and is capped at the delivery duration limit; it grants no media/storage authority.
+
+Tests cover owner isolation, token format/hash/expiry/revocation, exact source binding, rate/concurrency limits, retries, signing races, owner resolution and UI lifecycle fencing. Browser acceptance uses a real local MP4 for player timing and click-to-seek. Real GCS/Convex access requires staging deployment; local fixtures do not establish hosted access or abuse capacity.

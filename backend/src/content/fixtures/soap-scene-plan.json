@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "brief": {
+    "audience": "People who value a calm, sensory morning skincare routine.",
+    "promise": "A natural beauty soap can turn everyday washing into a simple, peaceful ritual without implying health or medical benefits.",
+    "visualNouns": [
+      "unbranded soap bar",
+      "creamy foam",
+      "wet hands",
+      "ceramic sink",
+      "botanical leaves",
+      "dried flowers",
+      "water droplets",
+      "linen towel"
+    ],
+    "setting": "Minimal sunlit bathroom with a ceramic sink, pale stone surfaces, natural wood and subtle botanical accents.",
+    "lighting": "Soft diffused morning light, warm neutral palette, gentle highlights on water and foam.",
+    "cameraMotion": "Slow macro push-ins, controlled side slides and steady overhead movement.",
+    "pacing": "Unhurried sensory cuts every 3\u20135 seconds, synchronized with narration and ending on a clean ritual image.",
+    "restrictedTerms": [
+      "healing",
+      "antibacterial",
+      "acne treatment",
+      "eczema relief",
+      "dermatologist approved",
+      "clinically proven",
+      "detox",
+      "cure"
+    ]
+  },
+  "scenes": [
+    {
+      "startSec": 0,
+      "endSec": 4,
+      "purpose": "Establish a quiet morning ritual as hands reach for a fresh, unbranded soap bar beside the sink.",
+      "searchTerms": [
+        "hands reaching for unbranded natural soap bar sunlit bathroom sink"
+      ],
+      "shotType": "Medium close-up",
+      "motion": "Slow lateral slide toward the soap and hands."
+    },
+    {
+      "startSec": 4,
+      "endSec": 8,
+      "purpose": "Show the tactile surface, natural color and water droplets on the fresh bar.",
+      "searchTerms": [
+        "macro handmade soap texture water droplets neutral stone surface"
+      ],
+      "shotType": "Extreme macro",
+      "motion": "Gentle push-in with shallow depth of field."
+    },
+    {
+      "startSec": 8,
+      "endSec": 12,
+      "purpose": "Highlight soft, creamy foam building between wet hands under a light stream of water.",
+      "searchTerms": [
+        "creamy soap foam wet hands washing ceramic sink close up"
+      ],
+      "shotType": "Tight close-up",
+      "motion": "Locked camera with natural circular hand movement."
+    },
+    {
+      "startSec": 12,
+      "endSec": 16,
+      "purpose": "Connect the soap\u2019s natural aesthetic to carefully arranged botanical ingredients without making product claims.",
+      "searchTerms": [
+        "soap bar botanical leaves dried flowers linen overhead natural light"
+      ],
+      "shotType": "Overhead detail shot",
+      "motion": "Slow controlled drift across botanicals and soap."
+    },
+    {
+      "startSec": 16,
+      "endSec": 20,
+      "purpose": "Close on a peaceful sink-side moment: rinsed hands, folded linen and the soap resting neatly in its dish.",
+      "searchTerms": [
+        "rinsed hands linen towel soap dish calm morning bathroom"
+      ],
+      "shotType": "Wide close-up",
+      "motion": "Slow pull-back ending on a balanced still composition."
+    }
+  ]
+}

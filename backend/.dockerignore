@@ -1,0 +1,9 @@
+node_modules
+dist
+tmp
+fixtures
+*.md
+.env*
+convex
+web
+.git

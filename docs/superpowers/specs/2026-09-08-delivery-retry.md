@@ -1,0 +1,5 @@
+# Retry saved Telegram delivery
+
+Studio exposes delivery status and a free retry control after automatic delivery failure. The owner mutation verifies a completed saved output and that its original chat is still linked to the owner. Pending/sending/sent retries are idempotent. A failed delivery receives up to three additional attempts and a one-minute manual retry throttle. Attempt numbers remain monotonic, so stale acknowledgements cannot affect a newer cycle. No queue render or credit function is called.
+
+Every delivery claim, including automatic ones, rechecks the current account link before network delivery. Unlinked/reassigned destinations fail without sending. This cannot recall a network send already in flight. Browser tests cover the retry action without render submission; backend tests cover owner/link checks, unlink-after-queue, repeated clicks, attempt budgets, stale acknowledgements and unchanged balances. Real Telegram transport acceptance remains pending connected staging access.

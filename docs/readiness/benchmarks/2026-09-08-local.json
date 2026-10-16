@@ -1,0 +1,75 @@
+{
+  "environment": "Local synthetic benchmark; cloud claim/upload/finalize/Telegram services are stubbed",
+  "hardware": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "logicalCpus": 10
+  },
+  "fixture": "3-second synthetic video with a tone; 1080x1920 H264/AAC output; full decode validation",
+  "concurrentJobs": 10,
+  "observedPeakRenderCalls": 10,
+  "elapsedMs": 27334,
+  "outcomes": [
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed"
+  ],
+  "latency": {
+    "scope": "Worker attempts; successful stage latency only. Initial queue wait is measured at first claim. Post-completion hook is not Telegram delivery latency.",
+    "stages": {
+      "claim": {
+        "successfulSamples": 10,
+        "failedSamples": 0,
+        "p50Ms": 1,
+        "p95Ms": 1,
+        "maxMs": 1
+      },
+      "render": {
+        "successfulSamples": 10,
+        "failedSamples": 0,
+        "p50Ms": 26708,
+        "p95Ms": 27064,
+        "maxMs": 27064
+      },
+      "upload": {
+        "successfulSamples": 10,
+        "failedSamples": 0,
+        "p50Ms": 0,
+        "p95Ms": 2,
+        "maxMs": 2
+      },
+      "finalize": {
+        "successfulSamples": 10,
+        "failedSamples": 0,
+        "p50Ms": 0,
+        "p95Ms": 0,
+        "maxMs": 0
+      },
+      "post_completion_hook": {
+        "successfulSamples": 10,
+        "failedSamples": 0,
+        "p50Ms": 0,
+        "p95Ms": 0,
+        "maxMs": 0
+      },
+      "cleanup": {
+        "successfulSamples": 10,
+        "failedSamples": 0,
+        "p50Ms": 0,
+        "p95Ms": 0,
+        "maxMs": 0
+      }
+    },
+    "outcomes": {
+      "completed": 10
+    },
+    "ignoredRecords": 0
+  }
+}

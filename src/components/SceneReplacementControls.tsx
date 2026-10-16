@@ -1,0 +1,38 @@
+import { useEffect, useRef, useState } from 'react';
+import { useMutation, useQuery } from 'convex/react';
+import { api } from '../lib/convexApi';
+
+export function SceneReplacementControls({ jobId, accountKey, sceneCount, onReplaced }: { jobId: string; accountKey: string; sceneCount: number; onReplaced(jobId: string): void }) {
+  const options = useQuery(api.sceneReplacements.options, { jobId, accountKey }) as { eligible: boolean; uploads: { id: string; name: string }[] } | undefined;
+  const request = useMutation(api.sceneReplacements.request);
+  const [index, setIndex] = useState(0), [uploadId, setUploadId] = useState('');
+  const [confirmed, setConfirmed] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState('');
+  const contextKey = `${accountKey}:${jobId}`, scope = useRef(contextKey);
+  scope.current = contextKey;
+  const pending = useRef<{ payload: string; requestId: string } | null>(null), alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  if (options === undefined) return <p role="status" className="mt-3 text-xs text-muted">Checking replacement sources…</p>;
+  if (!options.eligible) return <p className="mt-3 text-xs text-muted">Scene replacement requires a retained clean video for this version.</p>;
+  if (!options.uploads.length) return <p className="mt-3 text-xs text-muted">Upload an owned video in the Dashboard to use as a replacement scene.</p>;
+  const submit = async () => {
+    if (busy || !confirmed || !options.uploads.some(u => u.id === uploadId)) return;
+    const origin = contextKey;
+    const payload = JSON.stringify([jobId, index, uploadId]);
+    if (pending.current?.payload !== payload) pending.current = { payload, requestId: crypto.randomUUID() };
+    setBusy(true); setError('');
+    try {
+      const result = await request({ sourceJobId: jobId, index, uploadId, requestId: pending.current.requestId, confirmedOwnership: true });
+      if (alive.current && scope.current === origin) onReplaced(result.jobId);
+    } catch { if (alive.current && scope.current === origin) setError('The replacement could not be queued. Check your allowance and source, then retry.'); }
+    finally { if (alive.current && scope.current === origin) setBusy(false); }
+  };
+  return <fieldset disabled={busy} className="mt-4 space-y-3 border-t pt-3">
+    <legend className="text-sm font-semibold">Replace a scene</legend>
+    <p className="text-xs text-muted">Keeps the other scenes, original sound and saved captions. Existing visual effects inside the selected scene are replaced. Uses one video allowance and creates a new version. The replacement starts at its first frame and must cover the scene.</p>
+    <label className="block text-xs">Scene<select aria-label="Scene to replace" value={index} onChange={e => setIndex(Number(e.target.value))} className="mt-1 block w-full rounded border p-2">{Array.from({ length: sceneCount }, (_, i) => <option key={i} value={i}>Scene {i+1}</option>)}</select></label>
+    <label className="block text-xs">Replacement video<select aria-label="Replacement video" value={uploadId} onChange={e => setUploadId(e.target.value)} className="mt-1 block w-full rounded border p-2"><option value="">Choose an uploaded video</option>{options.uploads.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select></label>
+    <label className="flex gap-2 text-xs"><input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} />I own this footage or have permission to use it.</label>
+    <button type="button" disabled={busy || !uploadId || !confirmed} onClick={submit} className="rounded-lg bg-cue px-3 py-2 text-xs text-white disabled:opacity-50">{busy ? 'Queuing replacement…' : 'Replace scene'}</button>
+    {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
+  </fieldset>;
+}

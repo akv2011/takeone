@@ -1,0 +1,7 @@
+# Caption wording correction
+
+Studio loads owner-scoped saved caption cues through a bounded server-side read of a privately signed caption JSON object. Reading costs no generation. It presents timestamped text fields without changing cue timing. Submission sends optional replacement text with the chosen style through the existing idempotent caption-edit mutation. Validate bounded count/text/payload before enqueue; worker requires exact cue count, preserves timings, validates the resulting archive and persists corrected metadata for subsequent versions. No transcription or audio operation is added.
+
+Late loads must not modify another video's UI. Invalid/foreign layers fail closed; old jobs without archive remain unavailable. Tests cover authorization, bounded loading, unchanged timing, cue count mismatch, repeated correction, render decode and Studio submission. Full frame/timeline editing and font/position controls remain separate work.
+
+Implementation bounds: at most 10,000 cues, 4,000 characters each and 256 KiB serialized replacement text; archive downloads/worker metadata remain bounded to 512 KiB. The UI paginates 20 cues. The worker validates exact cue-count agreement before rendering; a forged count mismatch fails through the normal failed-job refund path. The private signing route accepts caption keys only, with the same dispatcher authentication. The Convex read action accepts only storage.googleapis.com HTTPS URLs and disables redirects.

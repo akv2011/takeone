@@ -1,0 +1,5 @@
+# Timeline frame previews
+
+Eight on-demand 160x90 JPEG canvas previews use one detached video decoder and evenly spaced sample times inside the first/last boundary of a <=300-second source. Source aspect is preserved with letterboxing. Click seeks the existing player; no billing mutation or render occurs. Per-event ten-second and overall 45-second deadlines bound stalled decoding. Cancellation/unmount/source URL replacement abort work and release decoder/canvas. Failed CORS/expired sources leave existing trim controls usable with a retry message. Preview images remain in page memory.
+
+The timeline keys the preview component by signed source URL, preventing stale-source callbacks. Terraform permits only GET/HEAD CORS from explicitly configured HTTPS origins while retaining private access prevention and signatures. Defaults are takeone.web.app and www; staging must override origins explicitly. Verify lifecycle/seek/failure UI, real browser extraction using a synthetic fixture, production build, and Terraform mock tests. These are sampled previews, not frame-index editing or thumbnail export.

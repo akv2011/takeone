@@ -1,0 +1,9 @@
+backend/
+convex/*
+!convex/captions.ts
+!convex/config.ts
+!convex/paymentStates.ts
+docs/
+.superpowers/
+*.pdf
+*.md

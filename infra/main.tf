@@ -1,0 +1,279 @@
+terraform {
+  required_version = ">= 1.6"
+  backend "gcs" {}
+  required_providers {
+    google = { source = "hashicorp/google", version = "~> 7.0" }
+  }
+}
+provider "google" {
+  project = var.project_id
+  region  = var.region
+}
+variable "project_id" { type = string }
+variable "region" {
+  type    = string
+  default = "us-central1"
+}
+variable "image" {
+  type        = string
+  description = "Built backend image URI, preferably pinned by digest."
+}
+variable "convex_url" {
+  type = string
+  validation {
+    condition     = can(regex("^https://[a-z0-9-]+\\.convex\\.cloud$", var.convex_url))
+    error_message = "Use the intended Convex deployment URL."
+  }
+}
+variable "worker_secrets" {
+  type        = map(string)
+  description = "Environment variable to existing Secret Manager secret ID. WORKER_SECRET is mandatory; add LLM_API_KEY, WHISPER_API_KEY, ELEVENLABS_API_KEY, TELEGRAM_BOT_TOKEN and stock provider keys."
+  validation {
+    condition     = contains(keys(var.worker_secrets), "WORKER_SECRET")
+    error_message = "WORKER_SECRET must be supplied."
+  }
+  validation {
+    condition     = length(setintersection(toset(keys(var.worker_secrets)), toset(["CONVEX_URL", "GCS_BUCKET", "TAKEONE_JOB_ID", "TAKEONE_UPLOAD_ID"]))) == 0
+    error_message = "Worker secrets cannot override the deployment, bucket or dispatched worker identity."
+  }
+}
+variable "dispatch_secret_id" { type = string }
+variable "worker_env" {
+  type        = map(string)
+  default     = {}
+  description = "Non-secret provider configuration such as LLM_BASE_URL and LLM_MODEL."
+  validation {
+    condition     = length(setintersection(toset(keys(var.worker_env)), toset(["CONVEX_URL", "GCS_BUCKET", "TAKEONE_JOB_ID", "TAKEONE_UPLOAD_ID", "WORKER_SECRET"]))) == 0
+    error_message = "Worker environment cannot override managed deployment, bucket, worker identity or worker authentication."
+  }
+}
+variable "veo" {
+  type        = object({ model = string, region = string })
+  default     = null
+  description = "Optional Veo configuration in this GCP project. Null keeps Vertex AI permissions and environment disabled. Confirm model access, quota and cost before enabling."
+  validation {
+    condition     = var.veo == null ? true : can(regex("^veo-3[a-zA-Z0-9.-]+$", var.veo.model)) && can(regex("^[a-z]+-[a-z]+[0-9]$", var.veo.region))
+    error_message = "Specify an explicit Veo 3 model and regional endpoint supported by the worker."
+  }
+}
+locals {
+  apis = toset(concat(["run.googleapis.com", "storage.googleapis.com", "secretmanager.googleapis.com", "iamcredentials.googleapis.com"], var.veo == null ? [] : ["aiplatform.googleapis.com"]))
+  veo_env = var.veo == null ? {} : {
+    VEO_PROJECT = var.project_id
+    VEO_REGION  = var.veo.region
+    VEO_MODEL   = var.veo.model
+  }
+}
+resource "google_project_service" "api" {
+  for_each           = local.apis
+  service            = each.value
+  disable_on_destroy = false
+}
+resource "google_service_account" "dispatcher" {
+  account_id   = "takeone-dispatcher"
+  display_name = "TakeOne managed job dispatcher"
+}
+resource "google_service_account" "worker" {
+  account_id   = "takeone-worker"
+  display_name = "TakeOne video job worker"
+}
+resource "google_project_iam_member" "veo_worker" {
+  count      = var.veo == null ? 0 : 1
+  project    = var.project_id
+  role       = "roles/aiplatform.user"
+  member     = "serviceAccount:${google_service_account.worker.email}"
+  depends_on = [google_project_service.api]
+}
+variable "web_origins" {
+  description = "Exact HTTPS web origins allowed to read private signed videos for canvas frame previews."
+  type        = list(string)
+  default     = ["https://takeone.web.app", "https://takeone.web.app"]
+  validation {
+    condition     = length(var.web_origins) > 0 && alltrue([for origin in var.web_origins : can(regex("^https://[A-Za-z0-9.-]+(:[0-9]+)?$", origin))])
+    error_message = "Provide exact HTTPS origins without paths or wildcards."
+  }
+}
+variable "video_retention_days" {
+  description = "Optional lifecycle deletion age for finished videos. Null keeps objects until an explicit deletion. Set only after the public retention policy and product notices match."
+  type        = number
+  default     = null
+  validation {
+    condition     = var.video_retention_days == null ? true : var.video_retention_days >= 30 && floor(var.video_retention_days) == var.video_retention_days
+    error_message = "Video retention must be null or a whole number of at least 30 days."
+  }
+}
+resource "google_storage_bucket" "videos" {
+  name                        = "${var.project_id}-takeone-videos"
+  location                    = var.region
+  uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+  force_destroy               = false
+  cors {
+    origin          = var.web_origins
+    method          = ["GET", "HEAD"]
+    response_header = ["Content-Type", "Content-Length", "Content-Range", "Accept-Ranges"]
+    max_age_seconds = 3600
+  }
+  dynamic "lifecycle_rule" {
+    for_each = var.video_retention_days == null ? [] : [var.video_retention_days]
+    content {
+      condition { age = lifecycle_rule.value }
+      action { type = "Delete" }
+    }
+  }
+  depends_on = [google_project_service.api]
+}
+resource "google_storage_bucket_iam_member" "worker" {
+  bucket = google_storage_bucket.videos.name
+  role   = "roles/storage.objectUser"
+  member = "serviceAccount:${google_service_account.worker.email}"
+}
+resource "google_storage_bucket_iam_member" "dispatcher" {
+  bucket = google_storage_bucket.videos.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.dispatcher.email}"
+}
+# ADC signs URLs with IAM signBlob, without local service-account keys.
+resource "google_service_account_iam_member" "self_sign" {
+  for_each           = { worker = google_service_account.worker.email, dispatcher = google_service_account.dispatcher.email }
+  service_account_id = "projects/${var.project_id}/serviceAccounts/${each.value}"
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:${each.value}"
+}
+resource "google_secret_manager_secret_iam_member" "worker" {
+  for_each  = var.worker_secrets
+  secret_id = each.value
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.worker.email}"
+}
+resource "google_secret_manager_secret_iam_member" "dispatcher" {
+  secret_id = var.dispatch_secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.dispatcher.email}"
+}
+resource "google_cloud_run_v2_job" "video" {
+  name                = "takeone-video"
+  location            = var.region
+  deletion_protection = true
+  lifecycle {
+    precondition {
+      condition     = length(setintersection(toset(keys(var.worker_env)), toset(keys(var.worker_secrets)))) == 0
+      error_message = "A worker environment variable cannot be both plaintext and a Secret Manager reference."
+    }
+    precondition {
+      condition     = length(setintersection(setunion(toset(keys(var.worker_env)), toset(keys(var.worker_secrets))), toset(["VEO_PROJECT", "VEO_REGION", "VEO_MODEL"]))) == 0
+      error_message = "Configure Veo through the veo input, not worker_env or worker_secrets."
+    }
+  }
+  template {
+    task_count  = 1
+    parallelism = 1
+    template {
+      service_account = google_service_account.worker.email
+      timeout         = "900s"
+      max_retries     = 0 # Convex owns retries and fenced billing reservations.
+      containers {
+        image   = var.image
+        command = ["node", "dist/managed/run.js"]
+        resources {
+          limits = { cpu = "2", memory = "4Gi" }
+        }
+        env {
+          name  = "CONVEX_URL"
+          value = var.convex_url
+        }
+        env {
+          name  = "GCS_BUCKET"
+          value = google_storage_bucket.videos.name
+        }
+        dynamic "env" {
+          for_each = merge(var.worker_env, local.veo_env)
+          content {
+            name  = env.key
+            value = env.value
+          }
+        }
+        dynamic "env" {
+          for_each = var.worker_secrets
+          content {
+            name = env.key
+            value_source {
+              secret_key_ref {
+                secret  = env.value
+                version = "latest"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  depends_on = [google_project_service.api, google_secret_manager_secret_iam_member.worker, google_project_iam_member.veo_worker]
+}
+resource "google_cloud_run_v2_job_iam_member" "dispatch" {
+  project  = var.project_id
+  location = var.region
+  name     = google_cloud_run_v2_job.video.name
+  role     = "roles/run.jobsExecutorWithOverrides"
+  member   = "serviceAccount:${google_service_account.dispatcher.email}"
+}
+resource "google_cloud_run_v2_service" "dispatcher" {
+  name                = "takeone-dispatcher"
+  location            = var.region
+  deletion_protection = true
+  ingress             = "INGRESS_TRAFFIC_ALL"
+  template {
+    service_account                  = google_service_account.dispatcher.email
+    max_instance_request_concurrency = 20
+    timeout                          = "60s"
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 3
+    }
+    containers {
+      image   = var.image
+      command = ["node", "dist/managed/server.js"]
+      resources {
+        limits   = { cpu = "1", memory = "512Mi" }
+        cpu_idle = true
+      }
+      ports { container_port = 8080 }
+      env {
+        name  = "GCP_PROJECT"
+        value = var.project_id
+      }
+      env {
+        name  = "GCP_REGION"
+        value = var.region
+      }
+      env {
+        name  = "CLOUD_RUN_JOB"
+        value = google_cloud_run_v2_job.video.name
+      }
+      env {
+        name  = "GCS_BUCKET"
+        value = google_storage_bucket.videos.name
+      }
+      env {
+        name = "DISPATCH_SECRET"
+        value_source {
+          secret_key_ref {
+            secret  = var.dispatch_secret_id
+            version = "latest"
+          }
+        }
+      }
+    }
+  }
+  depends_on = [google_project_service.api, google_secret_manager_secret_iam_member.dispatcher]
+}
+# Convex authenticates application endpoints using DISPATCH_SECRET; /healthz is public.
+resource "google_cloud_run_v2_service_iam_member" "dispatcher_http" {
+  project  = var.project_id
+  location = var.region
+  name     = google_cloud_run_v2_service.dispatcher.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+output "dispatch_url" { value = google_cloud_run_v2_service.dispatcher.uri }
+output "bucket" { value = google_storage_bucket.videos.name }

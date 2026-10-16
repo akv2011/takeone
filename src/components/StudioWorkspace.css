@@ -1,0 +1,127 @@
+.studio-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.studio-workspace > * {
+  min-width: 0;
+}
+.studio-canvas {
+  grid-row: 1;
+  background: #181b20;
+  border: 1px solid #303640;
+  border-radius: 16px;
+  padding: 16px;
+  color: #f8f8f6;
+}
+.studio-canvas-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  font-family: monospace;
+  font-size: 11px;
+  color: #b6beca;
+}
+.studio-video-frame {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+.studio-video {
+  position: relative;
+  width: min(100%, calc(min(54vh, 560px) * var(--video-ratio, 0.5625)));
+  overflow: hidden;
+  background: #000;
+  border-radius: 4px;
+}
+.studio-canvas a {
+  color: #111;
+}
+.studio-canvas > div > p {
+  color: #b6beca;
+}
+.studio-timeline {
+  grid-row: 2;
+  overflow: hidden;
+  border-radius: 16px;
+}
+.studio-panel-switcher {
+  display: flex;
+  gap: 8px;
+}
+.studio-panel-switcher button {
+  flex: 1;
+  border: 1px solid #d9dce0;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 14px;
+  background: #fff;
+}
+.studio-panel-switcher button[aria-pressed="true"] {
+  background: #111;
+  color: #fff;
+  border-color: #111;
+}
+.studio-workspace :focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 3px;
+}
+.studio-inspector,
+.studio-versions {
+  background: #f3f3ef;
+  border: 1px solid #e5e5e2;
+  border-radius: 16px;
+  padding: 12px;
+}
+.studio-inspector[data-active="false"],
+.studio-versions[data-active="false"] {
+  display: none;
+}
+.studio-panel-heading {
+  padding: 4px 4px 16px;
+}
+.studio-panel-heading h2 {
+  font-weight: 700;
+  font-size: 16px;
+}
+.studio-panel-heading p {
+  margin-top: 6px;
+  color: #616670;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.studio-activity {
+  background: #fff;
+  border: 1px solid #e5e5e2;
+  border-radius: 16px;
+}
+@media (min-width: 1100px) {
+  .studio-workspace {
+    grid-template-columns: 230px minmax(0, 1fr) 350px;
+    grid-template-areas: "versions canvas inspector" "versions timeline inspector" "activity activity activity";
+  }
+  .studio-canvas {
+    grid-area: canvas;
+  }
+  .studio-timeline {
+    grid-area: timeline;
+  }
+  .studio-inspector {
+    grid-area: inspector;
+  }
+  .studio-versions {
+    grid-area: versions;
+  }
+  .studio-activity {
+    grid-area: activity;
+  }
+  .studio-inspector[data-active="false"],
+  .studio-versions[data-active="false"] {
+    display: block;
+  }
+  .studio-panel-switcher {
+    display: none;
+  }
+}
