@@ -3,7 +3,7 @@
 import { v, type Infer } from 'convex/values';
 import { captionLanguageValidator } from './captions';
 
-export const MOMENT_LIMITS = { moments: 3, minSec: 15, maxSec: 60, hookWords: 6, hookChars: 60, whyChars: 160, cues: 60, cueChars: 120 } as const;
+export const MOMENT_LIMITS = { moments: 3, minSec: 15, maxSec: 60, hookWords: 6, hookChars: 60, whyChars: 160, cues: 20, cueChars: 120 } as const;
 
 export const cueValidator = v.object({ start_sec: v.number(), text: v.string() });
 export const momentValidator = v.object({ start_sec: v.number(), end_sec: v.number(), hook: v.string(), why: v.string(), cues: v.array(cueValidator) });

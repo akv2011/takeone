@@ -9,7 +9,7 @@ const moment = (start_sec: number, end_sec: number, change: Record<string, unkno
 const valid = {
   moments: [
     moment(12.5, 40, { hook: '  one two three four five six ', why: ` ${'w'.repeat(160)} `, cues: [cue(12.5, ' First line '), cue(13, 'x'.repeat(120)), cue(39.9, 'Last')] }),
-    moment(40, 100, { hook: 'h'.repeat(60), cues: Array.from({ length: 60 }, (_, i) => cue(40 + i)) }),
+    moment(40, 100, { hook: 'h'.repeat(60), cues: Array.from({ length: 20 }, (_, i) => cue(40 + i)) }),
     moment(14_385, 14_400),
   ],
 };
@@ -22,7 +22,7 @@ afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.clearAllMocks();
 
 test('a valid answer parses with trimmed strings and inclusive limits', () => {
   const moments = parseMoments(structuredClone(valid));
-  expect(moments.map(m => [m.start_sec, m.end_sec, m.cues.length])).toEqual([[12.5, 40, 3], [40, 100, 60], [14_385, 14_400, 2]]);
+  expect(moments.map(m => [m.start_sec, m.end_sec, m.cues.length])).toEqual([[12.5, 40, 3], [40, 100, 20], [14_385, 14_400, 2]]);
   expect(moments[0].hook).toBe('one two three four five six');
   expect(moments[0].why).toBe('w'.repeat(160));
   expect(moments[0].cues).toEqual([cue(12.5, 'First line'), cue(13, 'x'.repeat(120)), cue(39.9, 'Last')]);
@@ -35,6 +35,7 @@ test.each<[string, unknown]>([
   ['a missing moments key', {}],
   ['0 moments', { moments: [] }],
   ['4 moments', { moments: [moment(0, 20), moment(20, 40), moment(40, 60), moment(60, 80)] }],
+  ['21 cues, past the limit Vertex accepts in the schema', { moments: [moment(40, 100, { cues: Array.from({ length: 21 }, (_, i) => cue(40 + i)) })] }],
   ['an extra moment key', withMoment({ score: 9 })],
   ['a missing moment key', { moments: [noWhy] }],
   ['a 14.9 s moment', { moments: [moment(10, 24.9)] }],

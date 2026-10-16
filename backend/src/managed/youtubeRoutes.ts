@@ -2,6 +2,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { dispatcher, type DispatcherDeps } from './dispatcher.js';
+import { failureText } from './worker.js';
 import { findYouTubeMoments, MOMENT_LIMITS, VIDEO_ID, type Moment } from '../youtubeMoments.js';
 import { translateCues } from '../google/translate.js';
 import { CAPTION_LANGUAGES, isCaptionLanguage, type CaptionLanguage } from '../languages.js';
@@ -68,7 +69,10 @@ export function dispatcherWithYouTube(deps: DispatcherDeps, youtube: YouTubeRout
     } catch { run = null; }
     if (!run) return reply(400, { error: 'Invalid request' });
     let result: object;
-    try { result = await run(); } catch { return reply(502, { error: 'Service unavailable' }); }
+    try { result = await run(); } catch (error) {
+      console.warn(JSON.stringify({ event: 'takeone.youtube_route_failed', path: req.url, error: failureText(error) }));
+      return reply(502, { error: 'Service unavailable' });
+    }
     return reply(200, result);
   };
 }

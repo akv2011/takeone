@@ -6,7 +6,7 @@ export interface Cue { start_sec: number; text: string }
 export interface Moment { start_sec: number; end_sec: number; hook: string; why: string; cues: Cue[] }
 
 // The same limits as MOMENT_LIMITS in convex/youtubeValues.ts, which the backend cannot import.
-export const MOMENT_LIMITS = { moments: 3, minSec: 15, maxSec: 60, hookWords: 6, hookChars: 60, whyChars: 160, cues: 60, cueChars: 120 } as const;
+export const MOMENT_LIMITS = { moments: 3, minSec: 15, maxSec: 60, hookWords: 6, hookChars: 60, whyChars: 160, cues: 20, cueChars: 120 } as const;
 const MAX_END_SEC = 14_400;
 export const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
 

@@ -76,7 +76,7 @@ describe('YouTube dispatcher routes', () => {
     ['/translate-cues', 'a missing texts key', { language: 'hi' }],
     ['/translate-cues', 'texts that are not an array', { language: 'hi', texts: 'Hello' }],
     ['/translate-cues', '0 texts', { language: 'hi', texts: [] }],
-    ['/translate-cues', '61 texts', { language: 'hi', texts: Array.from({ length: 61 }, () => 'Hi') }],
+    ['/translate-cues', '21 texts', { language: 'hi', texts: Array.from({ length: 21 }, () => 'Hi') }],
     ['/translate-cues', 'an empty text', { language: 'hi', texts: ['Hello', '   '] }],
     ['/translate-cues', 'a 121-character text', { language: 'hi', texts: ['x'.repeat(121)] }],
     ['/translate-cues', 'a non-string text', { language: 'hi', texts: [5] }],
@@ -99,8 +99,8 @@ describe('YouTube dispatcher routes', () => {
    expect(translated.status).toBe(200); expect(translated.headers.get('cache-control')).toBe('no-store');
    expect(await translated.json()).toEqual({ texts: ['hi:Hello', `hi:${'x'.repeat(120)}`] });
    expect(f.translate).toHaveBeenCalledWith(['Hello', 'x'.repeat(120)], 'hi');
-   const most = await f.post('/translate-cues', JSON.stringify({ language: 'zh', texts: Array.from({ length: 60 }, (_, i) => `line ${i}`) }));
-   expect(most.status).toBe(200); expect((await most.json()).texts).toHaveLength(60);
+   const most = await f.post('/translate-cues', JSON.stringify({ language: 'zh', texts: Array.from({ length: 20 }, (_, i) => `line ${i}`) }));
+   expect(most.status).toBe(200); expect((await most.json()).texts).toHaveLength(20);
   } finally { await f.close(); }
  });
  it('answers 502 without provider detail when a dependency throws', async () => {
