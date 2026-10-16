@@ -61,6 +61,7 @@ test('trailing slash preserves schema identity and article social type', () => {
  }
  expect(metadataFor('/missing').title).toBe('Page not found | TakeOne');
  expect(metadataFor('/create').title).toBe('Your video workspace | TakeOne');
+ expect(metadataFor('/review')).toMatchObject({ title: 'Review a video | TakeOne', robots: 'noindex, nofollow' });
  const collection = structuredDataFor('/guides')[0];
  expect(collection).toMatchObject({ '@type': 'CollectionPage', mainEntity: { itemListElement: guides.map((guide, index) => ({ '@type': 'ListItem', position: index + 1, name: guide.title, url: siteUrl + guide.path })) } });
 });

@@ -10,9 +10,10 @@ export const publicMetadata: Record<string, { title: string; description: string
 export function metadataFor(path: string) {
   const normalized = path === '/' ? '/' : path.replace(/\/+$/, '');
   const page = publicMetadata[normalized];
-  const privatePage = /^\/(create|studio|review)(\/|$)/.test(normalized);
+  const review = /^\/review(\/|$)/.test(normalized);
+  const privatePage = review || /^\/(create|studio)(\/|$)/.test(normalized);
   const sharedMoment = /^\/clip\/[^/]+$/.test(normalized);
-  return { type: guides.some(guide => guide.path === normalized) ? 'article' : 'website', title: page?.title ?? (sharedMoment ? 'A shared moment | TakeOne' : privatePage ? 'Your video workspace | TakeOne' : 'Page not found | TakeOne'), description: page?.description ?? (sharedMoment ? 'A moment from a YouTube video, shared from TakeOne.' : privatePage ? 'Your private TakeOne video workspace.' : 'This page could not be found. Explore TakeOne video editing guides or open your workspace.'), canonical: page ? siteUrl + normalized : undefined, robots: page ? 'index, follow, max-image-preview:large' : 'noindex, nofollow' };
+  return { type: guides.some(guide => guide.path === normalized) ? 'article' : 'website', title: page?.title ?? (sharedMoment ? 'A shared moment | TakeOne' : review ? 'Review a video | TakeOne' : privatePage ? 'Your video workspace | TakeOne' : 'Page not found | TakeOne'), description: page?.description ?? (sharedMoment ? 'A moment from a YouTube video, shared from TakeOne.' : review ? 'Watch a video shared from TakeOne and leave timed notes.' : privatePage ? 'Your private TakeOne video workspace.' : 'This page could not be found. Explore TakeOne video editing guides or open your workspace.'), canonical: page ? siteUrl + normalized : undefined, robots: page ? 'index, follow, max-image-preview:large' : 'noindex, nofollow' };
 }
 export function structuredDataFor(path: string) {
   path = path === '/' ? '/' : path.replace(/\/+$/, '');
