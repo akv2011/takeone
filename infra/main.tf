@@ -493,8 +493,8 @@ variable "worker_min_instances" {
 }
 variable "worker_max_instances" {
   type        = number
-  default     = 12
-  description = "The takeone-worker instance ceiling and the render queue's concurrent dispatch limit. Convex admits ten renders at once; the other two are headroom so upload probes are not stuck behind ten renders."
+  default     = 8
+  description = "The takeone-worker instance ceiling and the render queue's concurrent dispatch limit. At 2 vCPU each, 8 fits the 20 vCPU Cloud Run regional quota of a new project; extra renders wait in the queue."
   validation {
     condition     = var.worker_max_instances >= 1 && floor(var.worker_max_instances) == var.worker_max_instances
     error_message = "worker_max_instances must be a whole number of at least 1."
@@ -514,6 +514,8 @@ resource "google_cloud_run_v2_service" "worker" {
     service_account                  = google_service_account.worker.email
     max_instance_request_concurrency = 1
     timeout                          = "900s"
+    # Gen2 matches the Cloud Run job sandbox. On the default, the same FFmpeg render took 131 s instead of about 60 s.
+    execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
     scaling {
       min_instance_count = var.worker_min_instances
       max_instance_count = var.worker_max_instances

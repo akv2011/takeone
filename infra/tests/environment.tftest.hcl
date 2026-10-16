@@ -332,7 +332,7 @@ run "warm_worker_service" {
       google_cloud_run_v2_service.worker.template[0].max_instance_request_concurrency == 1,
       google_cloud_run_v2_service.worker.template[0].timeout == "900s",
       google_cloud_run_v2_service.worker.template[0].scaling[0].min_instance_count == 1,
-      google_cloud_run_v2_service.worker.template[0].scaling[0].max_instance_count == 12,
+      google_cloud_run_v2_service.worker.template[0].scaling[0].max_instance_count == 8,
       google_cloud_run_v2_service.worker.template[0].containers[0].command == tolist(["node", "dist/managed/workerService.js"]),
       google_cloud_run_v2_service.worker.template[0].containers[0].resources[0].limits == tomap({ cpu = "2", memory = "4Gi" }),
       google_cloud_run_v2_service.worker.template[0].containers[0].resources[0].cpu_idle,
