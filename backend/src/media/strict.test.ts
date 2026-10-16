@@ -14,7 +14,7 @@ test('production does not fabricate stock footage when the provider fails', asyn
   expect(ff).not.toHaveBeenCalled();
 });
 test('production does not silently substitute system speech for missing provider voice', async () => {
-  vi.stubEnv('LLM_API_KEY', ''); vi.stubEnv('ELEVENLABS_API_KEY', '');
+  vi.stubEnv('TTS_API_KEY', ''); vi.stubEnv('ELEVENLABS_API_KEY', '');
   await expect(mediaCore.runOp('', { op: 'voiceover', script: 'The requested voice', voiceId: '' }, ctx)).rejects.toThrow('Voice provider');
   expect(ff).not.toHaveBeenCalled();
 });

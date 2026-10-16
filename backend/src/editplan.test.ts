@@ -191,12 +191,13 @@ describe('phase 2: viral polish', () => {
 
 describe('focus parsing', () => {
   it('accepts a valid focus_x and clamps range', () => {
-    expect(parseFocus('{"focus_x": 0.72}')).toBe(0.72);
-    expect(parseFocus('{"focus_x": 1.4}')).toBe(1);
+    expect(parseFocus({ focus_x: 0.72 })).toBe(0.72);
+    expect(parseFocus({ focus_x: 1.4 })).toBe(1);
   });
   it('rejects null / junk / non-JSON', () => {
-    expect(parseFocus('{"focus_x": null}')).toBeNull();
+    expect(parseFocus({ focus_x: null })).toBeNull();
     expect(parseFocus('not json')).toBeNull();
+    expect(parseFocus({ focus_x: '0.5' })).toBeNull();
     expect(parseFocus(null)).toBeNull();
   });
 });

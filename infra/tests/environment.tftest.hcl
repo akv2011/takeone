@@ -5,11 +5,12 @@ variables {
   convex_url         = "https://example.convex.cloud"
   dispatch_secret_id = "dispatch-secret"
   worker_secrets     = { WORKER_SECRET = "worker-secret" }
+  gemini_model       = "gemini-fixture"
 }
 run "provider_configuration" {
   command = plan
   variables {
-    worker_env = { LLM_MODEL = "fixture-model" }
+    worker_env = { WHISPER_MODEL = "fixture-model" }
   }
 }
 run "reject_managed_environment_override" {
@@ -47,19 +48,19 @@ run "reject_upload_identity_secret" {
 run "reject_plaintext_secret_collision" {
   command = plan
   variables {
-    worker_env     = { LLM_API_KEY = "plaintext" }
-    worker_secrets = { WORKER_SECRET = "worker-secret", LLM_API_KEY = "llm-secret" }
+    worker_env     = { TTS_API_KEY = "plaintext" }
+    worker_secrets = { WORKER_SECRET = "worker-secret", TTS_API_KEY = "tts-secret" }
   }
   expect_failures = [google_cloud_run_v2_job.video]
 }
 run "veo_disabled_by_default" {
   command = plan
   assert {
-    condition     = length(google_project_iam_member.veo_worker) == 0 && !contains(keys(google_project_service.api), "aiplatform.googleapis.com")
-    error_message = "Disabled Veo must not enable its API or grant model access."
+    condition     = google_project_iam_member.worker_vertex.role == "roles/aiplatform.user" && contains(keys(google_project_service.api), "aiplatform.googleapis.com")
+    error_message = "Gemini needs the Vertex AI API and worker grant even without Veo."
   }
   assert {
-    condition     = !contains([for env in google_cloud_run_v2_job.video.template[0].template[0].containers[0].env : env.name], "VEO_MODEL")
+    condition     = length(setintersection(toset([for env in google_cloud_run_v2_job.video.template[0].template[0].containers[0].env : env.name]), toset(["VEO_PROJECT", "VEO_REGION", "VEO_MODEL"]))) == 0
     error_message = "Disabled Veo must not inject provider settings."
   }
 }
@@ -69,11 +70,11 @@ run "veo_explicit_opt_in" {
     veo = { model = "veo-3.0-generate-001", region = "us-central1" }
   }
   assert {
-    condition     = length(google_project_iam_member.veo_worker) == 1 && contains(keys(google_project_service.api), "aiplatform.googleapis.com")
-    error_message = "Veo opt-in must provision the API and worker grant."
+    condition     = contains(keys(google_project_service.api), "aiplatform.googleapis.com")
+    error_message = "Veo opt-in must provision the Vertex AI API."
   }
   assert {
-    condition     = google_project_iam_member.veo_worker[0].role == "roles/aiplatform.user" && google_project_iam_member.veo_worker[0].project == var.project_id
+    condition     = google_project_iam_member.worker_vertex.role == "roles/aiplatform.user" && google_project_iam_member.worker_vertex.project == var.project_id
     error_message = "Grant Vertex AI access only to the intended project."
   }
   assert {
@@ -110,4 +111,55 @@ run "reject_wildcard_origin" {
   command = plan
   variables { web_origins = ["*"] }
   expect_failures = [var.web_origins]
+}
+run "google_environment" {
+  command = plan
+  assert {
+    condition = alltrue([for name, value in { GEMINI_PROJECT = "test-project", GEMINI_LOCATION = "global", GEMINI_MODEL = "gemini-fixture", FIRESTORE_PROJECT = "test-project" } :
+      one([for env in google_cloud_run_v2_job.video.template[0].template[0].containers[0].env : env.value if env.name == name]) == value
+    ])
+    error_message = "Worker Gemini and Firestore settings must come from the project and Gemini inputs."
+  }
+  assert {
+    condition     = contains(keys(google_project_service.api), "firestore.googleapis.com")
+    error_message = "Render progress needs the Firestore API."
+  }
+}
+run "reject_gemini_override" {
+  command = plan
+  variables {
+    worker_env = { GEMINI_MODEL = "x" }
+  }
+  expect_failures = [google_cloud_run_v2_job.video]
+}
+run "reject_non_gemini_model" {
+  command = plan
+  variables {
+    gemini_model = "gpt-5"
+  }
+  expect_failures = [var.gemini_model]
+}
+run "regional_gemini_location" {
+  command = plan
+  variables {
+    gemini_location = "us-central1"
+  }
+  assert {
+    condition     = one([for env in google_cloud_run_v2_job.video.template[0].template[0].containers[0].env : env.value if env.name == "GEMINI_LOCATION"]) == "us-central1"
+    error_message = "A regional Gemini location must reach the worker."
+  }
+}
+run "worker_google_grants" {
+  command = plan
+  override_resource {
+    target          = google_service_account.worker
+    override_during = plan
+    values          = { email = "takeone-worker@test-project.iam.gserviceaccount.com" }
+  }
+  assert {
+    condition = alltrue([for grant in [google_project_iam_member.worker_vertex, google_project_iam_member.worker_firestore] :
+      grant.project == var.project_id && grant.member == "serviceAccount:takeone-worker@test-project.iam.gserviceaccount.com"
+    ]) && google_project_iam_member.worker_vertex.role == "roles/aiplatform.user" && google_project_iam_member.worker_firestore.role == "roles/datastore.user"
+    error_message = "The worker needs Vertex AI and Firestore access on its own project."
+  }
 }

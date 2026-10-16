@@ -1,15 +1,16 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+vi.mock('google-auth-library', () => ({ GoogleAuth: class { async getAccessToken() { return 'test-token'; } } }));
 import { content } from './index.js';
 const angle = { hook: 'Watch the sunrise', premise: 'Light changes the mountain view', whyViral: 'A clear visual story' };
 const script = 'Watch the sunrise across the mountains as the shadows slowly give way to light. A familiar view changes with every passing minute.';
-beforeEach(() => { vi.stubEnv('LLM_API_KEY', 'test-key'); vi.stubEnv('LLM_MODEL', 'configured-model'); });
+beforeEach(() => { vi.stubEnv('GEMINI_PROJECT', 'test-project'); vi.stubEnv('GEMINI_MODEL', 'gemini-configured'); });
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
-const response = (value: unknown) => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(value) } }] }));
+const response = (value: unknown) => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(value) }] }, finishReason: 'STOP' }] }));
 
 test('production requires explicit provider/model configuration before making a request', async () => {
  const fetcher = vi.fn(); vi.stubGlobal('fetch', fetcher);
- vi.stubEnv('LLM_MODEL', '');
- await expect(content.brainstorm('mountains', [], { strict: true })).rejects.toThrow('LLM_MODEL');
+ vi.stubEnv('GEMINI_MODEL', '');
+ await expect(content.brainstorm('mountains', [], { strict: true })).rejects.toThrow('GEMINI_MODEL');
  expect(fetcher).not.toHaveBeenCalled();
  expect(await content.brainstorm('mountains')).toHaveLength(3);
 });
@@ -31,7 +32,8 @@ test('valid provider text is retained and the configured model is used', async (
  const fetcher = vi.fn().mockResolvedValueOnce(response([angle])).mockResolvedValueOnce(response({ script })); vi.stubGlobal('fetch', fetcher);
  expect(await content.brainstorm('mountains', [], { strict: true })).toEqual([angle]);
  expect(await content.script(angle, [], { strict: true })).toEqual({ script, captions: script });
- expect(JSON.parse(fetcher.mock.calls[0][1].body).model).toBe('configured-model');
+ expect(fetcher.mock.calls[0][0]).toContain('/models/gemini-configured:generateContent');
+ expect(JSON.parse(fetcher.mock.calls[0][1].body).generationConfig.responseSchema.type).toBe('array');
 });
 test('a lost worker lease aborts an in-flight script provider request', async () => {
  const controller = new AbortController();
@@ -41,14 +43,3 @@ test('a lost worker lease aborts an in-flight script provider request', async ()
  await expect(result).rejects.toThrow('lease lost');
 });
 
-test('script and angle generation work with models that reject sampling overrides', async () => {
- const fetcher = vi.fn(async (_url, init) => {
-  const body = JSON.parse(init.body);
-  if ('temperature' in body) return new Response(JSON.stringify({ error: { code: 'unsupported_value', param: 'temperature' } }), { status: 400 });
-  return response(body.messages[1].content.startsWith('Give 3') ? [angle] : { script });
- });
- vi.stubGlobal('fetch', fetcher);
- expect(await content.brainstorm('mountains', [], { strict: true })).toEqual([angle]);
- expect((await content.script(angle, [], { strict: true })).script).toBe(script);
- expect(fetcher).toHaveBeenCalledTimes(2);
-});

@@ -1,5 +1,6 @@
 import { createManagedRenderer } from './render.js';
-import { progressReporter } from './progress.js';
+import { progressReporter, type RenderStage } from './progress.js';
+import { renderMirror } from './firestoreProgress.js';
 import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -36,7 +37,11 @@ async function main() {
   const jobId = identity.jobId;
   const bucket = new Storage().bucket(env('GCS_BUCKET'));
   const call = (name: string, args: Record<string, unknown>) => convex.mutation(makeFunctionReference<'mutation'>(`generate:${name}`), { workerSecret, ...args });
-  const sendProgress = (job: ClaimedJob, stage: string) => progressClient.mutation(makeFunctionReference<'mutation'>('generate:reportProgress'), { workerSecret, jobId: job.jobId, leaseToken: job.leaseToken, stage }) as Promise<boolean>;
+  const mirror = renderMirror(process.env.FIRESTORE_PROJECT?.trim(), event => console.warn(event));
+  const sendProgress = (job: ClaimedJob, stage: RenderStage) => {
+    mirror.stage(job.jobId, stage);
+    return progressClient.mutation(makeFunctionReference<'mutation'>('generate:reportProgress'), { workerSecret, jobId: job.jobId, leaseToken: job.leaseToken, stage }) as Promise<boolean>;
+  };
   const leaseArgs = (job: ClaimedJob) => ({ jobId: job.jobId, leaseToken: job.leaseToken });
   await cleanupExpired(tmpdir());
   const work = await mkdtemp(join(tmpdir(), 'takeone-work-'));
@@ -54,8 +59,16 @@ async function main() {
       claim: async () => await call('claimJob', { jobId, workerId }) as ClaimedJob | null,
       progress: async (job, stage, signal) => progressReporter(stage => sendProgress(job, stage), signal)(stage),
       heartbeat: async job => await call('heartbeat', leaseArgs(job)) as boolean,
-      complete: async (job, storageKey, metadata) => await call('completeJob', { ...leaseArgs(job), storageKey, ...metadata, ...archivedKeys }) as boolean,
-      fail: async (job, error) => await call('failJob', { ...leaseArgs(job), error }) as boolean,
+      complete: async (job, storageKey, metadata) => {
+        const accepted = await call('completeJob', { ...leaseArgs(job), storageKey, ...metadata, ...archivedKeys }) as boolean;
+        if (accepted) mirror.status(job.jobId, 'done');
+        return accepted;
+      },
+      fail: async (job, error) => {
+        const accepted = await call('failJob', { ...leaseArgs(job), error }) as boolean;
+        if (accepted) mirror.status(job.jobId, 'failed');
+        return accepted;
+      },
       render: createManagedRenderer({ work, bucket, env, call, sendProgress,
         saveScenePlan: async (job, plan) => await convex.mutation(makeFunctionReference<'mutation'>('scenePlans:save'), { workerSecret, ...leaseArgs(job), plan }) as boolean,
         telegram, onArchive: archive => { captionArchive = archive; } }),
@@ -80,6 +93,6 @@ async function main() {
       log: event => console.warn(event),
     });
     console.log(`worker_${result}`);
-  } finally { await rm(work, { recursive: true, force: true }); }
+  } finally { await mirror.close(); await rm(work, { recursive: true, force: true }); }
 }
 main().catch(() => { console.error('worker_failed'); process.exitCode = 1; });

@@ -5,15 +5,14 @@ convex_url = "https://your-deployment.convex.cloud"
 dispatch_secret_id = "takeone-dispatch-secret"
 worker_secrets = {
   WORKER_SECRET      = "takeone-worker-secret"
-  LLM_API_KEY        = "takeone-llm-key"
   WHISPER_API_KEY    = "takeone-whisper-key"
+  TTS_API_KEY        = "takeone-tts-key"
   ELEVENLABS_API_KEY = "takeone-voice-key"
   TELEGRAM_BOT_TOKEN = "takeone-telegram-token"
   PEXELS_API_KEY     = "takeone-pexels-key"
 }
-worker_env = {
-  LLM_BASE_URL = "https://api.openai.com/v1"
-  LLM_MODEL    = "set-a-model-available-to-your-api-account"
-}
+worker_env = {}
+# GA Gemini Flash ID since 2 Sep 2026 on the global endpoint, listed at https://docs.cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/3-8-flash
+gemini_model = "gemini-3.8-flash"
 # Leave null until the product notice and retention policy match the chosen period.
 video_retention_days = null

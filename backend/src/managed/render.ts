@@ -179,7 +179,13 @@ export function createManagedRenderer({ work, bucket, env, call, sendProgress, s
         onArchive(target);
       } },
       data: { isPro: async () => false, freeUsedToday: async () => 0, incUsage: async () => 0 } });
-    const rendered = await renderClaim(job, signal, { handle: app.handle, pick: async (...args) => { await report('moments'); return pickMoments(...args); },
+    const rendered = await renderClaim(job, signal, { handle: app.handle,
+      async pick(source, count, signal) {
+        await report('moments');
+        if ('youtubeUrl' in source) return pickMoments(source, count, signal);
+        if (!validVideoKey(source.storageKey)) throw Error('Invalid source key');
+        return pickMoments({ gcsUri: `gs://${env('GCS_BUCKET')}/${source.storageKey}` }, count, signal);
+      },
       async music(job, signal) {
         if (!job.music) throw Error('Invalid music selection');
         const trackPath = join(work, 'soundtrack');

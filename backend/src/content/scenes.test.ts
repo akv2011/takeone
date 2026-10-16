@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+vi.mock('google-auth-library', () => ({ GoogleAuth: class { async getAccessToken() { return 'test-token'; } } }));
 import capturedSoapPlan from './fixtures/soap-scene-plan.json';
 import capturedStringQueryPlan from './fixtures/soap-scene-plan-string-query.json';
 import { planStockScenes, validateScenePlan, type ScenePlan } from './scenes.js';
@@ -6,9 +7,10 @@ export const soapPlan = (): ScenePlan => ({ version: 1, brief: { audience: 'natu
   { startSec: 0, endSec: 3, purpose: 'Introduce texture', searchTerms: ['soap foam macro'], shotType: 'macro', motion: 'slow push' },
   { startSec: 3, endSec: 6, purpose: 'Show daily use', searchTerms: ['hands washing soap'], shotType: 'close-up', motion: 'static' },
 ] });
-beforeEach(() => { vi.stubEnv('LLM_API_KEY', 'test'); vi.stubEnv('LLM_MODEL', 'configured'); });
+beforeEach(() => { vi.stubEnv('GEMINI_PROJECT', 'test-project'); vi.stubEnv('GEMINI_MODEL', 'gemini-configured'); });
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
-const response = (value: unknown) => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(value) } }] }));
+const answer = (text: string) => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text }] }, finishReason: 'STOP' }] }));
+const response = (value: unknown) => answer(JSON.stringify(value));
 test.each(['Natural beauty soap for sensitive skin', 'Founder building a SaaS product with a small team'])('uses the complete creator direction and narration: %s', async topic => {
   const plan = soapPlan();
   if (topic.startsWith('Founder')) {
@@ -19,9 +21,10 @@ test.each(['Natural beauty soap for sensitive skin', 'Founder building a SaaS pr
   const fetcher = vi.fn().mockResolvedValue(response(plan)); vi.stubGlobal('fetch', fetcher);
   expect(await planStockScenes(topic, 'A concrete narrated story for the intended audience.', 6)).toEqual(plan);
   const request = JSON.parse(fetcher.mock.calls[0][1].body);
-  expect(request.messages[1].content).toContain(topic);
-  expect(request.messages[1].content).toContain('A concrete narrated story');
-  expect(request.model).toBe('configured');
+  expect(request.contents[0].parts[0].text).toContain(topic);
+  expect(request.contents[0].parts[0].text).toContain('A concrete narrated story');
+  expect(request.generationConfig.responseSchema.properties.scenes.maxItems).toBe(12);
+  expect(fetcher.mock.calls[0][0]).toContain('/models/gemini-configured:generateContent');
 });
 test.each([
   (p: ScenePlan) => { p.scenes[1].startSec = 4; },
@@ -45,12 +48,12 @@ test.each([null, {}, { scenes: [] }])('rejects malformed model results without a
   await expect(planStockScenes('soap', 'Narration.', 6)).rejects.toThrow('invalid creative plan');
 });
 test('rejects non JSON model text', async () => {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: 'Here is your plan' } }] }))));
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(answer('Here is your plan')));
   await expect(planStockScenes('soap', 'Narration.', 6)).rejects.toThrow('invalid JSON');
 });
 test('requires provider configuration even when the caller omits strict', async () => {
-  vi.stubEnv('LLM_MODEL', '');
-  await expect(planStockScenes('soap', 'Narration.', 6)).rejects.toThrow('LLM_MODEL');
+  vi.stubEnv('GEMINI_MODEL', '');
+  await expect(planStockScenes('soap', 'Narration.', 6)).rejects.toThrow('GEMINI_MODEL');
 });
 test('propagates lease cancellation during planning', async () => {
   const controller = new AbortController();

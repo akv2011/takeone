@@ -6,12 +6,12 @@ import { parseSpeakerTrack, trackExpression, renderSpeakerTrack, detectSpeakerTr
 import { ff, ffprobe } from './ffmpeg.js';
 afterEach(() => vi.unstubAllEnvs());
 test('tracking rejects ambiguous faces, malformed replies and unsafe crop coordinates', () => {
- for (const raw of ['oops', '{}', '{"focus_x":[null,0.5]}', '{"focus_x":[0.3]}', '{"focus_x":[-1,0.5]}', '{"focus_x":[0.1,0.9]}']) expect(() => parseSpeakerTrack(raw, [0, 2])).toThrow();
- expect(parseSpeakerTrack('{"focus_x":[0.2,0.7]}', [0, 2])).toEqual([{ at: 0, x: 0.2 }, { at: 2, x: 0.7 }]);
+ for (const value of ['oops', null, {}, { focus_x: [null, 0.5] }, { focus_x: [0.3] }, { focus_x: [-1, 0.5] }, { focus_x: [0.1, 0.9] }]) expect(() => parseSpeakerTrack(value, [0, 2])).toThrow();
+ expect(parseSpeakerTrack({ focus_x: [0.2, 0.7] }, [0, 2])).toEqual([{ at: 0, x: 0.2 }, { at: 2, x: 0.7 }]);
  for (const points of [[], [{ at: 0, x: 0.5 }], [{ at: 0, x: 0.5 }, { at: 0, x: 0.6 }], [{ at: 0, x: 0.5 }, { at: 61, x: 0.6 }]]) expect(() => trackExpression(points)).toThrow();
 });
 test('missing configuration and cancellation fail before provider use', async () => {
- vi.stubEnv('LLM_API_KEY', '');
+ vi.stubEnv('GEMINI_MODEL', '');
  await expect(detectSpeakerTrack('/unused', { tmpDir: '/tmp', isPro: true })).rejects.toThrow('configured vision');
  await expect(detectSpeakerTrack('/unused', { tmpDir: '/tmp', isPro: true, signal: AbortSignal.abort(Error('lost lease')) })).rejects.toThrow('lost lease');
 });

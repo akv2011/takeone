@@ -12,7 +12,7 @@ let dir: string, source: string;
 beforeAll(async () => {
  dir = await mkdtemp(join(tmpdir(), 'structured-edit-')); source = join(dir, 'source.mp4');
  await ff(['-f', 'lavfi', '-i', 'testsrc2=s=320x240:r=20', '-f', 'lavfi', '-i', 'sine=frequency=440', '-t', '2', '-c:v', 'libx264', '-c:a', 'aac', source]);
- vi.stubEnv('LLM_API_KEY', '');
+ vi.stubEnv('GEMINI_MODEL', '');
 });
 afterAll(async () => { vi.unstubAllEnvs(); await rm(dir, { recursive: true, force: true }); });
 test('structured values bypass contradictory wording and retain free branding', async () => {

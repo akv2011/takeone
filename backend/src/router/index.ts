@@ -1,6 +1,6 @@
-// A3 — NL -> JobSpec router. Deterministic rule-based parser (works offline / in tests);
-// an LLM can augment when LLM_API_KEY is set. Produces a VALIDATED Op[] — user text never
-// becomes a shell string, it only selects from the fixed Op schema.
+// A3 NL -> JobSpec router. Deterministic rule-based parser, so it works offline and in tests.
+// Produces a VALIDATED Op[]: user text never becomes a shell string, it only selects from the
+// fixed Op schema.
 import { randomUUID } from 'node:crypto';
 import type { JobSpec, Op, ChatCtx, Mode } from '../types.js';
 import { DEFAULT_LIMITS } from '../types.js';

@@ -81,6 +81,13 @@ test.each([false, true])('clip highlight selection is recorded only for automati
   expect(stages).toEqual([...(explicit ? [] : ['moments']), 'checking']);
   expect(mocks.pick).toHaveBeenCalledTimes(explicit ? 0 : 1);
 });
+test('a stored clip sends its bucket object to moment picking and rejects foreign keys', async () => {
+  const { render, stages } = setup();
+  await render({ ...base, mode: 'clip', prompt: 'best moment', sourceStorageKey: 'videos/u/upload.mp4' }, new AbortController().signal);
+  expect(mocks.pick).toHaveBeenCalledWith({ gcsUri: 'gs://configured/videos/u/upload.mp4' }, 1, expect.any(AbortSignal));
+  expect(stages).toEqual(['moments', 'source', 'checking']);
+  await expect(render({ ...base, mode: 'clip', prompt: 'best moment', sourceStorageKey: '../other/x.mp4' }, new AbortController().signal)).rejects.toThrow('Invalid source key');
+});
 test('pre-aborted render stops before downloading or executing media', async () => {
   const { render, stages } = setup();
   const controller = new AbortController(); controller.abort();

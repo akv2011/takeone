@@ -11,28 +11,34 @@ export function youtubeUrl(text: string): string | null {
 export interface PipelineDeps {
   music?(job: ClaimedJob, signal: AbortSignal): Promise<Incoming['music']>;
   source(job: ClaimedJob, signal: AbortSignal): Promise<string | undefined>;
-  pick(url: string, count: number, signal: AbortSignal): Promise<Moment[]>;
+  pick(source: { youtubeUrl: string } | { storageKey: string }, count: number, signal: AbortSignal): Promise<Moment[]>;
   handle(inc: Incoming): Promise<Reply[]>;
 }
 export async function renderClaim(job: ClaimedJob, signal: AbortSignal, deps: PipelineDeps): Promise<string> {
   signal.throwIfAborted();
   let text = job.prompt;
   let editPlan: Incoming['editPlan'];
+  // A clip of a video already in our bucket is cut from the downloaded source as an edit,
+  // captioned like every YouTube clip.
+  let storedClip = false;
   if (job.mode === 'clip') {
     const url = youtubeUrl(text);
-    if (!url) throw Error('Clip mode requires a YouTube URL');
+    const source = url ? { youtubeUrl: url } : job.sourceStorageKey ? { storageKey: job.sourceStorageKey } : null;
+    if (!source) throw Error('Clip mode requires a YouTube URL or a stored video');
+    storedClip = !url;
     if (!timestampRange(text)) {
-      const [moment] = await deps.pick(url, 1, signal);
+      const [moment] = await deps.pick(source, 1, signal);
       if (!moment) throw Error('No moment found');
-      text = `clip ${url} ${moment.start} to ${moment.end} ${text.replace(url, '')}`;
+      text = url ? `clip ${url} ${moment.start} to ${moment.end} ${text.replace(url, '')}` : `trim ${moment.start} to ${moment.end} ${text}`;
       editPlan = { hook: moment.hook, reframe: moment.reframe, broll: moment.broll, gifs: moment.gifs, zooms: moment.zooms };
     }
+    if (storedClip) text = `${text} captions`;
   }
-  const attachmentPath = job.mode === 'edit' ? await deps.source(job, signal) : undefined;
+  const attachmentPath = job.mode === 'edit' || storedClip ? await deps.source(job, signal) : undefined;
   signal.throwIfAborted();
   const music = job.music ? await deps.music?.(job, signal) : undefined;
   if (job.music && !music) throw Error('Selected soundtrack could not be loaded');
-  const replies = await deps.handle({ transforms: job.transforms, captionStyle: job.captionStyle, music, userId: job.userId, platform: 'cli', text, mode: job.mode, aspect: job.aspect,
+  const replies = await deps.handle({ transforms: job.transforms, captionStyle: job.captionStyle, music, userId: job.userId, platform: 'cli', text, mode: storedClip ? 'edit' : job.mode, aspect: job.aspect,
     attachmentPath, isPro: job.isPro, confirmedOwnership: true, editPlan });
   signal.throwIfAborted();
   const files = replies.filter((reply): reply is Extract<Reply, {kind: 'file'}> => reply.kind === 'file');

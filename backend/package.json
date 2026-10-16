@@ -28,6 +28,7 @@
     "worker": "node dist/managed/run.js"
   },
   "dependencies": {
+    "@google-cloud/firestore": "^9.3.1",
     "@google-cloud/storage": "^8.0.1",
     "convex": "^1.42.1",
     "dotenv": "^16.4.5",

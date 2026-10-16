@@ -7,7 +7,7 @@ describe('managed pipeline', () => {
    const pick = vi.fn(async () => [{ start: '0:10', end: '0:30', hook: 'The hook', reframe: 'fit' as const }]);
    const handle = vi.fn(async () => [{ kind: 'file' as const, filePath: '/out.mp4', caption: '' }]);
    await renderClaim({ ...job, captionStyle: 'meme' }, new AbortController().signal, { pick, handle, source: vi.fn() });
-   expect(pick).toHaveBeenCalledWith(job.prompt, 1, expect.any(AbortSignal));
+   expect(pick).toHaveBeenCalledWith({ youtubeUrl: job.prompt }, 1, expect.any(AbortSignal));
    expect(handle).toHaveBeenCalledWith(expect.objectContaining({ captionStyle: 'meme', mode: 'clip', aspect: '1:1', isPro: false, editPlan: expect.objectContaining({ hook: 'The hook', reframe: 'fit' }) }));
  });
  it.each(['0:10 to 0:30', '0:10.125 to 0:30.375', '1.10 to 1.30', '01:00:10.125 to 01:00:30.375'])('preserves explicit range %s without automatic selection', async range => {
@@ -33,4 +33,17 @@ it('forwards structured transforms to the edit gateway unchanged', async () => {
  const handle = vi.fn(async () => [{ kind: 'file' as const, filePath: '/out.mp4', caption: '' }]);
  await renderClaim({ ...job, mode: 'edit', transforms }, new AbortController().signal, { handle, source: async () => '/source.mp4', pick: vi.fn() });
  expect(handle).toHaveBeenCalledWith(expect.objectContaining({ transforms, attachmentPath: '/source.mp4' }));
+});
+
+it('clips a stored video without a YouTube link by picking from the stored file and cutting it as an edit', async () => {
+ const pick = vi.fn(async () => [{ start: '1:10', end: '1:35', hook: 'The hook' }]);
+ const source = vi.fn(async () => '/source.mp4');
+ const handle = vi.fn(async () => [{ kind: 'file' as const, filePath: '/out.mp4', caption: '' }]);
+ await renderClaim({ ...job, prompt: 'best moment', sourceStorageKey: 'videos/u/upload.mp4' }, new AbortController().signal, { pick, handle, source });
+ expect(pick).toHaveBeenCalledWith({ storageKey: 'videos/u/upload.mp4' }, 1, expect.any(AbortSignal));
+ expect(handle).toHaveBeenCalledWith(expect.objectContaining({ mode: 'edit', attachmentPath: '/source.mp4', text: 'trim 1:10 to 1:35 best moment captions', editPlan: expect.objectContaining({ hook: 'The hook' }) }));
+});
+
+it('rejects a clip with neither a YouTube link nor a stored video', async () => {
+ await expect(renderClaim({ ...job, prompt: 'best moment' }, new AbortController().signal, { pick: vi.fn(), handle: vi.fn(), source: vi.fn() })).rejects.toThrow('YouTube URL or a stored video');
 });

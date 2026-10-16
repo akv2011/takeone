@@ -201,7 +201,7 @@ export const mediaCore: MediaCore = {
         if (process.env.ELEVENLABS_API_KEY) {
           src = await elevenVoice(op.script, op.voiceId, `${raw}.el.mp3`).then(() => `${raw}.el.mp3`).catch(() => null);
         }
-        if (!src && process.env.LLM_API_KEY) {
+        if (!src && process.env.TTS_API_KEY) {
           src = await openaiVoice(op.script, `${raw}.oa.mp3`).then(() => `${raw}.oa.mp3`).catch(() => null);
         }
         if (!src && ctx.strictMedia) throw new MediaError('Voice provider failed; narration was not generated');
@@ -259,11 +259,11 @@ async function elevenVoice(script: string, voiceId: string, outPath: string): Pr
   await writeFile(outPath, Buffer.from(await res.arrayBuffer()));
 }
 async function openaiVoice(script: string, outPath: string): Promise<void> {
-  const base = process.env.LLM_BASE_URL ?? 'https://api.openai.com/v1';
+  const base = process.env.TTS_BASE_URL ?? 'https://api.openai.com/v1';
   const res = await fetch(`${base}/audio/speech`, {
     signal: AbortSignal.timeout(45_000),
     method: 'POST',
-    headers: { authorization: `Bearer ${process.env.LLM_API_KEY}`, 'content-type': 'application/json' },
+    headers: { authorization: `Bearer ${process.env.TTS_API_KEY}`, 'content-type': 'application/json' },
     body: JSON.stringify({ model: process.env.TTS_MODEL ?? 'gpt-4o-mini-tts',
       voice: process.env.TTS_VOICE ?? 'alloy', input: script.slice(0, 3000) }),
   });
