@@ -111,6 +111,7 @@ export async function runWorker(jobId: string, deps: WorkerDeps, heartbeatMs = 3
   } catch (error) {
     if (lost) { outcome = 'lost'; return 'lost'; }
     if (finalizing) { outcome = 'finalize_uncertain'; throw error; }
+    metrics.emit({ event: 'takeone.failure', error: failureText(error) });
     const accepted = await deps.fail(job, 'Rendering failed. Please try again.');
     outcome = accepted ? 'failed' : 'lost';
     return accepted ? 'failed' : 'lost';
@@ -134,4 +135,10 @@ function renderRow(jobId: string, job: ClaimedJob, stages: Array<{ stage: string
     total_seconds: Number.isFinite(job.createdAt) ? Math.round(Date.now() - job.createdAt!) / 1000 : null,
     outcome,
   };
+}
+
+// Server-side log only: users see the generic message above. URLs are dropped so signed links never reach logs.
+export function failureText(error: unknown): string {
+  const text = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+  return text.replace(/https?:\/\/\S+/g, '<url>').slice(0, 300);
 }

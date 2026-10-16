@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { runWorker, type WorkerDeps, type ClaimedJob } from './worker.js';
+import { failureText, runWorker, type WorkerDeps, type ClaimedJob } from './worker.js';
 import type { AnalyticsRows } from '../google/bigquery.js';
 const job: ClaimedJob = { jobId: 'job1', userId: 'user1', mode: 'generate', prompt: 'a topic', aspect: '9:16', isPro: false, leaseToken: 'lease-1' };
 function setup(overrides: Partial<WorkerDeps> = {}) {
@@ -164,5 +164,12 @@ describe('render analytics', () => {
     const analytics = vi.fn(async (_row: AnalyticsRows['renders']) => {});
     expect(await runWorker('job1', setup({ claim: async () => null, analytics }))).toBe('skipped');
     expect(analytics).not.toHaveBeenCalled();
+  });
+});
+
+describe('failure logging', () => {
+  it('keeps the error name and message but drops URLs and caps the length', () => {
+    expect(failureText(new TypeError('fetch https://storage.googleapis.com/b/o?X-Goog-Signature=abc failed'))).toBe('TypeError: fetch <url> failed');
+    expect(failureText('x'.repeat(500))).toHaveLength(300);
   });
 });
