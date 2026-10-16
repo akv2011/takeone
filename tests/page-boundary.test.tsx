@@ -26,3 +26,16 @@ test('a failed chunk shows recovery without leaking errors and a new route can r
  expect(screen.getByRole('heading', { name: 'Your videos' })).toBeTruthy();
  expect(screen.queryByRole('alert')).toBeNull();
 });
+
+test('a stale chunk after a deploy reloads once, then leaves the reload button', async () => {
+  const { reloadOnceForStaleChunk } = await import('../src/components/PageBoundary');
+  const assign = vi.fn(); vi.stubGlobal('location', { ...window.location, assign });
+  sessionStorage.clear();
+  const stale = new TypeError('Failed to fetch dynamically imported module: https://takeone.web.app/assets/Studio-old.js');
+  expect(reloadOnceForStaleChunk(stale, '/studio/x', 100_000)).toBe(true);
+  expect(assign).toHaveBeenCalledWith('/studio/x');
+  expect(reloadOnceForStaleChunk(stale, '/studio/x', 110_000)).toBe(false);
+  expect(reloadOnceForStaleChunk(new Error('render bug'), '/studio/x', 200_000)).toBe(false);
+  expect(assign).toHaveBeenCalledTimes(1);
+  vi.unstubAllGlobals();
+});

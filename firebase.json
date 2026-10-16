@@ -1,51 +1,182 @@
 {
-  "firestore": { "rules": "firestore.rules" },
+  "firestore": {
+    "rules": "firestore.rules"
+  },
   "hosting": {
     "site": "takeone",
     "public": "dist",
-    "predeploy": ["npm run build"],
+    "predeploy": [
+      "npm run build"
+    ],
     "trailingSlash": false,
     "rewrites": [
-      { "source": "/guides", "destination": "/guides/index.html" },
-      { "source": "/pricing", "destination": "/pricing/index.html" },
-      { "source": "/privacy", "destination": "/privacy/index.html" },
-      { "source": "/terms", "destination": "/terms/index.html" },
-      { "source": "/acceptable-use", "destination": "/acceptable-use/index.html" },
-      { "source": "/copyright", "destination": "/copyright/index.html" },
-      { "source": "/refund-policy", "destination": "/refund-policy/index.html" },
-      { "source": "/guides/ai-video-editing", "destination": "/guides/ai-video-editing/index.html" },
-      { "source": "/guides/youtube-to-shorts", "destination": "/guides/youtube-to-shorts/index.html" },
-      { "source": "/guides/resize-video-for-reels", "destination": "/guides/resize-video-for-reels/index.html" },
-      { "source": "/guides/edit-video-captions", "destination": "/guides/edit-video-captions/index.html" },
-      { "source": "/guides/change-video-speed", "destination": "/guides/change-video-speed/index.html" },
-      { "source": "/create", "destination": "/app.html" },
-      { "source": "/studio", "destination": "/app.html" },
-      { "source": "/studio/**", "destination": "/app.html" },
-      { "source": "/review", "destination": "/app.html" },
-      { "source": "/review/**", "destination": "/app.html" }
+      {
+        "source": "/guides",
+        "destination": "/guides/index.html"
+      },
+      {
+        "source": "/pricing",
+        "destination": "/pricing/index.html"
+      },
+      {
+        "source": "/privacy",
+        "destination": "/privacy/index.html"
+      },
+      {
+        "source": "/terms",
+        "destination": "/terms/index.html"
+      },
+      {
+        "source": "/acceptable-use",
+        "destination": "/acceptable-use/index.html"
+      },
+      {
+        "source": "/copyright",
+        "destination": "/copyright/index.html"
+      },
+      {
+        "source": "/refund-policy",
+        "destination": "/refund-policy/index.html"
+      },
+      {
+        "source": "/guides/ai-video-editing",
+        "destination": "/guides/ai-video-editing/index.html"
+      },
+      {
+        "source": "/guides/youtube-to-shorts",
+        "destination": "/guides/youtube-to-shorts/index.html"
+      },
+      {
+        "source": "/guides/resize-video-for-reels",
+        "destination": "/guides/resize-video-for-reels/index.html"
+      },
+      {
+        "source": "/guides/edit-video-captions",
+        "destination": "/guides/edit-video-captions/index.html"
+      },
+      {
+        "source": "/guides/change-video-speed",
+        "destination": "/guides/change-video-speed/index.html"
+      },
+      {
+        "source": "/create",
+        "destination": "/app.html"
+      },
+      {
+        "source": "/studio",
+        "destination": "/app.html"
+      },
+      {
+        "source": "/studio/**",
+        "destination": "/app.html"
+      },
+      {
+        "source": "/review",
+        "destination": "/app.html"
+      },
+      {
+        "source": "/review/**",
+        "destination": "/app.html"
+      }
     ],
     "headers": [
       {
+        "source": "**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
         "source": "/review",
         "headers": [
-          { "key": "Referrer-Policy", "value": "no-referrer" },
-          { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
-          { "key": "Cache-Control", "value": "no-store" }
+          {
+            "key": "Referrer-Policy",
+            "value": "no-referrer"
+          },
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex, nofollow"
+          },
+          {
+            "key": "Cache-Control",
+            "value": "no-store"
+          }
         ]
       },
       {
         "source": "/review/**",
         "headers": [
-          { "key": "Referrer-Policy", "value": "no-referrer" },
-          { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
-          { "key": "Cache-Control", "value": "no-store" }
+          {
+            "key": "Referrer-Policy",
+            "value": "no-referrer"
+          },
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex, nofollow"
+          },
+          {
+            "key": "Cache-Control",
+            "value": "no-store"
+          }
         ]
       },
-      { "source": "/create", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
-      { "source": "/studio", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
-      { "source": "/studio/**", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
-      { "source": "/app.html", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
-      { "source": "/404.html", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] }
+      {
+        "source": "/create",
+        "headers": [
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex, nofollow"
+          }
+        ]
+      },
+      {
+        "source": "/studio",
+        "headers": [
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex, nofollow"
+          }
+        ]
+      },
+      {
+        "source": "/studio/**",
+        "headers": [
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex, nofollow"
+          }
+        ]
+      },
+      {
+        "source": "/app.html",
+        "headers": [
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex, nofollow"
+          }
+        ]
+      },
+      {
+        "source": "/404.html",
+        "headers": [
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex, nofollow"
+          }
+        ]
+      },
+      {
+        "source": "/assets/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=31536000, immutable"
+          }
+        ]
+      }
     ]
   }
 }
