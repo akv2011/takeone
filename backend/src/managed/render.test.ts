@@ -292,3 +292,17 @@ test('speaker archive keeps caption rebuilding instead of flattened crop', async
  expect(mocks.transform.mock.calls[0]?.[3]).toMatchObject({ speakerReframe: true });
  expect(mocks.handle).not.toHaveBeenCalled();
 });
+test('reports the burned-in caption text and the hook card for the claims check and cover', async () => {
+  const onText = vi.fn();
+  const render = createManagedRenderer({ work: '/tmp', bucket: { file: () => ({ createReadStream: () => ({}) }) } as unknown as Pick<Bucket, 'file'>,
+    saveScenePlan: async () => true, env: () => 'configured', call: async () => true, telegram: async () => ({}), onArchive: () => {},
+    sendProgress: async () => true, onText });
+  await render(base, new AbortController().signal);
+  const runOp = vi.mocked(createTakeOne).mock.calls.at(-1)![0]!.runOp!;
+  const ctx = { tmpDir: '/tmp', isPro: false };
+  await runOp('/in.mp4', { op: 'captions', source: 'script', style: 'clean', text: ' The narration script. ' }, ctx);
+  await runOp('/in.mp4', { op: 'captions', source: 'script', style: 'clean', cues: [{ start: 0, end: 1, text: 'Archived' }, { start: 1, end: 2, text: 'cues' }] }, ctx);
+  await runOp('/in.mp4', { op: 'title', text: 'Hook card' }, ctx);
+  await runOp('/in.mp4', { op: 'speed', factor: 2 }, ctx);
+  expect(onText.mock.calls).toEqual([['captions', 'The narration script.'], ['captions', 'Archived cues'], ['hook', 'Hook card']]);
+});

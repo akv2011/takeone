@@ -19,3 +19,11 @@ Creation is capped at five links per account per hour and 100 retained histories
 Revocation and expiry stop new API access. Previously issued playback URLs may remain usable for up to two minutes; downloaded copies cannot be recalled. Timestamp bounds use the owner's loaded duration, capped at 300.1 seconds; they are not an independently verified duration attestation. Final output keys appear within their signed GCS URLs, while source and caption keys are never exposed by the review API.
 
 Staging still needs coordinated Convex schema/functions and worker deployment, actual private GCS signing and CORS playback, multi-viewer quota behavior, and deployed response-header acceptance. These checks do not establish those cloud conditions.
+
+## Feedback summaries, 2026-10-17
+
+Once a version has 3 or more guest notes across its review links, the owner can ask Gemini to summarize them. Convex gathers at most 200 notes from at most 100 links, newest link first, and sends only each note's id, timestamp and text to the dispatcher's `/summarize-feedback` route. Reviewer names stay in Convex. The dispatcher replaces ids with 1-based indexes before calling Gemini, puts the notes in their own JSON part, and tells Gemini the text is untrusted viewer input whose instructions it must ignore. The route accepts at most 640 KiB, the same bearer secret as the other routes, and 3 to 200 notes.
+
+Gemini must return an overall sentiment (positive, mixed or negative) with a one-line reason, 1 to 3 repeated themes, and a sentiment for every note exactly once. The dispatcher rejects any extra key, missing or repeated note, unknown sentiment, multi-line reason or over-long theme, and returns 502 without provider detail. Convex checks the shape again, joins each note's timestamp from its own records and stores only the latest result per version. Studio shows it with a line saying Gemini generated it, from how many notes and when, and marks each summarized note on a timeline strip that seeks the player.
+
+Each version allows 3 summary requests per hour. Convex counts a request before it calls the dispatcher, so a failed Gemini call still uses one. Deleting a review history also clears a stored summary built from its notes. These checks used convex-test and mocked HTTP; no Gemini call was made.

@@ -9,6 +9,7 @@ import { v, ConvexError } from 'convex/values';
 import { renderingPaused, owner, enqueue, cancelQueuedJob, checkWorker, modeValidator, aspectValidator, LEASE_MS, wake, retryOrFail, dispatcher } from './jobs';
 import { hasManagedVideoOutput, hasTrustedMediaMetadata, mediaMetadataArgs, validateMediaMetadata } from './mediaMetadata';
 import { productCapabilities } from './capabilities';
+import { completionExtras, completionExtrasArgs } from './claims';
 
 export const requestGeneration = mutation({
   args: { brandKit: v.optional(brandSelection), captionStyle: v.optional(captionStyleValidator), captionLanguage: v.optional(captionLanguageValidator), generationKind: v.optional(v.union(v.literal('stock'), v.literal('ai'))), music: v.optional(musicSelection), mode: modeValidator, prompt: v.string(), requestId: v.string(), aspect: v.optional(aspectValidator), confirmedOwnership: v.optional(v.boolean()) },
@@ -63,6 +64,7 @@ function publicJob(job: any) {
     createdAt: job.createdAt,
     finishedAt: job.finishedAt ?? null,
     hasCaptionArchive: !!captionArchiveSource(job),
+    hasCover: job.status === 'done' && !!job.coverStorageKey,
     hasOutput: job.status === 'done' && !!job.storageKey,
     hasSource: !!(job.sourceStorageKey || job.sourceStorageId || job.sourceUrl),
     mode: job.mode,
@@ -87,7 +89,8 @@ export const getJob = query({ args: { jobId: v.string() }, handler: async (ctx: 
   if (!identity) throw new ConvexError('UNAUTHENTICATED');
   const normalized = ctx.db.normalizeId('genJobs', jobId);
   const job = normalized ? await ctx.db.get(normalized) : null;
-  return job?.userId === identity.subject ? publicJob(job) : null;
+  // Claims are Grounded Results, shown only to the owner who made the video.
+  return job?.userId === identity.subject ? { ...publicJob(job), claims: job.claims ?? null } : null;
 }});
 
 export const getOwnedPrivateMedia = internalQuery({
@@ -98,6 +101,7 @@ export const getOwnedPrivateMedia = internalQuery({
     return {
       storageKey: job.storageKey,
       captionStorageKey: captionArchiveSource(job)?.sourceCaptionStorageKey,
+      coverStorageKey: job.coverStorageKey,
     };
   },
 });
@@ -136,6 +140,12 @@ export const getDownload = action({ args: { jobId: v.id('genJobs') }, handler: a
   if (!media?.storageKey) throw new ConvexError('VIDEO_UNAVAILABLE');
   const response = await dispatcher('sign', { storageKey: media.storageKey });
   return response.json();
+}});
+export const getCover = action({ args: { jobId: v.id('genJobs') }, handler: async (ctx: any, args: any) => {
+  const identity = await ctx.auth.getUserIdentity();
+  const media = identity ? await ctx.runQuery(ref<'query'>('generate:getOwnedPrivateMedia'), { ...args, userId: identity.subject }) : null;
+  if (!media?.coverStorageKey) throw new ConvexError('COVER_UNAVAILABLE');
+  return (await dispatcher('sign-cover', { storageKey: media.coverStorageKey })).json();
 }});
 export const getCaptionCues = action({ args: { jobId: v.id('genJobs') }, handler: async (ctx, { jobId }): Promise<{ start: number; end: number; text: string }[]> => {
   const identity = await ctx.auth.getUserIdentity();
@@ -204,6 +214,7 @@ export const claimJob = mutation({ args: { workerSecret: v.string(), jobId: v.id
   await ctx.db.patch(job._id, { scenePlan: undefined, scenePlanLeaseToken: undefined, scenePlanAttempt: undefined, renderProgressHistory: [...(job.renderProgressHistory ?? []), ...(job.renderProgress ? [job.renderProgress] : [])].slice(-2), renderProgress: { attempt: job.attempts, startedAt: Date.now(), stages: [] }, status: 'processing', leaseToken, leaseExpiresAt: Date.now() + LEASE_MS, startedAt: Date.now() });
   return { sceneReplacement: job.sceneReplacement, timelineExport: job.timelineExport, assemblySources: job.timelineExport ? assemblySources : undefined, queueWaitMs: job.startedAt === undefined ? Math.max(0, Date.now() - job.createdAt) : undefined, jobId: job._id, userId: job.userId, mode: job.mode, prompt: job.prompt, aspect: job.aspect ?? '9:16',
     sourceUploadUrl: job.sourceStorageId ? await ctx.storage.getUrl(job.sourceStorageId) : undefined,
+    createdAt: job.createdAt,
     brand: job.brand ? { ...job.brand, logo: job.brand.logo ? Array.from(new Uint8Array(job.brand.logo)) : undefined } : undefined,
     speakerReframe: job.speakerReframe, hookTitle: job.hookTitle, transforms: job.transforms, captionTransform: job.captionTransform, captionFont: job.captionFont, captionPosition: job.captionPosition, captionTexts: job.captionTexts, captionStyle: job.captionStyle, captionLanguage: job.captionLanguage, sourceCaptionStorageKey: job.sourceCaptionStorageKey, generationKind: job.generationKind, aiOperation: job.aiOperation,
     music: job.music ? { ...job.music, storageUrl: job.music.storageId ? await ctx.storage.getUrl(job.music.storageId) : undefined } : undefined, sourceStorageKey: job.sourceStorageKey, telegramFileId: job.telegramFileId, telegramChatId: job.telegramChatId,
@@ -228,7 +239,7 @@ export const reportProgress = mutation({ args: { ...workerArgs, stage: renderSta
   await ctx.db.patch(job._id, { renderProgress: { ...progress, stages: [...progress.stages, { stage: args.stage, startedAt: Date.now() }] } });
   return true;
 }});
-export const completeJob = mutation({ args: { ...workerArgs, storageKey: v.string(), ...mediaMetadataArgs, sceneArchiveOnly: v.optional(v.boolean()), cleanStorageKey: v.optional(v.string()), captionStorageKey: v.optional(v.string()) }, handler: async (ctx: any, args: any) => {
+export const completeJob = mutation({ args: { ...workerArgs, storageKey: v.string(), ...mediaMetadataArgs, sceneArchiveOnly: v.optional(v.boolean()), cleanStorageKey: v.optional(v.string()), captionStorageKey: v.optional(v.string()), ...completionExtrasArgs }, handler: async (ctx: any, args: any) => {
   checkWorker(args.workerSecret); const job = await ctx.db.get(args.jobId);
   if (!ownsLease(job, args.leaseToken)) return false;
   if (args.storageKey !== `videos/${job._id}/${args.leaseToken}.mp4`) throw new ConvexError('INVALID_OUTPUT');
@@ -237,7 +248,7 @@ export const completeJob = mutation({ args: { ...workerArgs, storageKey: v.strin
   if (job.sceneReplacement && (!hasArchive || job.scenePlanLeaseToken !== args.leaseToken || job.scenePlanAttempt !== job.attempts)) throw new ConvexError('SCENE_ARCHIVE_REQUIRED');
   if (hasArchive && (args.cleanStorageKey !== `videos/${job._id}/${args.leaseToken}-clean.mp4` || args.captionStorageKey !== `captions/${job._id}/${args.leaseToken}.json`)) throw new ConvexError('INVALID_CAPTION_ARCHIVE');
   const metadata = validateMediaMetadata(args);
-  await ctx.db.patch(job._id, { ...finishProgress(job), ...metadata, sceneArchive: args.sceneArchiveOnly ? { cleanStorageKey: args.cleanStorageKey, captionStorageKey: args.captionStorageKey } : undefined, cleanStorageKey: args.sceneArchiveOnly ? undefined : args.cleanStorageKey, captionStorageKey: args.sceneArchiveOnly ? undefined : args.captionStorageKey, status: 'done', storageKey: args.storageKey, finishedAt: Date.now(), leaseExpiresAt: undefined });
+  await ctx.db.patch(job._id, { ...finishProgress(job), ...metadata, sceneArchive: args.sceneArchiveOnly ? { cleanStorageKey: args.cleanStorageKey, captionStorageKey: args.captionStorageKey } : undefined, cleanStorageKey: args.sceneArchiveOnly ? undefined : args.cleanStorageKey, captionStorageKey: args.sceneArchiveOnly ? undefined : args.captionStorageKey, status: 'done', storageKey: args.storageKey, finishedAt: Date.now(), leaseExpiresAt: undefined, ...completionExtras(job._id, args.leaseToken, args) });
   if (job.telegramChatId) {
     await ctx.db.patch(job._id, { telegramDeliveryStatus: 'pending' });
     await ctx.scheduler.runAfter(0, ref<'action'>('telegramDelivery:send'), { jobId: job._id });

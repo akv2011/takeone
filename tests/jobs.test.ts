@@ -222,12 +222,12 @@ test('browser job queries return the same exact safe projection without private 
  const mine = (await actor.query(ref<'query'>('generate:myJobs'), {}).then((rows: any[]) => rows.find(row => row._id === jobId)));
  const selected = await actor.query(ref<'query'>('generate:getJob'), { jobId });
  const expectedKeys = [
-  '_id', 'aspect', 'createdAt', 'finishedAt', 'hasCaptionArchive', 'hasOutput', 'hasSource',
+  '_id', 'aspect', 'createdAt', 'finishedAt', 'hasCaptionArchive', 'hasCover', 'hasOutput', 'hasSource',
   'mode', 'parentJobId', 'prompt', 'refunded', 'renderProgress', 'resultUrl', 'soundtrack',
   'status', 'telegramDeliveryStatus',
  ].sort();
  for (const row of [listed, mine, selected]) {
-  expect(Object.keys(row).sort()).toEqual(expectedKeys);
+  expect(Object.keys(row).sort()).toEqual(row === selected ? [...expectedKeys, 'claims'].sort() : expectedKeys);
   expect(row).toMatchObject({
    _id: jobId, hasOutput: true, hasSource: true, hasCaptionArchive: true,
    soundtrack: { label: 'Licensed track', attribution: 'Artist credit' },

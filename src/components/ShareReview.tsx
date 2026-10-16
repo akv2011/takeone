@@ -2,6 +2,7 @@ import { useAction, useMutation, useQuery } from 'convex/react';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/convexApi';
 import { ReviewNotes, type ReviewNote } from './ReviewNotes';
+import { FeedbackInsights } from './FeedbackInsights';
 import { button, field, label, panel } from '../lib/ui';
 interface LinkInfo { id: string; createdAt: number; expiresAt: number; revokedAt?: number; commentCount: number }
 export function ShareReview({ jobId, duration, onSeek }: { jobId: string; duration?: number; onSeek(at: number): void }) {
@@ -46,6 +47,7 @@ export function ShareReview({ jobId, duration, onSeek }: { jobId: string; durati
           return link.revokedAt === undefined && link.expiresAt > Date.now() ? <button type="button" disabled={busy} onClick={() => void run(async () => { await revoke({ reviewId: active }); setUrl(''); })} className="text-sm font-semibold underline underline-offset-4">Revoke review link</button> : <button type="button" disabled={busy} onClick={() => { if (window.confirm('Delete this inactive review and all its feedback?')) void run(async () => { await remove({ reviewId: active }); setUrl(''); setSelected(undefined); }); }} className="text-sm font-semibold text-warn underline underline-offset-4">Delete this review and feedback</button>;
         })()}</div>
         {notes?.length ? <ReviewNotes notes={notes} onSeek={onSeek} busy={busy} onResolve={note => void run(() => resolve({ commentId: note.id, resolved: !note.resolved }))} /> : <p className="text-sm text-muted">No feedback for this link yet.</p>}
+        <FeedbackInsights jobId={jobId} noteCount={links.reduce((sum, link) => sum + link.commentCount, 0)} duration={duration} onSeek={onSeek} />
       </> : <p className="text-sm text-muted">No review links for this version.</p>}
     </div>}
   </section>;

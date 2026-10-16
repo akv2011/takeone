@@ -12,10 +12,12 @@ import { type CaptionArchive } from '../media/captionArchive.js';
 import { Storage } from '@google-cloud/storage';
 import { uploadArtifacts, type Artifact } from './artifacts.js';
 import { cleanupExpired } from './files.js';
+import { renderExtras, type RenderText } from './extras.js';
 import { runUploadProbe, workerIdentity, type UploadProbeClaim } from './uploadProbe.js';
 import { runWorker, validId, type ClaimedJob } from './worker.js';
 import { ffprobe } from '../media/ffmpeg.js';
 import { mediaMetadataFromProbe } from '../media/mediaMetadata.js';
+import { insertAnalyticsRow } from '../google/bigquery.js';
 function env(key: string) { const value = process.env[key]; if (!value) throw Error(`${key} required`); return value; }
 async function main() {
   const identity = workerIdentity(process.env);
@@ -47,6 +49,7 @@ async function main() {
   const work = await mkdtemp(join(tmpdir(), 'takeone-work-'));
   let captionArchive: CaptionArchive | undefined;
   let archivedKeys: { cleanStorageKey: string; captionStorageKey: string; sceneArchiveOnly?: boolean } | undefined;
+  const renderText: RenderText = {};
   const telegram = async (method: string, body: object) => {
     const token = env('TELEGRAM_BOT_TOKEN');
     const response = await fetch(`https://api.telegram.org/bot${token}/${method}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(30_000) });
@@ -59,8 +62,9 @@ async function main() {
       claim: async () => await call('claimJob', { jobId, workerId }) as ClaimedJob | null,
       progress: async (job, stage, signal) => progressReporter(stage => sendProgress(job, stage), signal)(stage),
       heartbeat: async job => await call('heartbeat', leaseArgs(job)) as boolean,
-      complete: async (job, storageKey, metadata) => {
-        const accepted = await call('completeJob', { ...leaseArgs(job), storageKey, ...metadata, ...archivedKeys }) as boolean;
+      extras: (job, signal) => renderExtras(job, renderText, { bucket, work, log: event => console.warn(event) }, signal),
+      complete: async (job, storageKey, metadata, extras) => {
+        const accepted = await call('completeJob', { ...leaseArgs(job), storageKey, ...metadata, ...archivedKeys, ...extras }) as boolean;
         if (accepted) mirror.status(job.jobId, 'done');
         return accepted;
       },
@@ -71,7 +75,7 @@ async function main() {
       },
       render: createManagedRenderer({ work, bucket, env, call, sendProgress,
         saveScenePlan: async (job, plan) => await convex.mutation(makeFunctionReference<'mutation'>('scenePlans:save'), { workerSecret, ...leaseArgs(job), plan }) as boolean,
-        telegram, onArchive: archive => { captionArchive = archive; } }),
+        telegram, onArchive: archive => { captionArchive = archive; }, onText: (kind, text) => { renderText[kind] = text; } }),
       inspect: async (path, signal) => mediaMetadataFromProbe(await ffprobe(path, signal)),
       async upload(path, key, signal) {
         const artifacts: Artifact[] = [{ path, key, contentType: 'video/mp4' }];
@@ -91,6 +95,7 @@ async function main() {
       deliver: async () => {},
       cleanup: async () => { await rm(work, { recursive: true, force: true }); },
       log: event => console.warn(event),
+      analytics: row => insertAnalyticsRow('renders', row, line => console.warn(line)),
     });
     console.log(`worker_${result}`);
   } finally { await mirror.close(); await rm(work, { recursive: true, force: true }); }

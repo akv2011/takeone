@@ -137,13 +137,13 @@ export const pump = internalMutation({ args: {}, handler: async (ctx: any) => {
   }
 }});
 
-export async function dispatcher(path: string, body: unknown) {
+export async function dispatcher(path: string, body: unknown, timeoutMs = 20_000) {
   const url = process.env.DISPATCH_URL;
   const secret = process.env.DISPATCH_SECRET;
   if (!url?.startsWith('https://') || !secret) throw new Error('Managed video service is not configured');
   const response = await fetch(`${url.replace(/\/$/, '')}/${path}`, {
     method: 'POST', headers: { authorization: `Bearer ${secret}`, 'content-type': 'application/json' },
-    body: JSON.stringify(body), signal: AbortSignal.timeout(20_000),
+    body: JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs),
   });
   if (!response.ok) throw new Error(`Managed video service returned ${response.status}`);
   return response;

@@ -1,9 +1,11 @@
 import { brandSettings, brandSelection } from './brandValues';
+import { feedbackSummaryValidator } from './feedbackValues';
 import { savedScenePlanValidator } from './scenePlanValues';
 import { renderProgressValidator } from './renderProgress';
 import { transformsValidator } from './transforms';
 import { captionStyleValidator, captionPositionValidator, captionFontValidator, captionLanguageValidator } from './captions';
 import { timelineDocumentValidator } from './timelineValues';
+import { claimsCheckValidator } from './claims';
 import { defineSchema, defineTable } from "convex/server";
 import { musicSnapshot, musicSelection } from "./music";
 import { v } from "convex/values";
@@ -43,6 +45,7 @@ export default defineSchema({
     reviewId: v.id('reviewLinks'), requestId: v.string(), name: v.string(), text: v.string(), at: v.number(),
     createdAt: v.number(), resolved: v.boolean(),
   }).index('by_review', ['reviewId']).index('by_request', ['reviewId', 'requestId']),
+  feedbackSummaries: defineTable({ userId: v.string(), jobId: v.id('genJobs'), windowAt: v.number(), windowCount: v.number(), result: v.optional(feedbackSummaryValidator) }).index('by_job', ['jobId']),
   brandKits: defineTable({ userId: v.string(), name: v.string(), revision: v.number(), settings: brandSettings }).index("by_user", ["userId"]),
   users: defineTable({
     tokenIdentifier: v.string(), // Firebase Auth user id (token subject)
@@ -174,6 +177,7 @@ export default defineSchema({
     rootJobId: v.optional(v.id('genJobs')),
     sourceCaptionStorageKey: v.optional(v.string()),
     cleanStorageKey: v.optional(v.string()), captionStorageKey: v.optional(v.string()),
+    claims: v.optional(claimsCheckValidator), coverStorageKey: v.optional(v.string()),
     telegramMessageId: v.optional(v.number()),
     telegramDeliveryStatus: v.optional(v.string()),
     telegramDeliveryAttempt: v.optional(v.number()),

@@ -1,6 +1,8 @@
 import { telemetry } from './telemetry.js';
 import type { Mode } from '../types.js';
 import type { MediaMetadata } from '../media/mediaMetadata.js';
+import type { Extras } from './extras.js';
+import type { AnalyticsRows } from '../google/bigquery.js';
 export interface ClaimedJob {
   timelineExport?: {
     profile: { container: 'mp4'; fps: 30 };
@@ -30,6 +32,7 @@ export interface ClaimedJob {
   transforms?: import('../media/structuredEdit.js').EditTransforms;
   jobId: string; userId: string; mode: Mode; prompt: string; aspect: '9:16' | '1:1' | '16:9';
   queueWaitMs?: number;
+  createdAt?: number;
   captionStyle?: 'none' | 'clean' | 'meme' | 'karaoke';
   captionLanguage?: import('../languages.js').CaptionLanguage;
   generationKind?: 'stock' | 'ai'; aiOperation?: string;
@@ -49,11 +52,14 @@ export interface WorkerDeps {
   render(job: ClaimedJob, signal: AbortSignal): Promise<string>;
   inspect(path: string, signal: AbortSignal): Promise<MediaMetadata>;
   upload(path: string, storageKey: string, signal: AbortSignal): Promise<void>;
-  complete(job: ClaimedJob, storageKey: string, metadata: MediaMetadata): Promise<boolean>;
+  /** Best-effort claims check and cover for the uploaded render. A failure here never fails the job. */
+  extras?(job: ClaimedJob, signal: AbortSignal): Promise<Extras>;
+  complete(job: ClaimedJob, storageKey: string, metadata: MediaMetadata, extras?: Extras): Promise<boolean>;
   fail(job: ClaimedJob, error: string): Promise<boolean>;
   cleanup(): Promise<void>;
   deliver(job: ClaimedJob, storageKey: string): Promise<void>;
   log(event: string): void;
+  analytics?(row: AnalyticsRows['renders']): Promise<unknown>;
 }
 export const validId = (value: unknown): value is string => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
 export const validVideoKey = (value: unknown): value is string => typeof value === 'string' && /^videos\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\.mp4$/.test(value);
@@ -92,8 +98,11 @@ export async function runWorker(jobId: string, deps: WorkerDeps, heartbeatMs = 3
     await metrics.time('upload', () => deps.upload(output, key, controller.signal));
     if (lost) { outcome = 'lost'; return 'lost'; }
     controller.signal.throwIfAborted();
+    // No lost check after extras: the video is uploaded, so the lease fence in complete decides,
+    // and a heartbeat blip during this best-effort step cannot cost a full re-render.
+    const extras = deps.extras ? await metrics.time('extras', () => deps.extras!(job, controller.signal)).catch(() => undefined) : undefined;
     finalizing = true;
-    const accepted = await metrics.time('finalize', () => deps.complete(job, key, metadata));
+    const accepted = await metrics.time('finalize', () => deps.complete(job, key, metadata, extras));
     if (!accepted) { outcome = 'lost'; return 'lost'; }
     clearInterval(timer);
     try { await metrics.time('post_completion_hook', () => deps.deliver(job, key)); } catch { /* Stage telemetry records failure; the durable delivery outbox owns retries. */ }
@@ -110,6 +119,19 @@ export async function runWorker(jobId: string, deps: WorkerDeps, heartbeatMs = 3
     clearTimeout(deadline);
     controller.abort();
     try { await metrics.time('cleanup', () => deps.cleanup()); }
-    finally { metrics.emit({ event: 'takeone.outcome', outcome }); }
+    finally {
+      metrics.emit({ event: 'takeone.outcome', outcome });
+      try { await deps.analytics?.(renderRow(jobId, job, metrics.stages, outcome)); } catch { /* Analytics is best effort and must not change the job outcome. */ }
+    }
   }
+}
+
+function renderRow(jobId: string, job: ClaimedJob, stages: Array<{ stage: string; durationMs: number }>, outcome: string): AnalyticsRows['renders'] {
+  const queueWait = Number.isFinite(job.queueWaitMs) && job.queueWaitMs! >= 0 ? [{ stage: 'queue_wait', duration_ms: job.queueWaitMs! }] : [];
+  return {
+    job_id: jobId, mode: job.mode, caption_language: job.captionLanguage ?? null,
+    stage_timings: [...queueWait, ...stages.map(({ stage, durationMs }) => ({ stage, duration_ms: durationMs }))],
+    total_seconds: Number.isFinite(job.createdAt) ? Math.round(Date.now() - job.createdAt!) / 1000 : null,
+    outcome,
+  };
 }

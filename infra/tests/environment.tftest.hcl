@@ -240,3 +240,72 @@ run "scratch_prefixes_expire" {
     error_message = "Speech audio and Gemini source copies must be deleted after one day."
   }
 }
+run "bigquery_analytics" {
+  command = plan
+  override_resource {
+    target          = google_service_account.worker
+    override_during = plan
+    values          = { email = "takeone-worker@test-project.iam.gserviceaccount.com" }
+  }
+  override_resource {
+    target          = google_service_account.dispatcher
+    override_during = plan
+    values          = { email = "takeone-dispatcher@test-project.iam.gserviceaccount.com" }
+  }
+  assert {
+    condition     = google_bigquery_dataset.analytics.dataset_id == "takeone_analytics" && google_bigquery_dataset.analytics.location == var.region
+    error_message = "Analytics must live in the takeone_analytics dataset in the deployment region."
+  }
+  assert {
+    condition     = contains(keys(google_project_service.api), "bigquery.googleapis.com")
+    error_message = "Analytics needs the BigQuery API."
+  }
+  assert {
+    condition = alltrue([
+      google_bigquery_table.renders.time_partitioning[0].type == "DAY", google_bigquery_table.renders.time_partitioning[0].field == "created_at",
+      google_bigquery_table.feedback.time_partitioning[0].type == "DAY", google_bigquery_table.feedback.time_partitioning[0].field == "created_at",
+      google_bigquery_table.renders.deletion_protection, google_bigquery_table.feedback.deletion_protection,
+      google_bigquery_table.renders.dataset_id == "takeone_analytics", google_bigquery_table.feedback.dataset_id == "takeone_analytics",
+    ])
+    error_message = "Both analytics tables must be protected and partitioned by day on created_at."
+  }
+  assert {
+    condition     = [for column in jsondecode(google_bigquery_table.renders.schema) : column.name] == ["job_id", "mode", "caption_language", "stage_timings", "total_seconds", "outcome", "created_at"]
+    error_message = "The renders table columns must match the worker row."
+  }
+  assert {
+    condition     = [for field in one([for column in jsondecode(google_bigquery_table.renders.schema) : column.fields if column.name == "stage_timings"]) : field.name] == ["stage", "duration_ms"]
+    error_message = "Each stage timing must carry stage and duration_ms."
+  }
+  assert {
+    condition     = [for column in jsondecode(google_bigquery_table.feedback.schema) : column.name] == ["version_id", "note_count", "sentiment", "created_at"]
+    error_message = "The feedback table columns must match the dispatcher row."
+  }
+  assert {
+    condition = alltrue([for grant in values(google_bigquery_dataset_iam_member.analytics) : grant.dataset_id == "takeone_analytics" && grant.role == "roles/bigquery.dataEditor"]) && length(google_bigquery_dataset_iam_member.analytics) == 2 && google_bigquery_dataset_iam_member.analytics["worker"].member == "serviceAccount:takeone-worker@test-project.iam.gserviceaccount.com" && google_bigquery_dataset_iam_member.analytics["dispatcher"].member == "serviceAccount:takeone-dispatcher@test-project.iam.gserviceaccount.com"
+    error_message = "Only the worker and dispatcher may write analytics rows, and only in the analytics dataset."
+  }
+  assert {
+    condition     = google_project_iam_member.dispatcher_vertex.project == var.project_id && google_project_iam_member.dispatcher_vertex.role == "roles/aiplatform.user" && google_project_iam_member.dispatcher_vertex.member == "serviceAccount:takeone-dispatcher@test-project.iam.gserviceaccount.com"
+    error_message = "The dispatcher needs Vertex AI access on its own project for feedback summaries."
+  }
+  assert {
+    condition = alltrue([for name, value in { BIGQUERY_PROJECT = "test-project", BIGQUERY_DATASET = "takeone_analytics" } :
+      one([for env in google_cloud_run_v2_job.video.template[0].template[0].containers[0].env : env.value if env.name == name]) == value
+    ])
+    error_message = "The worker must write renders rows to the managed dataset."
+  }
+  assert {
+    condition = alltrue([for name, value in { GEMINI_PROJECT = "test-project", GEMINI_LOCATION = "global", GEMINI_MODEL = "gemini-fixture", BIGQUERY_PROJECT = "test-project", BIGQUERY_DATASET = "takeone_analytics" } :
+      one([for env in google_cloud_run_v2_service.dispatcher.template[0].containers[0].env : env.value if env.name == name]) == value
+    ])
+    error_message = "The dispatcher must get the same Gemini and BigQuery settings as the worker."
+  }
+}
+run "reject_bigquery_override" {
+  command = plan
+  variables {
+    worker_env = { BIGQUERY_DATASET = "other" }
+  }
+  expect_failures = [google_cloud_run_v2_job.video]
+}

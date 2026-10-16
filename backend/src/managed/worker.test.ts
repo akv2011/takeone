@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { runWorker, type WorkerDeps, type ClaimedJob } from './worker.js';
+import type { AnalyticsRows } from '../google/bigquery.js';
 const job: ClaimedJob = { jobId: 'job1', userId: 'user1', mode: 'generate', prompt: 'a topic', aspect: '9:16', isPro: false, leaseToken: 'lease-1' };
 function setup(overrides: Partial<WorkerDeps> = {}) {
   const deps: WorkerDeps = {
@@ -42,7 +43,7 @@ describe('managed worker', () => {
     expect(deps.upload).toHaveBeenCalledTimes(1);
     expect(deps.complete).toHaveBeenCalledWith(job, 'videos/job1/lease-1.mp4', {
       mediaDurationMs: 1_000, mediaWidth: 1080, mediaHeight: 1920, mediaHasAudio: true,
-    });
+    }, undefined);
     expect(vi.mocked(deps.inspect).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(deps.upload).mock.invocationCallOrder[0]);
   });
   it('fails the lease without uploading when output inspection fails', async () => {
@@ -127,4 +128,41 @@ it('records saving only after render returns and before upload starts', async ()
   });
   expect(await runWorker('job1', deps)).toBe('completed');
   expect(events).toEqual(['render', 'saving', 'upload', 'complete']);
+});
+
+describe('render analytics', () => {
+  it('records one renders row with queue wait and every timed stage, after the outcome event', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(1_800_000_012_345);
+    try {
+      const analytics = vi.fn(async (_row: AnalyticsRows['renders']) => {});
+      const deps = setup({ analytics, claim: async () => ({ ...job, queueWaitMs: 125, createdAt: 1_800_000_000_000, captionLanguage: 'hi' }) });
+      expect(await runWorker('job1', deps)).toBe('completed');
+      expect(analytics).toHaveBeenCalledOnce();
+      const row = analytics.mock.calls[0][0];
+      expect(Object.keys(row).sort()).toEqual(['caption_language', 'job_id', 'mode', 'outcome', 'stage_timings', 'total_seconds']);
+      expect(row).toMatchObject({ job_id: 'job1', mode: 'generate', caption_language: 'hi', total_seconds: 12.345, outcome: 'completed' });
+      expect(row.stage_timings.map(timing => timing.stage)).toEqual(['queue_wait', 'claim', 'render', 'inspect', 'upload', 'finalize', 'post_completion_hook', 'cleanup']);
+      expect(row.stage_timings[0]).toEqual({ stage: 'queue_wait', duration_ms: 125 });
+      for (const timing of row.stage_timings) expect(Object.keys(timing)).toEqual(['stage', 'duration_ms']);
+      expect(row.stage_timings.every(timing => Number.isInteger(timing.duration_ms) && timing.duration_ms >= 0)).toBe(true);
+      const log = vi.mocked(deps.log);
+      expect(JSON.parse(log.mock.calls.at(-1)![0])).toMatchObject({ event: 'takeone.outcome', outcome: 'completed' });
+      expect(log.mock.invocationCallOrder.at(-1)).toBeLessThan(analytics.mock.invocationCallOrder[0]);
+    } finally { vi.useRealTimers(); }
+  });
+  it('a throwing or rejecting analytics call changes neither the outcome nor a rethrown error', async () => {
+    expect(await runWorker('job1', setup({ analytics: () => { throw Error('BigQuery down'); } }))).toBe('completed');
+    const rejecting = vi.fn(async (_row: AnalyticsRows['renders']) => { throw Error('BigQuery down'); });
+    expect(await runWorker('job1', setup({ analytics: rejecting }))).toBe('completed');
+    expect(rejecting.mock.calls[0][0]).toMatchObject({ caption_language: null, total_seconds: null, outcome: 'completed' });
+    expect(rejecting.mock.calls[0][0].stage_timings[0].stage).toBe('claim');
+    const network = Error('network');
+    await expect(runWorker('job1', setup({ complete: async () => { throw network; }, analytics: rejecting }))).rejects.toBe(network);
+    expect(rejecting).toHaveBeenLastCalledWith(expect.objectContaining({ outcome: 'finalize_uncertain' }));
+  });
+  it('records nothing when the claim returns null', async () => {
+    const analytics = vi.fn(async (_row: AnalyticsRows['renders']) => {});
+    expect(await runWorker('job1', setup({ claim: async () => null, analytics }))).toBe('skipped');
+    expect(analytics).not.toHaveBeenCalled();
+  });
 });

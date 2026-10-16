@@ -5,6 +5,8 @@ import { HookVariants } from '../components/HookVariants';
 import { SceneInspector } from '../components/SceneInspector';
 import { ProjectTimelinePanel } from '../components/ProjectTimelinePanel';
 import { TranscriptNavigator } from '../components/TranscriptNavigator';
+import { ClaimsPanel } from '../components/ClaimsPanel';
+import type { ClaimsCheck } from '../../convex/claims';
 import { RenderProgress, type RenderAttempt } from "../components/RenderProgress";
 import { TransformControls } from "../components/TransformControls";
 import type {
@@ -53,6 +55,7 @@ type Job =
       hasSource: boolean;
       soundtrack?: { attribution: string; label: string } | null;
       resultUrl?: string | null;
+      claims?: ClaimsCheck | null;
     }
   | null
   | undefined;
@@ -487,6 +490,7 @@ function StudioInner() {
                 onSeek={timelinePlayer.seek}
                 onPreview={timelinePlayer.preview}
               />
+              {ready && job?.claims && <ClaimsPanel claims={job.claims} />}
             </>
           }
           versions={

@@ -813,3 +813,16 @@ test('a used-up free day shows the daily cap message', async () => {
  fireEvent.click(screen.getByRole('button', { name: 'Create video', exact: true }));
  expect(await screen.findByText("Today's free renders are used up. Try again tomorrow.")).toBeTruthy();
 });
+
+test('studio shows the claims panel for a finished video that has a claims result', async () => {
+ mocks.queries.set('generate:getJob', { _id: 'source-job', status: 'done', mode: 'generate', prompt: 'Space video', hasOutput: true,
+  claims: { status: 'checked', claims: [{ text: 'The Moon orbits Earth.', verdict: 'supported', reason: 'NASA says so.', sources: [], searches: [] }] } });
+ const view = render(React.createElement(MemoryRouter, { initialEntries: ['/studio/source-job'] }, React.createElement(Routes, {}, React.createElement(Route, { path: '/studio/:id', element: React.createElement(Studio) }))));
+ expect(await screen.findByRole('heading', { name: 'Claims' })).toBeTruthy();
+ expect(screen.getByText('Supported')).toBeTruthy();
+ view.unmount();
+ mocks.queries.set('generate:getJob', { _id: 'source-job', status: 'done', mode: 'generate', prompt: 'Space video', hasOutput: true, claims: null });
+ render(React.createElement(MemoryRouter, { initialEntries: ['/studio/source-job'] }, React.createElement(Routes, {}, React.createElement(Route, { path: '/studio/:id', element: React.createElement(Studio) }))));
+ await screen.findByRole('heading', { name: 'Space video' });
+ expect(screen.queryByRole('heading', { name: 'Claims' })).toBeNull();
+});

@@ -125,7 +125,7 @@ variable "image_location" {
   }
 }
 locals {
-  apis = toset(["run.googleapis.com", "storage.googleapis.com", "secretmanager.googleapis.com", "iamcredentials.googleapis.com", "aiplatform.googleapis.com", "firestore.googleapis.com", "speech.googleapis.com", "texttospeech.googleapis.com", "translate.googleapis.com"])
+  apis = toset(["run.googleapis.com", "storage.googleapis.com", "secretmanager.googleapis.com", "iamcredentials.googleapis.com", "aiplatform.googleapis.com", "firestore.googleapis.com", "speech.googleapis.com", "texttospeech.googleapis.com", "translate.googleapis.com", "bigquery.googleapis.com"])
   google_env = {
     GEMINI_PROJECT    = var.project_id
     GEMINI_LOCATION   = var.gemini_location
@@ -135,6 +135,8 @@ locals {
     SPEECH_MODEL      = var.speech_model
     TTS_VOICE         = var.tts_voice
     TTS_LANGUAGE      = var.tts_language
+    BIGQUERY_PROJECT  = var.project_id
+    BIGQUERY_DATASET  = google_bigquery_dataset.analytics.dataset_id
   }
   image_env = var.image_model == null ? {} : {
     IMAGE_MODEL    = var.image_model
@@ -185,6 +187,62 @@ resource "google_project_iam_member" "worker_translate" {
   role       = "roles/cloudtranslate.user"
   member     = "serviceAccount:${google_service_account.worker.email}"
   depends_on = [google_project_service.api]
+}
+resource "google_project_iam_member" "dispatcher_vertex" {
+  project    = var.project_id
+  role       = "roles/aiplatform.user"
+  member     = "serviceAccount:${google_service_account.dispatcher.email}"
+  depends_on = [google_project_service.api]
+}
+locals {
+  dispatcher_google_env = { for name in ["GEMINI_PROJECT", "GEMINI_LOCATION", "GEMINI_MODEL", "BIGQUERY_PROJECT", "BIGQUERY_DATASET"] : name => local.google_env[name] }
+}
+resource "google_bigquery_dataset" "analytics" {
+  dataset_id = "takeone_analytics"
+  location   = var.region
+  depends_on = [google_project_service.api]
+}
+resource "google_bigquery_table" "renders" {
+  dataset_id          = google_bigquery_dataset.analytics.dataset_id
+  table_id            = "renders"
+  deletion_protection = true
+  time_partitioning {
+    type  = "DAY"
+    field = "created_at"
+  }
+  schema = jsonencode([
+    { name = "job_id", type = "STRING", mode = "REQUIRED" },
+    { name = "mode", type = "STRING", mode = "REQUIRED" },
+    { name = "caption_language", type = "STRING", mode = "NULLABLE" },
+    { name = "stage_timings", type = "RECORD", mode = "REPEATED", fields = [
+      { name = "stage", type = "STRING", mode = "REQUIRED" },
+      { name = "duration_ms", type = "INT64", mode = "REQUIRED" },
+    ] },
+    { name = "total_seconds", type = "FLOAT64", mode = "NULLABLE" },
+    { name = "outcome", type = "STRING", mode = "REQUIRED" },
+    { name = "created_at", type = "TIMESTAMP", mode = "REQUIRED" },
+  ])
+}
+resource "google_bigquery_table" "feedback" {
+  dataset_id          = google_bigquery_dataset.analytics.dataset_id
+  table_id            = "feedback"
+  deletion_protection = true
+  time_partitioning {
+    type  = "DAY"
+    field = "created_at"
+  }
+  schema = jsonencode([
+    { name = "version_id", type = "STRING", mode = "REQUIRED" },
+    { name = "note_count", type = "INT64", mode = "REQUIRED" },
+    { name = "sentiment", type = "STRING", mode = "REQUIRED" },
+    { name = "created_at", type = "TIMESTAMP", mode = "REQUIRED" },
+  ])
+}
+resource "google_bigquery_dataset_iam_member" "analytics" {
+  for_each   = { worker = google_service_account.worker.email, dispatcher = google_service_account.dispatcher.email }
+  dataset_id = google_bigquery_dataset.analytics.dataset_id
+  role       = "roles/bigquery.dataEditor"
+  member     = "serviceAccount:${each.value}"
 }
 variable "web_origins" {
   description = "Exact HTTPS web origins allowed to read private signed videos for canvas frame previews."
@@ -373,9 +431,16 @@ resource "google_cloud_run_v2_service" "dispatcher" {
           }
         }
       }
+      dynamic "env" {
+        for_each = local.dispatcher_google_env
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
     }
   }
-  depends_on = [google_project_service.api, google_secret_manager_secret_iam_member.dispatcher]
+  depends_on = [google_project_service.api, google_secret_manager_secret_iam_member.dispatcher, google_project_iam_member.dispatcher_vertex]
 }
 # Convex authenticates application endpoints using DISPATCH_SECRET; /healthz is public.
 resource "google_cloud_run_v2_service_iam_member" "dispatcher_http" {

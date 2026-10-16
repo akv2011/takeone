@@ -36,13 +36,19 @@ interface RendererDeps {
   sendProgress(job: ClaimedJob, stage: RenderStage): Promise<boolean>;
   telegram(method: string, body: object): Promise<{ file_path?: string; file_size?: number }>;
   onArchive(archive: CaptionArchive): void;
+  /** The burned-in caption text (the script, for a prompt video) and the hook card, for the claims check and cover. */
+  onText?(kind: 'captions' | 'hook', text: string): void;
 }
-export function createManagedRenderer({ work, bucket, env, call, sendProgress, saveScenePlan, telegram, onArchive }: RendererDeps) {
+export function createManagedRenderer({ work, bucket, env, call, sendProgress, saveScenePlan, telegram, onArchive, onText }: RendererDeps) {
   const leaseArgs = (job: ClaimedJob) => ({ jobId: job.jobId, leaseToken: job.leaseToken });
   return async (job: ClaimedJob, signal: AbortSignal): Promise<string> => {
     if (job.captionLanguage !== undefined && !isCaptionLanguage(job.captionLanguage)) throw Error('Unsupported caption language');
     if (job.brand) validateBrand(job.brand);
-    const runOp: typeof mediaCore.runOp = (input, op, ctx) => mediaCore.runOp(input, op.op === 'captions' && job.brand ? { ...op, font: op.font ?? job.brand.font, colors: job.brand } : op, ctx);
+    const runOp: typeof mediaCore.runOp = (input, op, ctx) => {
+      if (op.op === 'captions') onText?.('captions', op.text?.trim() || (op.cues ?? []).map(cue => cue.text).join(' '));
+      if (op.op === 'title') onText?.('hook', op.text);
+      return mediaCore.runOp(input, op.op === 'captions' && job.brand ? { ...op, font: op.font ?? job.brand.font, colors: job.brand } : op, ctx);
+    };
     const report = progressReporter(stage => sendProgress(job, stage), signal);
     const deliverable = async (path: string, requireAudio = false) => {
       if (job.brand?.logo) path = await applyBrandLogo(path, job.brand.logo, work, signal);

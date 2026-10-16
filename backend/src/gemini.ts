@@ -1,5 +1,7 @@
 // One Gemini client for the worker: Vertex AI generateContent over the shared Google REST helper,
-// JSON output constrained by responseSchema, then the caller's own strict validator.
+// JSON output constrained by responseSchema, then the caller's own strict validator, or a plain-text
+// answer grounded with Google Search. The search tool goes without responseSchema because Vertex AI
+// does not document that pairing, and the Gemini API lists it as a Gemini 3 preview only.
 import { googleFetch, PROJECT_ID } from './google/auth.js';
 
 export type GeminiPart =
@@ -51,18 +53,10 @@ async function readCapped(response: Response): Promise<string> {
   return Buffer.concat(chunks).toString('utf8');
 }
 
-export async function generateJson<T>(request: GenerateJsonRequest<T>): Promise<T> {
-  request.signal?.throwIfAborted();
-  const response = await googleFetch('Gemini', endpoint(), {
-    json: {
-      contents: [{ role: 'user', parts: request.parts }],
-      ...(request.system ? { systemInstruction: { parts: [{ text: request.system }] } } : {}),
-      generationConfig: { responseMimeType: 'application/json', responseSchema: request.schema },
-    },
-    signal: request.signal,
-    timeoutMs: request.timeoutMs,
-  });
-  const raw = await readCapped(response).catch((error) => { request.signal?.throwIfAborted(); throw error; });
+async function generate(body: object, signal: AbortSignal | undefined, timeoutMs: number): Promise<{ text: string; candidate: any }> {
+  signal?.throwIfAborted();
+  const response = await googleFetch('Gemini', endpoint(), { json: body, signal, timeoutMs });
+  const raw = await readCapped(response).catch((error) => { signal?.throwIfAborted(); throw error; });
   let data: any;
   try { data = JSON.parse(raw); } catch { throw Error('Gemini provider returned a malformed response'); }
   const blocked = data?.promptFeedback?.blockReason;
@@ -73,7 +67,28 @@ export async function generateJson<T>(request: GenerateJsonRequest<T>): Promise<
   const parts: unknown[] = Array.isArray(candidate.content?.parts) ? candidate.content.parts : [];
   const text = parts.filter((p: any) => typeof p?.text === 'string' && !p.thought).map((p: any) => p.text).join('');
   if (!text.trim()) throw Error('Gemini returned an empty answer');
+  return { text, candidate };
+}
+
+const systemInstruction = (system?: string) => system ? { systemInstruction: { parts: [{ text: system }] } } : {};
+
+export async function generateJson<T>(request: GenerateJsonRequest<T>): Promise<T> {
+  const { text } = await generate({
+    contents: [{ role: 'user', parts: request.parts }],
+    ...systemInstruction(request.system),
+    generationConfig: { responseMimeType: 'application/json', responseSchema: request.schema },
+  }, request.signal, request.timeoutMs);
   let value: unknown;
   try { value = JSON.parse(text); } catch { throw Error('Gemini returned invalid JSON'); }
   return request.parse(value);
+}
+
+/** Plain-text answer grounded with Google Search. The caller reads sources from groundingMetadata, never from the text. */
+export async function generateGrounded(request: { prompt: string; system?: string; signal?: AbortSignal; timeoutMs: number }): Promise<{ text: string; grounding: unknown }> {
+  const { text, candidate } = await generate({
+    contents: [{ role: 'user', parts: [{ text: request.prompt }] }],
+    ...systemInstruction(request.system),
+    tools: [{ googleSearch: {} }],
+  }, request.signal, request.timeoutMs);
+  return { text, grounding: candidate.groundingMetadata };
 }

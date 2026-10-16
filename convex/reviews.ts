@@ -1,6 +1,7 @@
 import { v, ConvexError } from 'convex/values';
 import { actionGeneric as action, queryGeneric as query, mutationGeneric as mutation, internalMutationGeneric as internalMutation, internalQueryGeneric as internalQuery, makeFunctionReference as ref } from 'convex/server';
 import { dispatcher } from './jobs';
+import { feedbackSummaryValidator } from './feedbackValues';
 
 const TOKEN = /^[a-f0-9]{64}$/;
 const VIDEO = /^videos\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\.mp4$/;
@@ -27,6 +28,7 @@ async function validLink(ctx: any, hash: string | null) {
   const job = await ctx.db.get(link.jobId);
   return job?.userId === link.userId && job.status === 'done' && job.storageKey === link.storageKey && managedVideo(job) ? link : null;
 }
+const summaryRow = (ctx: any, jobId: any) => ctx.db.query('feedbackSummaries').withIndex('by_job', (q: any) => q.eq('jobId', jobId)).unique();
 const commentView = (row: any) => ({ id: row._id, name: row.name, text: row.text, at: row.at, createdAt: row.createdAt, resolved: row.resolved });
 async function comments(ctx: any, reviewId: any) {
   return (await ctx.db.query('reviewComments').withIndex('by_review', (q: any) => q.eq('reviewId', reviewId)).take(200)).map(commentView);
@@ -79,8 +81,58 @@ export const remove = mutation({ args: { reviewId: v.id('reviewLinks') }, handle
   const userId = await identity(ctx), link = await ctx.db.get(reviewId);
   if (!link || link.userId !== userId) throw new ConvexError('REVIEW_UNAVAILABLE');
   if (link.revokedAt === undefined && link.expiresAt > Date.now()) throw new ConvexError('REVOKE_FIRST');
-  for (const row of await ctx.db.query('reviewComments').withIndex('by_review', q => q.eq('reviewId', reviewId)).take(200)) await ctx.db.delete(row._id);
+  const deleted = new Set<string>();
+  for (const row of await ctx.db.query('reviewComments').withIndex('by_review', q => q.eq('reviewId', reviewId)).take(200)) { await ctx.db.delete(row._id); deleted.add(row._id); }
   await ctx.db.delete(reviewId);
+  const summary = await summaryRow(ctx, link.jobId);
+  if (summary?.result?.notes.some((note: { id: string }) => deleted.has(note.id))) await ctx.db.patch(summary._id, { result: undefined });
+}});
+interface SummaryNote { id: string; at: number; text: string }
+export const summarize = action({ args: { jobId: v.id('genJobs') }, handler: async (ctx, { jobId }): Promise<void> => {
+  await identity(ctx);
+  const notes: SummaryNote[] = await ctx.runMutation(ref<'mutation'>('reviews:reserveSummary'), { jobId });
+  let data: any;
+  try { data = await (await dispatcher('summarize-feedback', { versionId: jobId, notes }, 30_000)).json(); } catch { throw new ConvexError('SUMMARY_UNAVAILABLE'); }
+  if (!data || typeof data !== 'object' || !Array.isArray(data.themes) || !Array.isArray(data.notes)) throw new ConvexError('SUMMARY_UNAVAILABLE');
+  // Each sent id joins once and all must come back, so the reply cannot name a note this call did not send.
+  const pending = new Map(notes.map(note => [note.id, note.at]));
+  const joined = data.notes.map((note: any) => {
+    const at = pending.get(note?.id);
+    if (at === undefined) throw new ConvexError('SUMMARY_UNAVAILABLE');
+    pending.delete(note.id);
+    return { id: note.id, at, sentiment: note.sentiment };
+  });
+  if (pending.size) throw new ConvexError('SUMMARY_UNAVAILABLE');
+  await ctx.runMutation(ref<'mutation'>('reviews:storeSummary'), { jobId, sentiment: data.sentiment, why: data.why, themes: data.themes, notes: joined });
+}});
+export const reserveSummary = internalMutation({ args: { jobId: v.id('genJobs') }, handler: async (ctx, { jobId }): Promise<SummaryNote[]> => {
+  const userId = await identity(ctx), job = await ctx.db.get(jobId);
+  if (!job || job.userId !== userId) throw new ConvexError('REVIEW_UNAVAILABLE');
+  const notes: SummaryNote[] = [];
+  for (const link of await ctx.db.query('reviewLinks').withIndex('by_job_created', q => q.eq('jobId', jobId)).order('desc').take(100)) {
+    for (const row of await ctx.db.query('reviewComments').withIndex('by_review', q => q.eq('reviewId', link._id)).take(200 - notes.length)) notes.push({ id: row._id, at: row.at, text: row.text });
+    if (notes.length >= 200) break;
+  }
+  if (notes.length < 3) throw new ConvexError('SUMMARY_NEEDS_NOTES');
+  const now = Date.now(), row = await summaryRow(ctx, jobId);
+  const count = row && row.windowAt > now - HOUR ? row.windowCount : 0;
+  if (count >= 3) throw new ConvexError('SUMMARY_RATE_LIMIT');
+  const windowAt = count ? row.windowAt : now;
+  if (row) await ctx.db.patch(row._id, { windowAt, windowCount: count + 1 });
+  else await ctx.db.insert('feedbackSummaries', { userId, jobId, windowAt, windowCount: 1 });
+  return notes;
+}});
+export const storeSummary = internalMutation({ args: { jobId: v.id('genJobs'), ...feedbackSummaryValidator.omit('noteCount', 'createdAt').fields }, handler: async (ctx, { jobId, ...summary }) => {
+  const userId = await identity(ctx), job = await ctx.db.get(jobId), row = await summaryRow(ctx, jobId);
+  if (!job || job.userId !== userId || !row) throw new ConvexError('REVIEW_UNAVAILABLE');
+  if (!summary.why.trim() || summary.why.length > 200 || !summary.themes.length || summary.themes.length > 3 || summary.themes.some(theme => !theme.trim() || theme.length > 80) || !summary.notes.length) throw new ConvexError('SUMMARY_UNAVAILABLE');
+  for (const note of summary.notes) if (!await ctx.db.get(note.id)) throw new ConvexError('SUMMARY_STALE');
+  await ctx.db.patch(row._id, { result: { ...summary, noteCount: summary.notes.length, createdAt: Date.now() } });
+}});
+export const summary = query({ args: { jobId: v.string() }, handler: async (ctx, { jobId }) => {
+  const auth = await ctx.auth.getUserIdentity(), id = ctx.db.normalizeId('genJobs', jobId), job = id ? await ctx.db.get(id) : null;
+  if (!auth || !job || job.userId !== auth.subject) return null;
+  return (await summaryRow(ctx, job._id))?.result ?? null;
 }});
 export const resolve = mutation({ args: { commentId: v.id('reviewComments'), resolved: v.boolean() }, handler: async (ctx, { commentId, resolved }) => {
   const userId = await identity(ctx), comment = await ctx.db.get(commentId), link = comment ? await ctx.db.get(comment.reviewId) : null;

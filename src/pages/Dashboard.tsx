@@ -2,7 +2,7 @@ import { BrandKitPanel, type BrandSelection } from "../components/BrandKitPanel"
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { GuestNotice, SignedIn, SignedOut, SignInChoices, useAuth } from "../lib/auth";
-import { useConvexAuth, useMutation, useQuery, usePaginatedQuery } from "convex/react";
+import { useAction, useConvexAuth, useMutation, useQuery, usePaginatedQuery } from "convex/react";
 import { Clapperboard, Scissors, SlidersHorizontal } from "lucide-react";
 import TakeOneLogo from "../components/TakeOneLogo";
 import TelegramConnect from "../components/TelegramConnect";
@@ -58,7 +58,7 @@ function SignInGate() {
 }
 
 type Me = { credits: number; creditAdjustment?: number; freeRemaining: number; freeLimit: number; founding: boolean; canGenerate: boolean; preferences?: Partial<AccountPreferencesValue> } | null | undefined;
-type Job = { _id: string; mode: string; prompt: string; status: string; resultUrl?: string | null; hasOutput: boolean };
+type Job = { _id: string; mode: string; prompt: string; status: string; resultUrl?: string | null; hasOutput: boolean; hasCover?: boolean };
 
 function DashboardInner() {
   const navigate = useNavigate();
@@ -331,11 +331,12 @@ function DashboardInner() {
   );
 }
 
-function ReelTile({ job }: { job: Job }) {
+export function ReelTile({ job }: { job: Job }) {
   const cancel = useMutation(api.generate.cancelJob);
   const [cancelError, setCancelError] = useState("");
   const done = job.status === "done" && !!(job.hasOutput || job.resultUrl);
   const { url } = useVideoUrl(done ? job._id : undefined, job.hasOutput, job.resultUrl);
+  const cover = useCoverUrl(done && job.hasCover ? job._id : undefined);
   const failed = job.status === "failed" || job.status === "cancelled";
   const frame = "group relative block aspect-[9/16] overflow-hidden rounded-xl border border-line";
   const caption = (
@@ -348,6 +349,7 @@ function ReelTile({ job }: { job: Job }) {
     <Link to={`/studio/${job._id}`} aria-label={`Open in Studio: ${job.prompt}`} className={`${frame} bg-ink`}>
       <video
         src={url}
+        poster={cover}
         muted loop playsInline preload="metadata"
         onMouseEnter={(e) => { void e.currentTarget.play().catch(() => {}); }}
         onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
@@ -371,4 +373,19 @@ function ReelTile({ job }: { job: Job }) {
       {caption}
     </div>
   );
+}
+
+// The poster loads once, so a one-time signed URL is enough; the tile signs again when it remounts.
+function useCoverUrl(jobId?: string) {
+  const sign = useAction(api.generate.getCover);
+  const [cover, setCover] = useState<{ jobId: string; url: string }>();
+  useEffect(() => {
+    if (!jobId) return;
+    let current = true;
+    sign({ jobId }).then((result: { url?: unknown }) => {
+      if (current && typeof result?.url === "string" && result.url.startsWith("https://")) setCover({ jobId, url: result.url });
+    }, () => {});
+    return () => { current = false; };
+  }, [jobId, sign]);
+  return cover && cover.jobId === jobId ? cover.url : undefined;
 }
