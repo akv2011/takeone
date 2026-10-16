@@ -66,15 +66,32 @@ function canvasStyle(style: string, canvas: CaptionCanvas, title = false, positi
 // zero render cost vs. plain cues, no Remotion needed.
 const POP = '\\fad(100,60)\\fscx80\\fscy80\\t(0,110,\\fscx112\\fscy112)\\t(110,220,\\fscx100\\fscy100)';
 
+// Non-Latin text uses the Noto sans family from the Dockerfile packages, so the serif and mono
+// choices apply to Latin only. Kana precedes Han so Japanese with kanji picks JP.
+const SCRIPT_FONTS: [RegExp, string][] = [
+  [/\p{Script=Devanagari}/u, 'Noto Sans Devanagari'],
+  [/\p{Script=Tamil}/u, 'Noto Sans Tamil'],
+  [/\p{Script=Thai}/u, 'Noto Sans Thai'],
+  [/[\p{Script=Hiragana}\p{Script=Katakana}]/u, 'Noto Sans CJK JP'],
+  [/\p{Script=Hangul}/u, 'Noto Sans CJK KR'],
+  [/\p{Script=Han}/u, 'Noto Sans CJK SC'],
+];
+export function scriptFont(text: string): string | undefined {
+  return SCRIPT_FONTS.find(([re]) => re.test(text))?.[1];
+}
+
 export function toAss(cues: { start: number; end: number; text: string }[], style: 'karaoke' | 'meme' | 'clean' = 'karaoke', canvas: CaptionCanvas = DEFAULT_CANVAS, position?: 'auto' | 'top' | 'middle' | 'bottom', font?: 'sans' | 'serif' | 'mono', colors?: { textColor: string; outlineColor: string }): string {
   const header =
     canvasHeader(canvas) +
     '[V4+ Styles]\nFormat: Name,Fontname,Fontsize,PrimaryColour,OutlineColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding\n' +
     canvasStyle(STYLES[style] ?? STYLES.karaoke, canvas, false, position, font, colors) + '\n\n' +
     '[Events]\nFormat: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text\n';
-  const anim = style === 'clean' ? '' : `{${POP}}`;   // clean stays static; karaoke/meme pop in
   const events = cues
-    .map((c) => `Dialogue: 0,${ts(c.start)},${ts(c.end)},Default,,0,0,0,,${anim}${c.text.replace(/[\n{}\\]/g, ' ')}`)
+    .map((c) => {
+      const fn = scriptFont(c.text), pop = style === 'clean' ? '' : POP;   // clean stays static; karaoke/meme pop in
+      const anim = fn ? `{\\fn${fn}${pop}}` : pop ? `{${pop}}` : '';
+      return `Dialogue: 0,${ts(c.start)},${ts(c.end)},Default,,0,0,0,,${anim}${c.text.replace(/[\n{}\\]/g, ' ')}`;
+    })
     .join('\n');
   return header + events + '\n';
 }
@@ -82,11 +99,12 @@ export function toAss(cues: { start: number; end: number; text: string }[], styl
 // Hook title card: big bold line at the top for the first seconds, pop + fade out.
 export function titleAss(text: string, durationSec: number, canvas: CaptionCanvas = DEFAULT_CANVAS): string {
   const clean = text.replace(/[\n{}\\]/g, ' ').trim();
+  const fn = scriptFont(clean);
   return canvasHeader(canvas) +
     '[V4+ Styles]\nFormat: Name,Fontname,Fontsize,PrimaryColour,OutlineColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding\n' +
     canvasStyle('Style: Hook,Arial,72,&H0000FFFF,&H00000000,-1,0,0,0,100,100,0,0,1,5,0,8,60,60,140,1', canvas, true) + '\n\n' +
     '[Events]\nFormat: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text\n' +
-    `Dialogue: 1,${ts(0)},${ts(durationSec)},Hook,,0,0,0,,{\\fad(150,250)${POP.replace('\\fad(100,60)', '')}}${clean.toUpperCase()}\n`;
+    `Dialogue: 1,${ts(0)},${ts(durationSec)},Hook,,0,0,0,,{${fn ? `\\fn${fn}` : ''}\\fad(150,250)${POP.replace('\\fad(100,60)', '')}}${clean.toUpperCase()}\n`;
 }
 
 export function toSrt(cues: { start: number; end: number; text: string }[]): string {
