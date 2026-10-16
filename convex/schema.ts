@@ -1,5 +1,6 @@
 import { brandSettings, brandSelection } from './brandValues';
 import { feedbackSummaryValidator } from './feedbackValues';
+import { youtubeMomentsTable } from './youtubeValues';
 import { savedScenePlanValidator } from './scenePlanValues';
 import { renderProgressValidator } from './renderProgress';
 import { transformsValidator } from './transforms';
@@ -46,6 +47,8 @@ export default defineSchema({
     createdAt: v.number(), resolved: v.boolean(),
   }).index('by_review', ['reviewId']).index('by_request', ['reviewId', 'requestId']),
   feedbackSummaries: defineTable({ userId: v.string(), jobId: v.id('genJobs'), windowAt: v.number(), windowCount: v.number(), result: v.optional(feedbackSummaryValidator) }).index('by_job', ['jobId']),
+  youtubeMoments: defineTable(youtubeMomentsTable).index('by_user_created', ['userId', 'createdAt']).index('by_created', ['createdAt']),
+  youtubeShares: defineTable({ token: v.string(), userId: v.string(), analysisId: v.id('youtubeMoments'), moment: v.number(), createdAt: v.number() }).index('by_token', ['token']).index('by_analysis_moment', ['analysisId', 'moment']),
   brandKits: defineTable({ userId: v.string(), name: v.string(), revision: v.number(), settings: brandSettings }).index("by_user", ["userId"]),
   users: defineTable({
     tokenIdentifier: v.string(), // Firebase Auth user id (token subject)

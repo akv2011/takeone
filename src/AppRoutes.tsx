@@ -10,6 +10,7 @@ const Landing = lazy(() => import('./App'));
 const Pricing = lazy(() => import('./pages/Pricing'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Review = lazy(() => import('./pages/Review'));
+const Clip = lazy(() => import('./pages/Clip'));
 const Studio = lazy(() => import('./pages/Studio'));
 const AssemblyStudio = lazy(() => import('./pages/AssemblyStudio'));
 const Guides = lazy(() => import('./pages/Guides'));
@@ -36,6 +37,7 @@ export function AppRoutes() {
       <Route path="/" element={<Landing />} />
       <Route path="/pricing" element={<Pricing auth={authEnabled} />} />
       <Route path="/review" element={<Review />} />
+      <Route path="/clip/:id" element={<Clip />} />
       <Route path="/create" element={authEnabled ? <Dashboard /> : <SignInUnavailable />} />
       <Route path="/studio/project/:projectId" element={authEnabled ? <AssemblyStudio /> : <SignInUnavailable />} />
       <Route path="/studio/:id" element={authEnabled ? <Studio /> : <SignInUnavailable />} />

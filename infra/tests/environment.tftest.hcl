@@ -282,12 +282,16 @@ run "bigquery_analytics" {
     error_message = "The feedback table columns must match the dispatcher row."
   }
   assert {
-    condition = alltrue([for grant in values(google_bigquery_dataset_iam_member.analytics) : grant.dataset_id == "takeone_analytics" && grant.role == "roles/bigquery.dataEditor"]) && length(google_bigquery_dataset_iam_member.analytics) == 2 && google_bigquery_dataset_iam_member.analytics["worker"].member == "serviceAccount:takeone-worker@test-project.iam.gserviceaccount.com" && google_bigquery_dataset_iam_member.analytics["dispatcher"].member == "serviceAccount:takeone-dispatcher@test-project.iam.gserviceaccount.com"
+    condition     = alltrue([for grant in values(google_bigquery_dataset_iam_member.analytics) : grant.dataset_id == "takeone_analytics" && grant.role == "roles/bigquery.dataEditor"]) && length(google_bigquery_dataset_iam_member.analytics) == 2 && google_bigquery_dataset_iam_member.analytics["worker"].member == "serviceAccount:takeone-worker@test-project.iam.gserviceaccount.com" && google_bigquery_dataset_iam_member.analytics["dispatcher"].member == "serviceAccount:takeone-dispatcher@test-project.iam.gserviceaccount.com"
     error_message = "Only the worker and dispatcher may write analytics rows, and only in the analytics dataset."
   }
   assert {
     condition     = google_project_iam_member.dispatcher_vertex.project == var.project_id && google_project_iam_member.dispatcher_vertex.role == "roles/aiplatform.user" && google_project_iam_member.dispatcher_vertex.member == "serviceAccount:takeone-dispatcher@test-project.iam.gserviceaccount.com"
     error_message = "The dispatcher needs Vertex AI access on its own project for feedback summaries."
+  }
+  assert {
+    condition     = google_project_iam_member.dispatcher_translate.project == var.project_id && google_project_iam_member.dispatcher_translate.role == "roles/cloudtranslate.user" && google_project_iam_member.dispatcher_translate.member == "serviceAccount:takeone-dispatcher@test-project.iam.gserviceaccount.com"
+    error_message = "The dispatcher needs Cloud Translation access on its own project for YouTube moment captions."
   }
   assert {
     condition = alltrue([for name, value in { BIGQUERY_PROJECT = "test-project", BIGQUERY_DATASET = "takeone_analytics" } :
@@ -308,4 +312,174 @@ run "reject_bigquery_override" {
     worker_env = { BIGQUERY_DATASET = "other" }
   }
   expect_failures = [google_cloud_run_v2_job.video]
+}
+run "warm_worker_service" {
+  command = plan
+  variables {
+    worker_env     = { YT_MAX_HEIGHT = "720" }
+    worker_secrets = { WORKER_SECRET = "worker-secret", PEXELS_API_KEY = "pexels-secret" }
+  }
+  override_resource {
+    target          = google_service_account.worker
+    override_during = plan
+    values          = { email = "takeone-worker@test-project.iam.gserviceaccount.com" }
+  }
+  assert {
+    condition = alltrue([
+      google_cloud_run_v2_service.worker.name == "takeone-worker",
+      google_cloud_run_v2_service.worker.ingress == "INGRESS_TRAFFIC_INTERNAL_ONLY",
+      google_cloud_run_v2_service.worker.template[0].service_account == "takeone-worker@test-project.iam.gserviceaccount.com",
+      google_cloud_run_v2_service.worker.template[0].max_instance_request_concurrency == 1,
+      google_cloud_run_v2_service.worker.template[0].timeout == "900s",
+      google_cloud_run_v2_service.worker.template[0].scaling[0].min_instance_count == 1,
+      google_cloud_run_v2_service.worker.template[0].scaling[0].max_instance_count == 12,
+      google_cloud_run_v2_service.worker.template[0].containers[0].command == tolist(["node", "dist/managed/workerService.js"]),
+      google_cloud_run_v2_service.worker.template[0].containers[0].resources[0].limits == tomap({ cpu = "2", memory = "4Gi" }),
+      google_cloud_run_v2_service.worker.template[0].containers[0].resources[0].cpu_idle,
+    ])
+    error_message = "The warm worker must run one render per instance for up to 900s on the job's machine shape, with internal ingress and the worker identity."
+  }
+  assert {
+    condition = alltrue([
+      { for env in google_cloud_run_v2_service.worker.template[0].containers[0].env : env.name => env.value if length(env.value_source) == 0 } == { for env in google_cloud_run_v2_job.video.template[0].template[0].containers[0].env : env.name => env.value if length(env.value_source) == 0 },
+      { for env in google_cloud_run_v2_service.worker.template[0].containers[0].env : env.name => env.value_source[0].secret_key_ref[0].secret if length(env.value_source) > 0 } == { for env in google_cloud_run_v2_job.video.template[0].template[0].containers[0].env : env.name => env.value_source[0].secret_key_ref[0].secret if length(env.value_source) > 0 },
+      one([for env in google_cloud_run_v2_service.worker.template[0].containers[0].env : env.value if env.name == "YT_MAX_HEIGHT"]) == "720",
+      one([for env in google_cloud_run_v2_service.worker.template[0].containers[0].env : env.value_source[0].secret_key_ref[0].secret if env.name == "PEXELS_API_KEY"]) == "pexels-secret",
+    ])
+    error_message = "The warm worker must receive exactly the job's plaintext settings and secret references."
+  }
+}
+run "render_queue" {
+  command = plan
+  variables {
+    worker_max_instances = 7
+  }
+  assert {
+    condition = alltrue([
+      google_cloud_tasks_queue.render.name == "takeone-render",
+      google_cloud_tasks_queue.render.location == var.region,
+      google_cloud_tasks_queue.render.rate_limits[0].max_concurrent_dispatches == 7,
+      google_cloud_run_v2_service.worker.template[0].scaling[0].max_instance_count == 7,
+      google_cloud_tasks_queue.render.retry_config[0].max_attempts == 2,
+      contains(keys(google_project_service.api), "cloudtasks.googleapis.com"),
+    ])
+    error_message = "The render queue must dispatch no more requests than worker instances, retry delivery once, and have the Cloud Tasks API enabled."
+  }
+}
+run "tasks_iam" {
+  command = plan
+  override_resource {
+    target          = google_service_account.dispatcher
+    override_during = plan
+    values          = { email = "takeone-dispatcher@test-project.iam.gserviceaccount.com" }
+  }
+  override_resource {
+    target          = google_service_account.tasks_invoker
+    override_during = plan
+    values = {
+      email = "takeone-tasks-invoker@test-project.iam.gserviceaccount.com"
+      name  = "projects/test-project/serviceAccounts/takeone-tasks-invoker@test-project.iam.gserviceaccount.com"
+    }
+  }
+  override_data {
+    target          = data.google_project.this
+    override_during = plan
+    values          = { number = "123456789" }
+  }
+  assert {
+    condition = alltrue([
+      google_cloud_run_v2_service_iam_member.worker_tasks.name == "takeone-worker",
+      google_cloud_run_v2_service_iam_member.worker_tasks.role == "roles/run.invoker",
+      google_cloud_run_v2_service_iam_member.worker_tasks.member == "serviceAccount:takeone-tasks-invoker@test-project.iam.gserviceaccount.com",
+      google_cloud_run_v2_service_iam_member.dispatcher_http.name == "takeone-dispatcher",
+    ])
+    error_message = "Only the Cloud Tasks invoker may call takeone-worker; allUsers stays on the dispatcher."
+  }
+  assert {
+    condition = alltrue([
+      google_cloud_tasks_queue_iam_member.dispatcher.project == var.project_id,
+      google_cloud_tasks_queue_iam_member.dispatcher.location == var.region,
+      google_cloud_tasks_queue_iam_member.dispatcher.name == "takeone-render",
+      google_cloud_tasks_queue_iam_member.dispatcher.role == "roles/cloudtasks.enqueuer",
+      google_cloud_tasks_queue_iam_member.dispatcher.member == "serviceAccount:takeone-dispatcher@test-project.iam.gserviceaccount.com",
+    ])
+    error_message = "The dispatcher must be able to enqueue on the render queue only."
+  }
+  assert {
+    condition = alltrue([for grant in values(google_service_account_iam_member.tasks_invoker_user) :
+      grant.role == "roles/iam.serviceAccountUser" && grant.service_account_id == "projects/test-project/serviceAccounts/takeone-tasks-invoker@test-project.iam.gserviceaccount.com"
+      ]) && toset([for grant in values(google_service_account_iam_member.tasks_invoker_user) : grant.member]) == toset([
+      "serviceAccount:takeone-dispatcher@test-project.iam.gserviceaccount.com",
+      "serviceAccount:service-123456789@gcp-sa-cloudtasks.iam.gserviceaccount.com",
+    ]) && length(google_service_account_iam_member.tasks_invoker_user) == 2
+    error_message = "Only the dispatcher and the Cloud Tasks service agent may act as the invoker service account."
+  }
+}
+run "dispatcher_defaults_to_jobs" {
+  command = plan
+  override_resource {
+    target          = google_cloud_tasks_queue.render
+    override_during = plan
+    values          = { id = "projects/test-project/locations/us-central1/queues/takeone-render" }
+  }
+  override_resource {
+    target          = google_cloud_run_v2_service.worker
+    override_during = plan
+    values          = { uri = "https://takeone-worker-fixture-uc.a.run.app" }
+  }
+  override_resource {
+    target          = google_service_account.tasks_invoker
+    override_during = plan
+    values = {
+      email = "takeone-tasks-invoker@test-project.iam.gserviceaccount.com"
+      name  = "projects/test-project/serviceAccounts/takeone-tasks-invoker@test-project.iam.gserviceaccount.com"
+    }
+  }
+  assert {
+    condition = alltrue([for name, value in {
+      RENDER_DISPATCH    = "jobs"
+      RENDER_JOB         = "takeone-video"
+      TASKS_QUEUE        = "projects/test-project/locations/us-central1/queues/takeone-render"
+      WORKER_SERVICE_URL = "https://takeone-worker-fixture-uc.a.run.app"
+      TASKS_INVOKER_SA   = "takeone-tasks-invoker@test-project.iam.gserviceaccount.com"
+      } :
+      one([for env in google_cloud_run_v2_service.dispatcher.template[0].containers[0].env : env.value if env.name == name]) == value
+    ])
+    error_message = "The dispatcher must default to jobs and know the queue, worker URL and invoker for tasks mode."
+  }
+  assert {
+    condition     = google_cloud_run_v2_job.video.name == "takeone-video" && google_cloud_run_v2_job_iam_member.dispatch.name == "takeone-video" && google_cloud_run_v2_job_iam_member.dispatch.role == "roles/run.jobsExecutorWithOverrides"
+    error_message = "The Cloud Run Job and its dispatcher grant must stay for rollback."
+  }
+}
+run "dispatcher_tasks_opt_in" {
+  command = plan
+  variables {
+    render_dispatch = "tasks"
+  }
+  assert {
+    condition     = one([for env in google_cloud_run_v2_service.dispatcher.template[0].containers[0].env : env.value if env.name == "RENDER_DISPATCH"]) == "tasks"
+    error_message = "An explicit tasks dispatch must reach the dispatcher."
+  }
+}
+run "reject_unknown_dispatch" {
+  command = plan
+  variables {
+    render_dispatch = "lambda"
+  }
+  expect_failures = [var.render_dispatch]
+}
+run "reject_negative_min_instances" {
+  command = plan
+  variables {
+    worker_min_instances = -1
+  }
+  expect_failures = [var.worker_min_instances]
+}
+run "reject_fractional_max_instances" {
+  command = plan
+  variables {
+    worker_max_instances = 2.5
+  }
+  expect_failures = [var.worker_max_instances]
 }

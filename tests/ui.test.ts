@@ -107,7 +107,11 @@ test('unconfigured providers stay visible as unavailable instead of starting bro
  mocks.queries.set('generate:capabilities', { rendering: { available: false, reason: 'Video rendering is being connected.' }, stockVideo: { available: false, reason: 'Video rendering is being connected.' }, youtubeClips: { available: false, reason: 'YouTube clipping is being connected.' }, aiVideo: { available: false, reason: 'AI video generation is being connected.' }, telegram: { available: false, reason: 'Telegram is being connected.' }, payments: { available: false, reason: 'Checkout is not open yet.' }, music: { available: false, reason: 'Soundtracks are being connected.' } });
  const dashboard = show(React.createElement(Dashboard));
  expect((screen.getByRole('button', { name: 'Create video' }) as HTMLButtonElement).disabled).toBe(true);
- for (const [mode, action] of [['Edit upload', 'Edit video'], ['Clip', 'Create clip'], ['Generate', 'Create video']]) {
+ fireEvent.click(screen.getByRole('button', { name: 'Clip', exact: true }));
+ expect(screen.getByRole('button', { name: 'Find moments' })).toBeTruthy();
+ expect(screen.queryByRole('button', { name: 'Create clip' })).toBeNull();
+ expect(screen.queryByText('YouTube clipping is being connected.')).toBeNull();
+ for (const [mode, action] of [['Edit upload', 'Edit video'], ['Generate', 'Create video']]) {
   const tab = screen.getByRole('button', { name: mode, exact: true });
   expect((tab as HTMLButtonElement).disabled).toBe(false);
   fireEvent.click(tab);
@@ -144,16 +148,19 @@ test('a verified terminal return clears only its matching attempt, never a newer
  expect(sessionStorage.getItem('takeone-checkout-starter')).toBe('newer-attempt');
 });
 test('dashboard sends explicit aspect, mode, ownership and an idempotency key', async () => {
+ mocks.queries.set('uploads:list', [{ _id: 'upload1', name: 'talk.mp4', size: 1048576 }]);
  show(React.createElement(Dashboard));
- fireEvent.click(screen.getByRole('button', { name: 'Clip', exact: true }));
- fireEvent.change(screen.getByRole('textbox', { name: 'Video prompt' }), { target: { value: 'https://youtu.be/abcdefghijk' } });
+ fireEvent.click(screen.getByRole('button', { name: 'Edit upload', exact: true }));
+ fireEvent.change(screen.getByLabelText('Uploaded video'), { target: { value: 'upload1' } });
+ fireEvent.change(screen.getByRole('textbox', { name: 'Video prompt' }), { target: { value: 'Trim 0:05 to 0:20 and add captions' } });
  fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
  fireEvent.click(screen.getByRole('button', { name: '1:1', exact: true }));
- fireEvent.click(screen.getByRole('button', { name: 'Create clip', exact: true }));
- expect(mocks.mutations.get('generate:requestGeneration')).not.toHaveBeenCalled();
+ fireEvent.click(screen.getByRole('button', { name: 'Edit video', exact: true }));
+ expect(mocks.mutations.get('uploads:requestEdit')).not.toHaveBeenCalled();
  fireEvent.click(screen.getByRole('checkbox'));
- fireEvent.click(screen.getByRole('button', { name: 'Create clip', exact: true }));
- await waitFor(() => expect(mocks.mutations.get('generate:requestGeneration')).toHaveBeenCalledWith(expect.objectContaining({ mode: 'clip', aspect: '1:1', confirmedOwnership: true, requestId: expect.any(String) })));
+ fireEvent.click(screen.getByRole('button', { name: 'Edit video', exact: true }));
+ await waitFor(() => expect(mocks.mutations.get('uploads:requestEdit')).toHaveBeenCalledWith(expect.objectContaining({ uploadId: 'upload1', instruction: 'Trim 0:05 to 0:20 and add captions', aspect: '1:1', confirmedOwnership: true, requestId: expect.any(String) })));
+ expect(mocks.mutations.get('generate:requestGeneration')).not.toHaveBeenCalled();
  expect(await screen.findByText(/one free video reserved/i)).toBeTruthy();
 });
 test('uncertain submission retries reuse the same request ID', async () => {
@@ -213,9 +220,9 @@ test('dashboard keeps guidance in tooltips and reveals only the selected workflo
  expect(mocks.mutations.get('generate:requestGeneration')).not.toHaveBeenCalled();
 });
 test('dashboard initializes saved preferences once and preserves later user choices', async () => {
- mocks.queries.set('users:currentUser', { freeRemaining: 3, credits: 0, canGenerate: true, preferences: { defaultMode: 'clip', defaultAspect: '16:9', defaultCaptionStyle: 'clean', openFinishedInStudio: false, showShortcutHints: false } });
+ mocks.queries.set('users:currentUser', { freeRemaining: 3, credits: 0, canGenerate: true, preferences: { defaultMode: 'edit', defaultAspect: '16:9', defaultCaptionStyle: 'clean', openFinishedInStudio: false, showShortcutHints: false } });
  const view = show(React.createElement(Dashboard));
- await waitFor(() => expect(screen.getByRole('button', { name: 'Clip' }).getAttribute('aria-pressed')).toBe('true'));
+ await waitFor(() => expect(screen.getByRole('button', { name: 'Edit upload' }).getAttribute('aria-pressed')).toBe('true'));
  fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
  expect(screen.getByRole('button', { name: '16:9' }).getAttribute('aria-pressed')).toBe('true');
  expect(screen.getByRole('button', { name: '16:9' }).className).toContain('bg-cue');
@@ -833,4 +840,13 @@ test('studio shows the claims panel for a finished video that has a claims resul
  render(React.createElement(MemoryRouter, { initialEntries: ['/studio/source-job'] }, React.createElement(Routes, {}, React.createElement(Route, { path: '/studio/:id', element: React.createElement(Studio) }))));
  await screen.findByRole('heading', { name: 'Space video' });
  expect(screen.queryByRole('heading', { name: 'Claims' })).toBeNull();
+});
+
+test('with stock footage unavailable and AI video available, Generate starts on AI video', () => {
+ mocks.queries.set('generate:capabilities', { rendering: { available: true }, stockVideo: { available: false, reason: 'Stock video generation is being connected.' }, youtubeClips: { available: false, reason: 'YouTube clipping is being connected.' }, aiVideo: { available: true }, telegram: { available: false, reason: 'Telegram is being connected.' }, payments: { available: false, reason: 'Checkout is not open yet.' }, music: { available: false, reason: 'Soundtracks are being connected.' } });
+ show(React.createElement(Dashboard));
+ fireEvent.click(screen.getByRole('button', { name: 'Generate', exact: true }));
+ fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+ expect((screen.getByRole('combobox', { name: 'Video type' }) as HTMLSelectElement).value).toBe('ai');
+ expect(screen.queryByText('Stock video generation is being connected.')).toBeNull();
 });

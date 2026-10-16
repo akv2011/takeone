@@ -7,7 +7,8 @@ import { googleFetch, PROJECT_ID } from './google/auth.js';
 export type GeminiPart =
   | { text: string }
   | { inlineData: { mimeType: 'image/jpeg' | 'image/png'; data: string } }
-  | { fileData: { mimeType: 'video/mp4'; fileUri: `gs://${string}` } };
+  | { fileData: { mimeType: 'video/mp4'; fileUri: `gs://${string}` } }
+  | { fileData: { mimeType: 'video/mp4'; fileUri: `https://www.youtube.com/watch?v=${string}` } };
 
 export interface GenerateJsonRequest<T> {
   parts: GeminiPart[];

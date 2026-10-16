@@ -16,13 +16,23 @@ The website exposes integrations only after their complete capability gate is en
 6. Deploy Convex functions, including the recovery cron, to the intended deployment, then deploy the frontend with that deployment's `VITE_CONVEX_URL`. Deploy frontend and Convex in the same maintenance window because generation inputs now include a request ID.
 7. Register a Telegram webhook using Telegram `setWebhook`, with `url` set to `https://YOUR-DEPLOYMENT.convex.site/telegram`, `secret_token` set to `TELEGRAM_WEBHOOK_SECRET`, and `allowed_updates` set to `["message"]`. Store/call credentials securely, not in shell history. Stop any previous long-poll bot before registering. Users connect from the dashboard using a one-use code valid for ten minutes. Web and Telegram then share balances and job history.
 
+## Warm worker (Cloud Tasks)
+
+`render_dispatch` chooses how the dispatcher starts a render or upload probe. `jobs`, the default, starts one `takeone-video` Cloud Run Job execution per run. `tasks` enqueues a request on the `takeone-render` Cloud Tasks queue, which calls `POST /run` on the warm `takeone-worker` service with an OIDC token for `takeone-tasks-invoker`, so a run skips the job's cold start. The service has internal ingress, only that service account may invoke it, and it keeps `worker_min_instances` (default 1) warm at the idle rate. `worker_max_instances` (default 12) caps both its instances and the queue's concurrent dispatches.
+
+1. Apply with the defaults. This adds the queue, the worker service, the invoker service account and their IAM bindings without changing behavior, because the dispatcher still starts jobs. The `image` must already contain `dist/managed/workerService.js`.
+2. Confirm the latest `takeone-worker` revision is Ready.
+3. Apply with `render_dispatch = "tasks"`.
+
+To roll back, apply with `render_dispatch = "jobs"`. Delete the job and its IAM binding only after tasks mode has served real renders.
+
 ## Migration and operations
 
 - Pause submissions and drain every queued/processing legacy job before stopping the old web poller and Telegram long poller. Reconcile failed legacy jobs and restore any charged allowance manually from the original usage records; do not guess free versus paid debits. Legacy records do not store reservation types, so automatic refunds cannot reconstruct them safely. Then deploy the new Convex functions. Do not run both bridges.
 - Existing paid credits and founding balances are preserved. New accounts get three lifetime free videos; new waitlist sign-ins get the badge but no extra credits. Existing users who already consumed three or more free videos receive no new free allowance.
 - Old result URLs remain viewable while valid, but they cannot be refreshed or edited until their underlying GCS keys are migrated. New jobs store object keys and mint fresh fifteen-minute signed URLs.
 - Worker leases last 90 seconds and heartbeat every 30 seconds. Dispatch leases last three minutes. The minute cron recovers lost work; at most three attempts precede a single refund. Request IDs make frontend retries idempotent. Cancellation is available before a worker claims the job.
-- Cloud Run Job retries are zero: do not add another independent retry policy. Fenced completion rejects stale workers. Provider calls can incur costs before failure; refunds apply to user allowance, not provider invoices.
+- Cloud Run Job retries are zero, and the `takeone-render` queue adds exactly one delivery retry, which Convex claims fence. Do not add another independent retry policy. Fenced completion rejects stale workers. Provider calls can incur costs before failure; refunds apply to user allowance, not provider invoices.
 - Successful Telegram rendering and Telegram delivery are separate: Convex stores a delivery outbox, retries up to three sends, and recovers interrupted sends. Exhausted delivery failures remain visible on the job; the video is still available in the dashboard. Ambiguous Telegram responses can produce duplicate messages, but never duplicate billing or rendering.
 - GCS keeps finished videos until a product retention policy is chosen. Monitor bucket growth, render duration, failure rate, age of oldest queued job, and dispatch failures. Inputs/temp files are cleaned by the worker; abandoned uploaded outputs may need an orphan retention sweep.
 - For rollback, first pause submissions and allow active executions to finish. Restore compatible frontend/backend revisions together; retain the expanded schema and job data. Do not re-enable the legacy poller on the new queue.

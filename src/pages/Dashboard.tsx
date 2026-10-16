@@ -16,11 +16,14 @@ import { normalizeAccountPreferences, type AccountPreferencesValue } from "../li
 import { useProductCapabilities } from "../hooks/useProductCapabilities";
 import { button, field, label, panel } from "../lib/ui";
 import { CAPTION_LANGUAGES } from "../../convex/captions";
+import type { Moment } from "../../convex/youtubeValues";
+import { YouTubeLinkForm, YouTubeMomentResults } from "../components/YouTubeMoments";
+import { momentHandOff } from "../lib/momentHandOff";
 
 const MODES = [
   { id: "edit", label: "Edit upload", shortLabel: "Edit", help: "Upload footage, then describe the trim, speed, framing or caption changes.", placeholder: "What should change in your video?" },
   { id: "generate", label: "Generate", shortLabel: "Create", help: "Turn an idea into a narrated video with matching footage.", placeholder: "Describe the video you want to create…" },
-  { id: "clip", label: "Clip", shortLabel: "YouTube", help: "Paste a YouTube link and optionally include the moment you want.", placeholder: "Paste a YouTube link or describe the moment to clip…" },
+  { id: "clip", label: "Clip", shortLabel: "YouTube", help: "Paste a YouTube link. Gemini finds up to 3 moments worth sharing.", placeholder: "Paste a YouTube link or describe the moment to clip…" },
 ] as const;
 const STATUS: Record<string, string> = { queued: "Queued", dispatched: "Starting", processing: "Rendering", failed: "Failed", cancelled: "Cancelled" };
 const ASPECTS = [{ id: "9:16", label: "9:16" }, { id: "1:1", label: "1:1" }, { id: "16:9", label: "16:9" }] as const;
@@ -87,6 +90,12 @@ function DashboardInner() {
   const [editChoice, setEditChoice] = useState<'describe' | 'moment'>('describe');
   const pickMoment = mode === 'edit' && editChoice === 'moment';
   const [aspect, setAspect] = useState<string>("9:16");
+  // Stock footage needs a provider key. When only AI video can run, start there instead of on a disabled button.
+  useEffect(() => {
+    if (!capabilities || capabilities.stockVideo.available || !capabilities.aiVideo.available) return;
+    setGenerationKind(kind => kind === 'stock' ? 'ai' : kind);
+    setAspect(current => current === '1:1' ? '9:16' : current);
+  }, [capabilities]);
   const [prompt, setPrompt] = useState("");
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
@@ -133,6 +142,11 @@ function DashboardInner() {
   const chooseMode = (next: string) => {
     setMode(next); setConfirmedOwnership(false); setStatus('');
     if (next !== 'edit') { setUploadId(undefined); setEditChoice('describe'); }
+  };
+  const renderMoment = (moment: Moment) => {
+    const handOff = momentHandOff(moment);
+    chooseMode('edit'); setPrompt(handOff.prompt); setStatus(handOff.note);
+    window.scrollTo({ top: 0, behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   };
 
   const generate = async () => {
@@ -214,6 +228,7 @@ function DashboardInner() {
                 </Tooltip>;
               })}
             </div>
+            {mode === "clip" ? <YouTubeLinkForm /> : <>
             <textarea
               value={prompt}
               maxLength={4000}
@@ -241,6 +256,7 @@ function DashboardInner() {
                 </button>
               </div>
             </div>
+            </>}
           </div>
           {mode === "edit" && <VideoUpload onReady={setUploadId} />}
           {mode === "edit" && <fieldset className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm">
@@ -248,8 +264,8 @@ function DashboardInner() {
             <label className="flex items-center gap-2"><input type="radio" name="edit-choice" className="size-4 accent-ink" checked={editChoice === 'describe'} onChange={() => setEditChoice('describe')} />Describe the edit</label>
             <label className="flex items-center gap-2"><input type="radio" name="edit-choice" className="size-4 accent-ink" checked={editChoice === 'moment'} onChange={() => setEditChoice('moment')} />Let Gemini pick the best moment</label>
           </fieldset>}
-          {(mode === "clip" || mode === "edit") && <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" className="size-4 accent-ink" checked={confirmedOwnership} onChange={e => setConfirmedOwnership(e.target.checked)} />I own or have permission to use this video.</label>}
-          {settingsOpen && <section id="creation-settings" aria-label="Video settings" className={`${panel} mt-3 p-4`}>
+          {mode === "edit" && <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" className="size-4 accent-ink" checked={confirmedOwnership} onChange={e => setConfirmedOwnership(e.target.checked)} />I own or have permission to use this video.</label>}
+          {settingsOpen && mode !== "clip" && <section id="creation-settings" aria-label="Video settings" className={`${panel} mt-3 p-4`}>
             <div className="grid gap-4 sm:grid-cols-2">
               <fieldset><legend className={`mb-2 ${label}`}>Format</legend><div className="flex w-fit items-center gap-1 rounded-md border border-line bg-paper p-1">{ASPECTS.map((a) => (
                 <button type="button" key={a.id} aria-pressed={aspect === a.id} onClick={() => setAspect(a.id)} disabled={mode === 'generate' && generationKind === 'ai' && a.id === '1:1'}
@@ -279,7 +295,7 @@ function DashboardInner() {
             {user?.id && capabilities?.rendering.available && <AssemblyStarter compact key={user.id} accountKey={user.id} />}
             {capabilities?.telegram.available && <TelegramConnect compact />}
           </div>
-          <div className="mt-2 flex min-h-5 items-center px-1 text-sm text-muted">
+          {mode !== "clip" && <div className="mt-2 flex min-h-5 items-center px-1 text-sm text-muted">
             {status !== "out-of-credits" && (status ? <p>{status}</p> : activeCapability && !activeCapability.available ? <p>{activeCapability.reason}</p> : (
               <div className="flex items-center gap-1.5">
                 <span>{free > 0 ? "Uses 1 free video" : "Uses 1 credit"}</span>
@@ -294,7 +310,7 @@ function DashboardInner() {
                 </>}
               </div>
             ))}
-          </div>
+          </div>}
           {status === "out-of-credits" && (
             <div className={`${panel} mt-3 flex items-center justify-between gap-3 px-4 py-3`}>
               <p className="text-sm">You're out of credits. Buy a pack to keep creating.</p>
@@ -302,6 +318,7 @@ function DashboardInner() {
             </div>
           )}
         </div>
+        {mode === "clip" && <div className="mt-10"><YouTubeMomentResults onRender={renderMoment} /></div>}
 
         {/* Gallery */}
         <div className="mt-14">

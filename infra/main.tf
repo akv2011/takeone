@@ -125,7 +125,7 @@ variable "image_location" {
   }
 }
 locals {
-  apis = toset(["run.googleapis.com", "storage.googleapis.com", "secretmanager.googleapis.com", "iamcredentials.googleapis.com", "aiplatform.googleapis.com", "firestore.googleapis.com", "speech.googleapis.com", "texttospeech.googleapis.com", "translate.googleapis.com", "bigquery.googleapis.com"])
+  apis = toset(["run.googleapis.com", "storage.googleapis.com", "secretmanager.googleapis.com", "iamcredentials.googleapis.com", "aiplatform.googleapis.com", "firestore.googleapis.com", "speech.googleapis.com", "texttospeech.googleapis.com", "translate.googleapis.com", "bigquery.googleapis.com", "cloudtasks.googleapis.com"])
   google_env = {
     GEMINI_PROJECT    = var.project_id
     GEMINI_LOCATION   = var.gemini_location
@@ -147,6 +147,7 @@ locals {
     VEO_REGION  = var.veo.region
     VEO_MODEL   = var.veo.model
   }
+  worker_env = merge(var.worker_env, local.google_env, local.veo_env, local.image_env)
 }
 resource "google_project_service" "api" {
   for_each           = local.apis
@@ -191,6 +192,12 @@ resource "google_project_iam_member" "worker_translate" {
 resource "google_project_iam_member" "dispatcher_vertex" {
   project    = var.project_id
   role       = "roles/aiplatform.user"
+  member     = "serviceAccount:${google_service_account.dispatcher.email}"
+  depends_on = [google_project_service.api]
+}
+resource "google_project_iam_member" "dispatcher_translate" {
+  project    = var.project_id
+  role       = "roles/cloudtranslate.user"
   member     = "serviceAccount:${google_service_account.dispatcher.email}"
   depends_on = [google_project_service.api]
 }
@@ -355,7 +362,7 @@ resource "google_cloud_run_v2_job" "video" {
           value = google_storage_bucket.videos.name
         }
         dynamic "env" {
-          for_each = merge(var.worker_env, local.google_env, local.veo_env, local.image_env)
+          for_each = local.worker_env
           content {
             name  = env.key
             value = env.value
@@ -419,6 +426,22 @@ resource "google_cloud_run_v2_service" "dispatcher" {
         value = google_cloud_run_v2_job.video.name
       }
       env {
+        name  = "RENDER_DISPATCH"
+        value = var.render_dispatch
+      }
+      env {
+        name  = "TASKS_QUEUE"
+        value = google_cloud_tasks_queue.render.id
+      }
+      env {
+        name  = "WORKER_SERVICE_URL"
+        value = google_cloud_run_v2_service.worker.uri
+      }
+      env {
+        name  = "TASKS_INVOKER_SA"
+        value = google_service_account.tasks_invoker.email
+      }
+      env {
         name  = "GCS_BUCKET"
         value = google_storage_bucket.videos.name
       }
@@ -440,7 +463,7 @@ resource "google_cloud_run_v2_service" "dispatcher" {
       }
     }
   }
-  depends_on = [google_project_service.api, google_secret_manager_secret_iam_member.dispatcher, google_project_iam_member.dispatcher_vertex]
+  depends_on = [google_project_service.api, google_secret_manager_secret_iam_member.dispatcher, google_project_iam_member.dispatcher_vertex, google_cloud_tasks_queue_iam_member.dispatcher, google_service_account_iam_member.tasks_invoker_user]
 }
 # Convex authenticates application endpoints using DISPATCH_SECRET; /healthz is public.
 resource "google_cloud_run_v2_service_iam_member" "dispatcher_http" {
@@ -450,5 +473,135 @@ resource "google_cloud_run_v2_service_iam_member" "dispatcher_http" {
   role     = "roles/run.invoker"
   member   = "allUsers"
 }
+variable "render_dispatch" {
+  type        = string
+  default     = "jobs"
+  description = "How the dispatcher starts a render or upload probe. jobs starts one Cloud Run Job execution per render or probe; tasks enqueues a Cloud Tasks request to the warm takeone-worker service."
+  validation {
+    condition     = contains(["jobs", "tasks"], var.render_dispatch)
+    error_message = "render_dispatch must be jobs or tasks."
+  }
+}
+variable "worker_min_instances" {
+  type        = number
+  default     = 1
+  description = "Warm takeone-worker instances kept running. Idle instances are billed at the idle rate."
+  validation {
+    condition     = var.worker_min_instances >= 0 && floor(var.worker_min_instances) == var.worker_min_instances
+    error_message = "worker_min_instances must be a whole number of at least 0."
+  }
+}
+variable "worker_max_instances" {
+  type        = number
+  default     = 12
+  description = "The takeone-worker instance ceiling and the render queue's concurrent dispatch limit. Convex admits ten renders at once; the other two are headroom so upload probes are not stuck behind ten renders."
+  validation {
+    condition     = var.worker_max_instances >= 1 && floor(var.worker_max_instances) == var.worker_max_instances
+    error_message = "worker_max_instances must be a whole number of at least 1."
+  }
+}
+resource "google_service_account" "tasks_invoker" {
+  account_id   = "takeone-tasks-invoker"
+  display_name = "TakeOne Cloud Tasks invoker for the warm worker"
+}
+resource "google_cloud_run_v2_service" "worker" {
+  name                = "takeone-worker"
+  location            = var.region
+  deletion_protection = true
+  # Cloud Tasks in this project calling the run.app URL counts as internal (docs.cloud.google.com/run/docs/securing/ingress).
+  ingress = "INGRESS_TRAFFIC_INTERNAL_ONLY"
+  template {
+    service_account                  = google_service_account.worker.email
+    max_instance_request_concurrency = 1
+    timeout                          = "900s"
+    scaling {
+      min_instance_count = var.worker_min_instances
+      max_instance_count = var.worker_max_instances
+    }
+    containers {
+      image   = var.image
+      command = ["node", "dist/managed/workerService.js"]
+      resources {
+        limits = { cpu = "2", memory = "4Gi" }
+        # Every run happens inside the /run request, so request-based CPU is enough.
+        cpu_idle          = true
+        startup_cpu_boost = true
+      }
+      ports { container_port = 8080 }
+      env {
+        name  = "CONVEX_URL"
+        value = var.convex_url
+      }
+      env {
+        name  = "GCS_BUCKET"
+        value = google_storage_bucket.videos.name
+      }
+      dynamic "env" {
+        for_each = local.worker_env
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+      dynamic "env" {
+        for_each = var.worker_secrets
+        content {
+          name = env.key
+          value_source {
+            secret_key_ref {
+              secret  = env.value
+              version = "latest"
+            }
+          }
+        }
+      }
+    }
+  }
+  depends_on = [google_project_service.api, google_secret_manager_secret_iam_member.worker, google_project_iam_member.worker_vertex, google_project_iam_member.worker_firestore, google_project_iam_member.worker_speech, google_project_iam_member.worker_translate]
+}
+resource "google_cloud_tasks_queue" "render" {
+  name     = "takeone-render"
+  location = var.region
+  rate_limits {
+    max_concurrent_dispatches = var.worker_max_instances
+  }
+  # One delivery retry only, since Convex leases fence duplicate runs and own job retries. max_attempts counts the first attempt and still caps retries when max_retry_duration is 0s (docs.cloud.google.com/tasks/docs/configure-retry-task).
+  retry_config {
+    max_attempts       = 2
+    min_backoff        = "10s"
+    max_backoff        = "10s"
+    max_retry_duration = "0s"
+  }
+  depends_on = [google_project_service.api]
+}
+resource "google_cloud_run_v2_service_iam_member" "worker_tasks" {
+  project  = var.project_id
+  location = var.region
+  name     = google_cloud_run_v2_service.worker.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.tasks_invoker.email}"
+}
+resource "google_cloud_tasks_queue_iam_member" "dispatcher" {
+  project  = var.project_id
+  location = var.region
+  name     = google_cloud_tasks_queue.render.name
+  role     = "roles/cloudtasks.enqueuer"
+  member   = "serviceAccount:${google_service_account.dispatcher.email}"
+}
+data "google_project" "this" {
+  project_id = var.project_id
+}
+# The task creator needs actAs on the OIDC token's account (docs.cloud.google.com/tasks/docs/reference/rest/v2/OidcToken), and the Cloud Tasks service agent needs Service Account User on it (docs.cloud.google.com/tasks/docs/creating-http-target-tasks).
+resource "google_service_account_iam_member" "tasks_invoker_user" {
+  for_each = {
+    dispatcher  = "serviceAccount:${google_service_account.dispatcher.email}"
+    tasks_agent = "serviceAccount:service-${data.google_project.this.number}@gcp-sa-cloudtasks.iam.gserviceaccount.com"
+  }
+  service_account_id = google_service_account.tasks_invoker.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = each.value
+  depends_on         = [google_project_service.api]
+}
 output "dispatch_url" { value = google_cloud_run_v2_service.dispatcher.uri }
+output "worker_url" { value = google_cloud_run_v2_service.worker.uri }
 output "bucket" { value = google_storage_bucket.videos.name }

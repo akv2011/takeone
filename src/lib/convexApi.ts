@@ -26,6 +26,13 @@ export const api = {
     summarize: makeFunctionReference<'action'>('reviews:summarize'),
     summary: makeFunctionReference<'query'>('reviews:summary'),
   },
+  youtubeMoments: {
+    analyze: makeFunctionReference<'action'>('youtubeMoments:analyze'),
+    latest: makeFunctionReference<'query'>('youtubeMoments:latest'),
+    translate: makeFunctionReference<'action'>('youtubeMoments:translate'),
+    share: makeFunctionReference<'action'>('youtubeMoments:share'),
+    shared: makeFunctionReference<'query'>('youtubeMoments:shared'),
+  },
   sceneReplacements: { options: makeFunctionReference<"query">("sceneReplacements:options"), request: makeFunctionReference<"mutation">("sceneReplacements:request") },
   brandKits: { list: makeFunctionReference<"query">("brandKits:list"), save: makeFunctionReference<"mutation">("brandKits:save") },
   hookVariants: { request: makeFunctionReference<"mutation">("hookVariants:request") },

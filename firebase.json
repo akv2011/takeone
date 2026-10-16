@@ -77,6 +77,10 @@
       {
         "source": "/review/**",
         "destination": "/app.html"
+      },
+      {
+        "source": "/clip/**",
+        "destination": "/app.html"
       }
     ],
     "headers": [
@@ -120,6 +124,15 @@
           {
             "key": "Cache-Control",
             "value": "no-store"
+          }
+        ]
+      },
+      {
+        "source": "/clip/**",
+        "headers": [
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex, nofollow"
           }
         ]
       },
