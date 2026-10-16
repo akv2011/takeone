@@ -2,7 +2,7 @@
 
 The backend image has two roles. It does not run a resident poller or a Telegram long-polling bot.
 
-- **Cloud Run service:** default command `node dist/managed/server.js`. Set `DISPATCH_SECRET`, `GCP_PROJECT`, `GCP_REGION`, `CLOUD_RUN_JOB`, and `GCS_BUCKET`. `GET /healthz` is public; `POST /dispatch` and `POST /sign` require `Authorization: Bearer <DISPATCH_SECRET>`.
+- **Cloud Run service:** default command `node dist/managed/server.js`. Set `DISPATCH_SECRET`, `GCP_PROJECT`, `GCP_REGION`, `RENDER_JOB`, and `GCS_BUCKET`. `GET /healthz` is public; `POST /dispatch` and `POST /sign` require `Authorization: Bearer <DISPATCH_SECRET>`.
 - **Cloud Run Job:** override command to `node dist/managed/run.js`. Set `CONVEX_URL`, `WORKER_SECRET`, `GCS_BUCKET`, provider credentials, and optionally `TELEGRAM_BOT_TOKEN`. The dispatcher supplies `TAKEONE_JOB_ID` per execution. Use one task per execution and zero platform retries: Convex owns retry and reservation policy.
 
 Build the image with `backend/` as the Docker context. The multi-stage build compiles TypeScript, installs production dependencies, and includes ffmpeg, yt-dlp, espeak-ng, and caption fonts. The runtime executes compiled JavaScript as the unprivileged node user.

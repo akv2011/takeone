@@ -357,7 +357,7 @@ resource "google_cloud_run_v2_service" "dispatcher" {
         value = var.region
       }
       env {
-        name  = "CLOUD_RUN_JOB"
+        name  = "RENDER_JOB"
         value = google_cloud_run_v2_job.video.name
       }
       env {

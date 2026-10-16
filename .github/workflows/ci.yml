@@ -46,7 +46,7 @@ jobs:
       - name: Verify runtime dependencies and HTTP health
         run: |
           docker run --rm --entrypoint sh takeone-test -c 'ffmpeg -version && yt-dlp --version && espeak-ng --version && test -f dist/managed/run.js'
-          docker run -d --name takeone-http -p 8080:8080 -e DISPATCH_SECRET=test-only-secret -e GCP_PROJECT=test-project -e GCP_REGION=us-central1 -e CLOUD_RUN_JOB=takeone-video -e GCS_BUCKET=test-bucket takeone-test
+          docker run -d --name takeone-http -p 8080:8080 -e DISPATCH_SECRET=test-only-secret -e GCP_PROJECT=test-project -e GCP_REGION=us-central1 -e RENDER_JOB=takeone-video -e GCS_BUCKET=test-bucket takeone-test
           trap 'docker logs takeone-http; docker rm -f takeone-http' EXIT
           for attempt in $(seq 1 20); do
             if curl --fail http://localhost:8080/healthz; then exit 0; fi

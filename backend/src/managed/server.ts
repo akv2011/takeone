@@ -5,7 +5,7 @@ import { Storage } from '@google-cloud/storage';
 import { dispatcher } from './dispatcher.js';
 import { cloudRunJobRequest } from './cloudRun.js';
 function env(key: string) { const value = process.env[key]; if (!value) throw Error(`${key} required`); return value; }
-const project = env('GCP_PROJECT'); const region = env('GCP_REGION'); const job = env('CLOUD_RUN_JOB');
+const project = env('GCP_PROJECT'); const region = env('GCP_REGION'); const job = env('RENDER_JOB');
 if (!/^[a-z][a-z0-9-]{4,61}[a-z0-9]$/.test(project) || !/^[a-z]+-[a-z]+\d$/.test(region) || !/^[a-z][a-z0-9-]{0,61}[a-z0-9]$/.test(job)) throw Error('Invalid Cloud Run configuration');
 const storage = new Storage(); const bucket = storage.bucket(env('GCS_BUCKET'));
 const auth = new GoogleAuth({ scopes: ['https://www.googleapis.com/auth/cloud-platform'] });

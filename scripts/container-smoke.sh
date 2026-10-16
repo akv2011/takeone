@@ -298,7 +298,7 @@ try {
 }
 console.log('Archive restyling, wording correction and removal passed actual FFmpeg renders, frame/audio checks and full delivery decode');
 JS
-GCP_PROJECT=test-project GCP_REGION=us-central1 CLOUD_RUN_JOB=takeone-worker GCS_BUCKET=test-bucket DISPATCH_SECRET=smoke-only node --input-type=module <<'JS'
+GCP_PROJECT=test-project GCP_REGION=us-central1 RENDER_JOB=takeone-worker GCS_BUCKET=test-bucket DISPATCH_SECRET=smoke-only node --input-type=module <<'JS'
 import './dist/managed/server.js';
 try {
   const health = await fetch('http://127.0.0.1:8080/healthz');
