@@ -16,9 +16,14 @@ export interface GenerateJsonRequest<T> {
   system?: string;
   signal?: AbortSignal;
   timeoutMs: number;
+  /** Gemini 3 thinks by default; LOW is faster and enough for listing or classifying short text. */
+  thinking?: ThinkingLevel;
   /** The caller's strict validator. Its errors reach the caller unchanged. */
   parse(value: unknown): T;
 }
+
+export type ThinkingLevel = 'LOW' | 'HIGH';
+const thinkingConfig = (level?: ThinkingLevel) => level ? { thinkingConfig: { thinkingLevel: level } } : {};
 
 const MAX_RESPONSE_BYTES = 1024 * 1024;
 
@@ -76,7 +81,7 @@ export async function generateJson<T>(request: GenerateJsonRequest<T>): Promise<
   const { text } = await generate({
     contents: [{ role: 'user', parts: request.parts }],
     ...systemInstruction(request.system),
-    generationConfig: { responseMimeType: 'application/json', responseSchema: request.schema },
+    generationConfig: { responseMimeType: 'application/json', responseSchema: request.schema, ...thinkingConfig(request.thinking) },
   }, request.signal, request.timeoutMs);
   let value: unknown;
   try { value = JSON.parse(text); } catch { throw Error('Gemini returned invalid JSON'); }
@@ -84,11 +89,12 @@ export async function generateJson<T>(request: GenerateJsonRequest<T>): Promise<
 }
 
 /** Plain-text answer grounded with Google Search. The caller reads sources from groundingMetadata, never from the text. */
-export async function generateGrounded(request: { prompt: string; system?: string; signal?: AbortSignal; timeoutMs: number }): Promise<{ text: string; grounding: unknown }> {
+export async function generateGrounded(request: { prompt: string; system?: string; signal?: AbortSignal; timeoutMs: number; thinking?: ThinkingLevel }): Promise<{ text: string; grounding: unknown }> {
   const { text, candidate } = await generate({
     contents: [{ role: 'user', parts: [{ text: request.prompt }] }],
     ...systemInstruction(request.system),
     tools: [{ googleSearch: {} }],
+    ...(request.thinking && { generationConfig: thinkingConfig(request.thinking) }),
   }, request.signal, request.timeoutMs);
   return { text, grounding: candidate.groundingMetadata };
 }

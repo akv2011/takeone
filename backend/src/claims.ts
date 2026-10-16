@@ -62,12 +62,12 @@ export function groundingSources(grounding: unknown): Pick<CheckedClaim, 'source
 export async function checkClaims(text: string, signal: AbortSignal): Promise<ClaimsCheck> {
   const claims = await generateJson({
     parts: [{ text: `Below is the spoken text of a short video. List up to ${CLAIM_LIMITS.claims} checkable factual claims it makes: statements about the world that a web search could confirm or refute. Skip opinions, jokes, advice, predictions and statements about the speaker. Write each claim as one short sentence in the text's language that keeps its meaning. Return an empty list when there are none.\n\n<video_text>\n${text.slice(0, MAX_INPUT)}\n</video_text>` }],
-    system: SYSTEM, schema, signal, timeoutMs: 20_000, parse: claimList,
+    system: SYSTEM, schema, signal, timeoutMs: 20_000, thinking: 'LOW', parse: claimList,
   });
   const checked = await Promise.all(claims.map(async claim => {
     const { text: answer, grounding } = await generateGrounded({
       prompt: `Use Google Search to check this claim from a short video.\n\n<claim>\n${claim}\n</claim>\n\nAnswer in exactly two lines:\nVERDICT: supported, disputed or unverified\nREASON: one sentence in English, under 200 characters, saying what the sources show.\nUse unverified when the search results do not settle it.`,
-      system: SYSTEM, signal, timeoutMs: 25_000,
+      system: SYSTEM, signal, timeoutMs: 25_000, thinking: 'LOW',
     });
     return { text: claim, ...parseVerdict(answer), ...groundingSources(grounding) };
   }));

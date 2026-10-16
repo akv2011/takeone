@@ -45,7 +45,8 @@ test('lists claims, checks each with Google Search and takes only cited sources 
   expect(checks).toHaveLength(2);
   for (const check of checks) {
     expect(check.tools).toEqual([{ googleSearch: {} }]);
-    expect(check.generationConfig).toBeUndefined();
+    // Only the thinking level: a response schema must never ride along with the search tool.
+    expect(check.generationConfig).toEqual({ thinkingConfig: { thinkingLevel: 'LOW' } });
   }
 });
 

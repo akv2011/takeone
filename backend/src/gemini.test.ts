@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 const token = vi.hoisted(() => vi.fn(async () => 'test-token'));
 vi.mock('google-auth-library', () => ({ GoogleAuth: class { getAccessToken = token; } }));
-import { generateJson, geminiConfigured } from './gemini.js';
+import { generateGrounded, generateJson, geminiConfigured } from './gemini.js';
 
 const answer = (text: string, extra: Record<string, unknown> = {}) =>
   new Response(JSON.stringify({ candidates: [{ content: { role: 'model', parts: [{ text }] }, finishReason: 'STOP', ...extra }] }));
@@ -91,4 +91,14 @@ test('the caller signal aborts an in-flight request with the caller reason', asy
 test('a slow provider times out', async () => {
   vi.stubGlobal('fetch', vi.fn((_url, init: RequestInit) => new Promise((_resolve, reject) => init.signal!.addEventListener('abort', () => reject(init.signal!.reason)))));
   await expect(generateJson(request({ timeoutMs: 20 }))).rejects.toThrow('Gemini request timed out');
+});
+
+test('a requested thinking level reaches generationConfig for JSON and grounded calls', async () => {
+  const fetcher = vi.fn(async (_url: string, _init: RequestInit) => answer('{"n":3}')); vi.stubGlobal('fetch', fetcher);
+  await generateJson(request({ parts: [{ text: 'count' }], thinking: 'LOW' }));
+  expect(JSON.parse(fetcher.mock.calls[0][1].body as string).generationConfig).toEqual({ responseMimeType: 'application/json', responseSchema: schema, thinkingConfig: { thinkingLevel: 'LOW' } });
+  await generateGrounded({ prompt: 'check', timeoutMs: 1000, thinking: 'LOW' });
+  const grounded = JSON.parse(fetcher.mock.calls[1][1].body as string);
+  expect(grounded.tools).toEqual([{ googleSearch: {} }]);
+  expect(grounded.generationConfig).toEqual({ thinkingConfig: { thinkingLevel: 'LOW' } });
 });
