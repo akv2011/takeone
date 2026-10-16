@@ -2,7 +2,7 @@ import { convexTest } from 'convex-test';
 import { makeFunctionReference as ref } from 'convex/server';
 import { expect, test } from 'vitest';
 import schema from '../convex/schema';
-import { FOUNDING_CREDITS } from '../convex/config';
+import { FOUNDING_CREDITS, FREE_LIMIT } from '../convex/config';
 
 const modules = import.meta.glob('../convex/**/*.ts');
 const issuer = 'https://securetoken.google.com/demo';
@@ -19,7 +19,7 @@ test('an anonymous guest with only a subject gets an account with the free allow
   const guest = convexTest(schema, modules).withIdentity({ subject: 'guest-uid', issuer });
   await guest.mutation(ensureUser, {});
   const user = await guest.query(currentUser, {});
-  expect(user).toMatchObject({ freeRemaining: 3, credits: 0, founding: false, canGenerate: true });
+  expect(user).toMatchObject({ freeRemaining: FREE_LIMIT, credits: 0, founding: false, canGenerate: true });
   expect(user?.email).toBeUndefined();
 });
 

@@ -2,6 +2,7 @@ import { convexTest } from 'convex-test';
 import { beforeEach, afterEach, expect, test, vi } from 'vitest';
 import { makeFunctionReference as ref } from 'convex/server';
 import schema from '../convex/schema';
+import { FREE_LIMIT } from '../convex/config';
 const modules = import.meta.glob('../convex/**/*.ts');
 beforeEach(() => { vi.useFakeTimers(); vi.stubEnv('TELEGRAM_WEBHOOK_SECRET', 'secret'); vi.stubEnv('TELEGRAM_BOT_USERNAME', 'Takeone_test_bot'); vi.stubEnv('APP_URL', 'https://takeone.web.app'); vi.stubEnv('TELEGRAM_BOT_TOKEN', 'test-token'); });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
@@ -36,7 +37,7 @@ test('expired codes and unlinked accounts cannot submit jobs', async () => {
 });
 test('free quota remains exhausted across new Telegram updates', async () => {
  const { t, link } = await setup(); await receive(t, 1, `/link ${link.code}`);
- await t.run(async ctx => { const u = await ctx.db.query('users').first(); await ctx.db.patch(u!._id, { freeUsed: 3 }); });
+ await t.run(async ctx => { const u = await ctx.db.query('users').first(); await ctx.db.patch(u!._id, { freeUsed: FREE_LIMIT }); });
  await receive(t, 2, 'A reel about space');
  expect(await t.run(ctx => ctx.db.query('genJobs').collect())).toHaveLength(0);
 });
@@ -320,7 +321,7 @@ test('caption replies reject mixed edits and exhausted allowance', async () => {
  await replyEdit(t, 2, 100, 'captions bold and make it square');
  const user = await t.run(ctx => ctx.db.query('users').first());
  expect(user?.freeUsed).toBe(0);
- await t.run(ctx => ctx.db.patch(user!._id, { freeUsed: 3, credits: 0 }));
+ await t.run(ctx => ctx.db.patch(user!._id, { freeUsed: FREE_LIMIT, credits: 0 }));
  await replyEdit(t, 3, 100, 'captions clean');
  expect((await t.run(ctx => ctx.db.query('genJobs').collect())).filter(j => j.mode === 'edit')).toHaveLength(0);
  expect((await t.run(ctx => ctx.db.get(user!._id)))?.credits).toBe(0);
@@ -361,7 +362,7 @@ test('staging bot onboarding and purchase messages use the staging app origin', 
  await receive(t, 1, '/help');
  expect((await t.run(ctx => ctx.db.query('telegramMessages').collect())).some(message => message.text.includes('https://staging.takeone.test/create'))).toBe(true);
  await receive(t, 2, `/link ${link.code}`);
- await t.run(async ctx => { const user = await ctx.db.query('users').first(); await ctx.db.patch(user!._id, { freeUsed: 3, credits: 0 }); });
+ await t.run(async ctx => { const user = await ctx.db.query('users').first(); await ctx.db.patch(user!._id, { freeUsed: FREE_LIMIT, credits: 0 }); });
  await receive(t, 3, 'A video about space');
  expect((await t.run(ctx => ctx.db.query('telegramMessages').collect())).some(message => message.text.includes('https://staging.takeone.test/pricing'))).toBe(true);
 });

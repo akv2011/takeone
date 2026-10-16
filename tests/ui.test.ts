@@ -58,9 +58,9 @@ test('AI scenes submit explicitly and cannot select square output', async () => 
  fireEvent.click(screen.getByRole('button', { name: 'Create video', exact: true }));
  await waitFor(() => expect(mocks.mutations.get('generate:requestGeneration')).toHaveBeenCalledWith(expect.objectContaining({ mode: 'generate', generationKind: 'ai', aspect: '9:16' })));
 });
-test('pricing renders all three packs and three free videos', () => {
+test('pricing renders all three packs and five free videos', () => {
  show(React.createElement(Pricing));
- expect(screen.getByText('3 free generations')).toBeTruthy();
+ expect(screen.getByText('5 free generations')).toBeTruthy();
  expect(screen.getByText('3', { selector: 'p' }).textContent).toContain('videos');
  for (const amount of ['$9.99', '$25', '$99.99']) expect(screen.getByText(amount)).toBeTruthy();
  expect(screen.queryByText('Priority queue')).toBeNull();

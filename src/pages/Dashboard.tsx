@@ -50,7 +50,7 @@ function SignInGate() {
       </Link>
       <h1 className="font-display text-4xl font-extrabold md:text-5xl">Sign in to start creating</h1>
       <p className="mt-3 max-w-sm font-sans text-sm text-muted">
-        Use your Google account or a guest session to get three free videos.
+        Use your Google account or a guest session to get five free videos.
       </p>
       <SignInChoices className="mt-7" />
     </div>

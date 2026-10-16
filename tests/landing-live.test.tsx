@@ -22,7 +22,7 @@ test('the live landing page sends people directly into the product without a wai
   for (const link of screen.getAllByRole('link', { name: 'Make a short' })) expect(link.getAttribute('href')).toBe('/create');
   expect(screen.getByRole('link', { name: 'See how' }).getAttribute('href')).toBe('#how-it-works');
   expect(screen.queryByRole('link', { name: /telegram/i })).toBeNull();
-  expect(screen.getByText('3 videos free. No card needed.')).toBeTruthy();
+  expect(screen.getByText('5 videos free. No card needed.')).toBeTruthy();
 });
 
 const timecode = () => screen.getByText(/^\d{2}:\d{2}:\d{2}:\d{2}$/).textContent;

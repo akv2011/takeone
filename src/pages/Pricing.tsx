@@ -170,7 +170,7 @@ function PricingContent({ auth }: { auth: boolean }) {
           <p className="text-sm font-semibold text-muted">One-time video credits</p>
           <h1 className="mt-3 text-balance font-display text-5xl font-extrabold leading-[0.95] md:text-7xl">Buy what you need.<br />Create when you want.</h1>
           <p className="mt-5 max-w-xl text-base leading-7 text-muted">
-            Every account starts with <strong className="font-semibold text-ink">3 free generations</strong>. Paid credits remove the TakeOne watermark and stay ready for your next video.
+            Every account starts with <strong className="font-semibold text-ink">5 free generations</strong>. Paid credits remove the TakeOne watermark and stay ready for your next video.
           </p>
         </div>
 

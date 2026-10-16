@@ -1,5 +1,5 @@
 // Freemium: every user gets FREE_LIMIT generations, then must spend credits.
-export const FREE_LIMIT = 3;
+export const FREE_LIMIT = 5;
 // Waitlist members who sign in get founding-creator bonus credits.
 export const FOUNDING_CREDITS = 0;
 

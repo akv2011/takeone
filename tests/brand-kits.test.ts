@@ -2,6 +2,7 @@ import { convexTest } from 'convex-test';
 import { beforeEach, afterEach, expect, test, vi } from 'vitest';
 import { makeFunctionReference as ref } from 'convex/server';
 import schema from '../convex/schema';
+import { FREE_LIMIT } from '../convex/config';
 const modules = import.meta.glob('../convex/**/*.ts');
 const mutation = (name: string) => ref<'mutation'>(name);
 const settings = { font: 'serif', captionStyle: 'meme', textColor: '#11aa55', outlineColor: '#221100' };
@@ -58,7 +59,7 @@ test('brand application requires owned retained source and inherits snapshot on 
  await expect(owner.mutation(mutation('generate:requestBrandEdit'), { ...args, requestId: 'missing-archive-request' })).rejects.toThrow('CAPTION_SOURCE_UNAVAILABLE');
 });
 test('branded paid reservations still debit once and set paid worker claim', async () => {
- const { t, owner } = await setup(); await t.run(async ctx => { const u = await ctx.db.query('users').first(); await ctx.db.patch(u!._id, { freeUsed: 3 }); });
+ const { t, owner } = await setup(); await t.run(async ctx => { const u = await ctx.db.query('users').first(); await ctx.db.patch(u!._id, { freeUsed: FREE_LIMIT }); });
  const kit = await create(owner), result = await submit(owner, kit);
  expect(result.billing).toBe('credit'); expect(await submit(owner, kit)).toEqual(result);
  await t.mutation(mutation('jobs:pump'), {});

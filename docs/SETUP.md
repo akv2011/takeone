@@ -22,7 +22,7 @@ Copy `backend/.env.example` for the worker settings and point local work at a de
 
 ## Product configuration
 
-Each account gets three free videos (`FREE_LIMIT` in `convex/config.ts`). The credit packs are defined in the same file, and their Dodo product IDs come from the `DODO_PRODUCT_*` Convex variables. Checkout stays off until `DODO_CHECKOUT_ENABLED=true`. A failed job refunds its original allowance. The old unsigned payment webhook returns 503.
+Each account gets five free videos (`FREE_LIMIT` in `convex/config.ts`). The credit packs are defined in the same file, and their Dodo product IDs come from the `DODO_PRODUCT_*` Convex variables. Checkout stays off until `DODO_CHECKOUT_ENABLED=true`. A failed job refunds its original allowance. The old unsigned payment webhook returns 503.
 
 Prompt videos combine stock footage and narration. The managed worker needs Gemini on Vertex AI (`GEMINI_PROJECT` and an explicit `GEMINI_MODEL`, for example `gemini-3.8-flash`), Speech-to-Text Chirp 3 for captions (`SPEECH_LOCATION`, `SPEECH_MODEL`, `GCS_BUCKET`) and Text-to-Speech Chirp 3 HD for narration (`TTS_VOICE`, `TTS_LANGUAGE`). It reaches Google with its service account through ADC, never an API key. Production never falls back to template scripts or system speech. Configure a stock footage provider as described in `backend/.env.example`, then check every provider in staging.
 

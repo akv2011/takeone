@@ -99,7 +99,7 @@ export default function HeroSection() {
             <Link to="/create" className="inline-flex items-center rounded-md border border-transparent bg-cue px-6 py-3.5 text-base font-bold text-ink transition-colors hover:border-ink">Make a short</Link>
             <a href="#how-it-works" className="text-base font-semibold text-ink underline decoration-line decoration-2 underline-offset-[6px] transition-colors hover:decoration-ink">See how</a>
           </div>
-          <p className="mt-5 text-sm text-muted">3 videos free. No card needed.</p>
+          <p className="mt-5 text-sm text-muted">5 videos free. No card needed.</p>
         </div>
 
         <div className="flex lg:col-span-5 lg:justify-end">

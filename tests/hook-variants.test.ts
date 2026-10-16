@@ -2,6 +2,7 @@ import { convexTest } from 'convex-test';
 import { beforeEach, afterEach, expect, test, vi } from 'vitest';
 import { makeFunctionReference as ref } from 'convex/server';
 import schema from '../convex/schema';
+import { FREE_LIMIT } from '../convex/config';
 const modules = import.meta.glob('../convex/**/*.ts');
 const request = ref<'mutation'>('hookVariants:request');
 const titles = ['Start with this idea', 'Three seconds can change it', 'Here is the surprising part'];
@@ -14,22 +15,22 @@ async function setup(freeUsed = 0, credits = 0) {
   return { t, userId, sourceJobId, args: { sourceJobId, titles, requestId: 'hooks-batch-0001' } };
 }
 test('three child versions reserve free-first then credits and exact retries reuse all jobs', async () => {
- const { t, userId, args } = await setup(1, 4), authed = t.withIdentity({ subject: 'owner' });
+ const { t, userId, args } = await setup(FREE_LIMIT - 2, 4), authed = t.withIdentity({ subject: 'owner' });
  const result = await authed.mutation(request, args);
  expect(result.jobIds).toHaveLength(3);
  expect(await authed.mutation(request, args)).toEqual(result);
- expect(await t.run(ctx => ctx.db.get(userId))).toMatchObject({ freeUsed: 3, credits: 3 });
+ expect(await t.run(ctx => ctx.db.get(userId))).toMatchObject({ freeUsed: FREE_LIMIT, credits: 3 });
  const jobs = await t.run(ctx => ctx.db.query('genJobs').filter(q => q.eq(q.field('status'), 'queued')).collect());
  expect(jobs.map(j => j.hookTitle)).toEqual(titles);
  expect(jobs.every(j => j.parentJobId === args.sourceJobId && j.rootJobId === args.sourceJobId)).toBe(true);
  await expect(authed.mutation(request, { ...args, titles: [titles[0], 'Changed second title', titles[2]] })).rejects.toThrow('REQUEST_CONTENT_CONFLICT');
- expect(await t.run(ctx => ctx.db.get(userId))).toMatchObject({ freeUsed: 3, credits: 3 });
+ expect(await t.run(ctx => ctx.db.get(userId))).toMatchObject({ freeUsed: FREE_LIMIT, credits: 3 });
 });
 test('insufficient allowance rolls back every job and debit', async () => {
- const { t, userId, args } = await setup(2, 1);
+ const { t, userId, args } = await setup(FREE_LIMIT - 1, 1);
  await expect(t.withIdentity({ subject: 'owner' }).mutation(request, args)).rejects.toThrow('NO_CREDITS');
  expect(await t.run(ctx => ctx.db.query('genJobs').collect())).toHaveLength(1);
- expect(await t.run(ctx => ctx.db.get(userId))).toMatchObject({ freeUsed: 2, credits: 1 });
+ expect(await t.run(ctx => ctx.db.get(userId))).toMatchObject({ freeUsed: FREE_LIMIT - 1, credits: 1 });
 });
 test('ownership and malformed titles reject before billing', async () => {
  const { t, userId, args } = await setup();

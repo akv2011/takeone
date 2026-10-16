@@ -4,6 +4,7 @@ declare const process: { env: Record<string, string | undefined> };
 import { mutationGeneric as mutation, internalMutationGeneric as internalMutation, internalActionGeneric as internalAction, queryGeneric as query, makeFunctionReference as ref } from 'convex/server';
 import { v, ConvexError } from 'convex/values';
 import { owner, enqueue, cancelQueuedJob } from './jobs';
+import { FREE_LIMIT } from './config';
 import { tracksForOwner } from './music';
 import { queueReply } from './telegramMessages';
 
@@ -66,7 +67,7 @@ export const receive = internalMutation({ args: { update: v.any() }, handler: as
     const previous = await ctx.db.query('telegramLinks').withIndex('by_telegram', (q: any) => q.eq('telegramUserId', telegramUserId)).unique();
     if (previous && previous._id !== link._id) return reply(ctx, chatId, 'Unlink your existing account in the dashboard before linking another.');
     await ctx.db.patch(link._id, { telegramUserId, code: undefined, expiresAt: undefined, pendingPrompt: undefined, pendingUntil: undefined });
-    return reply(ctx, chatId, 'Connected. Web and Telegram now share your three free videos and purchased credits. Send a topic, YouTube link, or video.');
+    return reply(ctx, chatId, 'Connected. Web and Telegram now share your five free videos and purchased credits. Send a topic, YouTube link, or video.');
   }
   const link = await ctx.db.query('telegramLinks').withIndex('by_telegram', (q: any) => q.eq('telegramUserId', telegramUserId)).unique();
   if (!link) return reply(ctx, chatId, `Sign in at ${appLink('/create')} and choose Connect Telegram. Send /link followed by the code shown there.`);
@@ -158,7 +159,7 @@ export const receive = internalMutation({ args: { update: v.any() }, handler: as
   if (file && (file.file_size > 20 * 1024 * 1024 || !String(file.mime_type ?? '').startsWith('video/'))) return reply(ctx, chatId, 'Please send a video smaller than 20 MB.');
   const input = { mode: file || editSource ? 'edit' : isYoutube ? 'clip' : 'generate', prompt: text || 'Add captions to this video', aspect: /\b(?:square|1:1)\b/i.test(text) ? '1:1' : /\b(?:landscape|16:9)\b/i.test(text) ? '16:9' : /\b(?:vertical|9:16)\b/i.test(text) ? '9:16' : editSource?.aspect ?? '9:16', requestId: `telegram-${update.update_id}`, telegramChatId: chatId, ...(file ? { telegramFileId: file.file_id } : {}), ...(editSource ? { sourceStorageKey: editSource.storageKey, parentJobId: editSource._id, rootJobId: editSource.rootJobId ?? editSource._id } : {}) };
   // Admission errors occur before a debit or insert. Do not catch unexpected database errors.
-  if (user.freeUsed >= 3 && user.credits < 1) return reply(ctx, chatId, `Your free videos are used up. Get a video pack at ${appLink('/pricing')}.`);
+  if (user.freeUsed >= FREE_LIMIT && user.credits < 1) return reply(ctx, chatId, `Your free videos are used up. Get a video pack at ${appLink('/pricing')}.`);
   if (input.prompt.length < 6) return reply(ctx, chatId, 'Describe your video in a little more detail.');
   const active = await ctx.db.query('genJobs').withIndex('by_user', (q: any) => q.eq('userId', link.userId)).order('desc').take(50);
   if (active.filter((j: any) => ['queued', 'dispatched', 'processing'].includes(j.status)).length >= 3) return reply(ctx, chatId, 'You already have three videos waiting. Please wait for one to finish.');

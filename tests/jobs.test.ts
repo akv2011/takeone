@@ -3,7 +3,7 @@ import { beforeEach, afterEach, expect, test, vi } from 'vitest';
 import { makeFunctionReference as ref } from 'convex/server';
 import { ConvexError } from 'convex/values';
 import schema from '../convex/schema';
-import { freeDailyRenderCap } from '../convex/config';
+import { FREE_LIMIT, freeDailyRenderCap } from '../convex/config';
 const modules = import.meta.glob('../convex/**/*.ts');
 const fn = (name: string) => ref<'mutation'>(`generate:${name}`);
 const outputMetadata = { mediaDurationMs: 1_000, mediaWidth: 1080, mediaHeight: 1920, mediaHasAudio: true };
@@ -17,7 +17,7 @@ async function setup(count = 1) {
 const submit = (t: ReturnType<typeof convexTest>, user = 'u0', requestId = 'request-00000001') => t.withIdentity({ subject: user }).mutation(fn('requestGeneration'), { mode: 'generate', prompt: 'A reel about space', aspect: '9:16', requestId });
 const pump = (t: ReturnType<typeof convexTest>) => t.mutation(ref<'mutation'>('jobs:pump'), {});
 const claim = (t: ReturnType<typeof convexTest>, jobId: string) => t.mutation(fn('claimJob'), { workerSecret: 'test-secret', jobId, workerId: 'worker-123' });
-test('new jobs reserve three lifetime free videos then paid credits, duplicate submission reserves once', async () => {
+test('new jobs reserve five lifetime free videos then paid credits, duplicate submission reserves once', async () => {
   const t = await setup();
   const a = await submit(t); expect(await submit(t)).toEqual(a);
   expect((await t.run(ctx => ctx.db.query('users').first()))?.freeUsed).toBe(1);
@@ -57,17 +57,17 @@ test('rejects unauthorized workers and invalid generation before spending', asyn
   await expect(t.withIdentity({ subject: 'u0' }).mutation(fn('requestGeneration'), { mode: 'edit', prompt: 'edit this', requestId: 'request-invalid' })).rejects.toThrow();
   expect((await t.run(ctx => ctx.db.query('users').first()))?.freeUsed).toBe(1);
 });
-test('three successes exhaust free allowance and the fourth reserves one paid credit', async () => {
+test('successes exhaust the free allowance and the next render reserves one paid credit', async () => {
   const t = await setup();
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i <= FREE_LIMIT; i++) {
     const { jobId, billing } = await submit(t, 'u0', `request-test-${i}`);
-    expect(billing).toBe(i < 3 ? 'free' : 'credit');
+    expect(billing).toBe(i < FREE_LIMIT ? 'free' : 'credit');
     await pump(t); const j = await claim(t, jobId);
-    expect(j.isPro).toBe(i >= 3);
+    expect(j.isPro).toBe(i >= FREE_LIMIT);
     await t.mutation(fn('completeJob'), { ...outputMetadata, workerSecret: 'test-secret', jobId, leaseToken: j.leaseToken, storageKey: `videos/${jobId}/${j.leaseToken}.mp4` });
   }
   const user = await t.run(ctx => ctx.db.query('users').first());
-  expect(user?.freeUsed).toBe(3); expect(user?.credits).toBe(24);
+  expect(user?.freeUsed).toBe(FREE_LIMIT); expect(user?.credits).toBe(24);
 });
 test('queued cancellation refunds paid credit once and source edits enforce ownership', async () => {
   const t = await setup(2);
@@ -342,7 +342,7 @@ test('free renders stop at the UTC daily cap without blocking retries or paid re
  const t = await setup(4);
  await t.run(async ctx => {
   const payer = await ctx.db.query('users').withIndex('by_token', q => q.eq('tokenIdentifier', 'u3')).unique();
-  await ctx.db.patch(payer!._id, { freeUsed: 3, credits: 5 });
+  await ctx.db.patch(payer!._id, { freeUsed: FREE_LIMIT, credits: 5 });
   // Neither yesterday's free render nor today's paid render may count toward today's free cap.
   await ctx.db.insert('genJobs', { userId: 'earlier', mode: 'generate', prompt: 'Yesterday free video', status: 'done', reservation: 'free', createdAt: dayStart - 1 });
   await ctx.db.insert('genJobs', { userId: 'payer', mode: 'generate', prompt: 'Paid video', status: 'done', reservation: 'credit', createdAt: dayStart + 1 });
@@ -357,7 +357,7 @@ test('free renders stop at the UTC daily cap without blocking retries or paid re
  expect((await account(t, 'u2'))?.freeUsed).toBe(0);
  expect(await submit(t, 'u0', 'cap-request-0')).toEqual(first);
  expect(await submit(t, 'u3', 'cap-request-3')).toMatchObject({ billing: 'credit' });
- expect(await account(t, 'u3')).toMatchObject({ freeUsed: 3, credits: 4 });
+ expect(await account(t, 'u3')).toMatchObject({ freeUsed: FREE_LIMIT, credits: 4 });
  vi.setSystemTime(dayStart + 86_400_000 + 1_000);
  expect(await submit(t, 'u2', 'cap-request-2')).toMatchObject({ billing: 'free' });
  expect((await account(t, 'u2'))?.freeUsed).toBe(1);
