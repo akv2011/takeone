@@ -14,6 +14,6 @@ afterEach(cleanup);
 test("the public header renders without Clerk or Convex configuration", () => {
   render(React.createElement(MemoryRouter, {}, React.createElement(Header)));
   expect(screen.getByRole("link", { name: "TakeOne home" })).toBeTruthy();
-  expect(screen.getByRole("link", { name: "Start creating" }).getAttribute("href")).toBe("/create");
+  expect(screen.getByRole("link", { name: "Start" }).getAttribute("href")).toBe("/create");
   expect(screen.queryByText("Telegram")).toBeNull();
 });

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { SignedIn, SignedOut, SignInButton, useUser } from "@clerk/clerk-react";
 import { useConvexAuth, useMutation, useQuery, usePaginatedQuery } from "convex/react";
-import { ArrowUp, ArrowRight, Clapperboard, Scissors, SlidersHorizontal } from "lucide-react";
+import { Clapperboard, Scissors, SlidersHorizontal } from "lucide-react";
 import TakeOneLogo from "../components/TakeOneLogo";
 import TelegramConnect from "../components/TelegramConnect";
 import { useVideoUrl } from "../lib/useVideoUrl";
@@ -14,12 +14,14 @@ import { Tooltip } from "../components/Tooltip";
 import TakeOneUserButton from "../components/account/TakeOneUserButton";
 import { normalizeAccountPreferences, type AccountPreferencesValue } from "../lib/accountPreferences";
 import { useProductCapabilities } from "../hooks/useProductCapabilities";
+import { button, field, label, panel } from "../lib/ui";
 
 const MODES = [
   { id: "edit", label: "Edit upload", shortLabel: "Edit", help: "Upload footage, then describe the trim, speed, framing or caption changes.", placeholder: "What should change in your video?" },
   { id: "generate", label: "Generate", shortLabel: "Create", help: "Turn an idea into a narrated video with matching footage.", placeholder: "Describe the video you want to create…" },
   { id: "clip", label: "Clip", shortLabel: "YouTube", help: "Paste a YouTube link and optionally include the moment you want.", placeholder: "Paste a YouTube link or describe the moment to clip…" },
 ] as const;
+const STATUS: Record<string, string> = { queued: "Queued", dispatched: "Starting", processing: "Rendering", failed: "Failed", cancelled: "Cancelled" };
 const ASPECTS = [{ id: "9:16", label: "9:16" }, { id: "1:1", label: "1:1" }, { id: "16:9", label: "16:9" }] as const;
 
 function YouTubeIcon({ className }: { className?: string }) {
@@ -31,7 +33,7 @@ function YouTubeIcon({ className }: { className?: string }) {
 
 export default function Dashboard() {
   return (
-    <div className="min-h-screen bg-paper text-ink selection:bg-cue/15">
+    <div className="min-h-screen bg-paper text-ink">
       <SignedOut><SignInGate /></SignedOut>
       <SignedIn><DashboardInner /></SignedIn>
     </div>
@@ -43,17 +45,14 @@ function SignInGate() {
     <div className="flex min-h-screen flex-col items-center justify-center px-6 text-center">
       <Link to="/" className="mb-8 flex items-center gap-2">
         <TakeOneLogo className="h-10 w-10 text-ink" />
-        <span className="font-display text-2xl font-bold tracking-tight">takeone</span>
+        <span className="font-display text-2xl font-bold">TakeOne</span>
       </Link>
-      <h1 className="font-display text-3xl font-extrabold tracking-[-0.03em] md:text-4xl">Sign in to start creating</h1>
+      <h1 className="font-display text-4xl font-extrabold md:text-5xl">Sign in to start creating</h1>
       <p className="mt-3 max-w-sm font-sans text-sm text-muted">
         Use your Google account to get three free videos.
       </p>
       <SignInButton mode="modal">
-        <button className="group mt-7 inline-flex items-center gap-2 rounded-xl bg-ink px-7 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-cue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-paper">
-          Continue with Google
-          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-        </button>
+        <button className={`${button("primary")} mt-7`}>Continue with Google</button>
       </SignInButton>
     </div>
   );
@@ -135,7 +134,7 @@ function DashboardInner() {
 
   const generate = async () => {
     if (busy) return;
-    if (!me) { setStatus("Your account is still being prepared. Please retry setup if it fails."); return; }
+    if (!me) { setStatus("Your account is still being set up. Wait a moment, or retry setup if it fails."); return; }
     if (mode === "edit" && !uploadId) { setStatus("Upload a video first."); return; }
     if ((mode === "clip" || mode === "edit") && !confirmedOwnership) { setStatus("Confirm that you have permission to use this video."); return; }
     if (!prompt.trim()) { setStatus("Type a prompt to start."); return; }
@@ -164,22 +163,22 @@ function DashboardInner() {
   return (
     <>
       {/* App bar */}
-      <header className="sticky top-0 z-20 border-b border-black/[0.06] bg-paper/80 backdrop-blur">
+      <header className="sticky top-0 z-20 border-b border-line bg-surface">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
           <Link to="/" className="flex items-center gap-2">
             <TakeOneLogo className="h-8 w-8 text-ink" />
-            <span className="font-display text-xl font-bold tracking-tight">takeone</span>
+            <span className="font-display text-xl font-bold">TakeOne</span>
           </Link>
           <div className="flex items-center gap-3 sm:gap-4">
             {me?.founding && (
-              <span className="hidden rounded-full border border-ink/20 bg-cue/[0.06] px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-cueInk sm:inline">
-                Founding Creator
+              <span className="hidden rounded-md border border-cueInk/30 bg-cue/20 px-2.5 py-1 text-xs font-semibold text-cueInk sm:inline">
+                Founding creator
               </span>
             )}
-            <span className="rounded-full border border-black/10 bg-white px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest shadow-sm">
+            <span className="rounded-md border border-line bg-paper px-2.5 py-1 text-sm font-semibold">
               {!me ? "Loading allowance…" : free > 0 ? `${free} free left` : `${credits} credits`}
             </span>
-            <Link to="/pricing" className="hidden text-sm font-semibold transition-colors hover:text-cueInk sm:inline">Buy credits</Link>
+            <Link to="/pricing" className="hidden text-sm font-semibold underline-offset-4 hover:underline sm:inline">Buy credits</Link>
             <TakeOneUserButton />
           </div>
         </div>
@@ -188,21 +187,21 @@ function DashboardInner() {
       <main className="mx-auto max-w-6xl px-4 pb-24 pt-8 sm:px-6 sm:pt-10">
         {/* Composer */}
         <div className="mx-auto max-w-3xl">
-          {!!me?.creditAdjustment && <p role="status" className="mb-4 rounded-xl border bg-white p-4 text-sm">A refund removed credits that had already been used. Your next purchased credits will first cover this {me.creditAdjustment}-credit adjustment. Your purchase history shows the refund.</p>}
-          {!authLoading && !isAuthenticated && <p role="alert" className="mb-4 rounded-xl border border-red-200 bg-white p-4 text-sm">We could not connect your sign-in to the video service. Please sign out and sign in again. If this continues, account authentication needs attention.</p>}
-          {accountError && <div role="alert" className="mb-4 rounded-xl border border-red-200 bg-white p-4 text-sm">
+          {!!me?.creditAdjustment && <p role="status" className={`${panel} mb-4 p-4 text-sm`}>A refund removed credits that had already been used. Your next purchased credits will first cover this {me.creditAdjustment}-credit adjustment. Your purchase history shows the refund.</p>}
+          {!authLoading && !isAuthenticated && <p role="alert" className="mb-4 rounded-[10px] border border-warn/40 bg-surface p-4 text-sm">Your sign-in did not reach the video service. Sign out, then sign in again.</p>}
+          {accountError && <div role="alert" className="mb-4 rounded-[10px] border border-warn/40 bg-surface p-4 text-sm">
             We could not finish setting up your account. Your allowance has not been charged.
             <button disabled={preparingAccount} onClick={() => void initializeAccount()} className="ml-2 font-semibold underline">Retry account setup</button>
           </div>}
           {!me && !accountError && (authLoading || isAuthenticated) && <p role="status" className="mb-4 text-sm text-muted">Preparing your account and video allowance…</p>}
-          <h1 className="font-display text-2xl font-bold tracking-[-0.03em] sm:text-3xl">Create a video</h1>
-          <div className="mt-5 overflow-visible rounded-2xl border border-black/10 bg-white shadow-sm transition-shadow focus-within:border-ink/20 focus-within:shadow-md">
-            <div className="flex items-center gap-1 border-b border-black/[0.06] px-3 py-2.5" aria-label="Choose a video task">
+          <h1 className="font-display text-4xl font-extrabold sm:text-5xl">Create a video</h1>
+          <div className="mt-5 rounded-[10px] border border-line bg-surface focus-within:border-ink focus-within:ring-1 focus-within:ring-ink">
+            <div role="group" className="flex items-center gap-1 border-b border-line px-3 py-2.5" aria-label="Choose a video task">
               {MODES.map((m) => {
                 const Icon = m.id === 'generate' ? Clapperboard : m.id === 'edit' ? Scissors : YouTubeIcon;
                 return <Tooltip key={m.id} label={m.help} side="bottom">
                   <button aria-label={m.label} aria-pressed={mode === m.id} onClick={() => chooseMode(m.id)}
-                    className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink ${mode === m.id ? "bg-ink text-white" : "text-muted hover:bg-paper hover:text-ink"}`}>
+                    className={`inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-semibold transition-colors ${mode === m.id ? "bg-cue text-ink" : "text-muted hover:bg-paper hover:text-ink"}`}>
                     <Icon className="h-4 w-4" aria-hidden="true" />
                     {m.shortLabel}
                   </button>
@@ -217,43 +216,41 @@ function DashboardInner() {
               onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); void generate(); } }}
               rows={4}
               placeholder={activeMode.placeholder}
-              className="w-full resize-none bg-transparent px-5 pt-5 pb-3 font-sans text-[15px] leading-relaxed outline-none placeholder:text-muted/70"
+              className="w-full resize-none bg-transparent px-5 pt-5 pb-3 text-base leading-relaxed outline-none placeholder:text-muted"
             />
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-black/[0.06] px-3 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-3 py-3">
               <Tooltip label="Choose format, captions, video source and brand kit">
                 <button type="button" aria-expanded={settingsOpen} aria-controls="creation-settings" onClick={() => setSettingsOpen(open => !open)}
-                  className={`inline-flex h-9 items-center gap-2 rounded-xl px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink ${settingsOpen ? 'bg-cue/10 text-cueInk' : 'bg-paper text-muted hover:text-ink'}`}>
+                  className={`inline-flex h-10 items-center gap-2 rounded-md px-3 text-sm font-semibold transition-colors ${settingsOpen ? 'bg-ink text-surface' : 'bg-paper text-ink hover:bg-line'}`}>
                   <SlidersHorizontal className="h-4 w-4" aria-hidden="true" /> Settings
                 </button>
               </Tooltip>
               <div className="flex items-center gap-2">
                 <button aria-label={actionLabel} onClick={generate} disabled={busy || !me || capabilities === undefined || !activeCapability?.available}
-                  className="flex h-9 items-center gap-1.5 rounded-xl bg-ink px-4 text-sm font-semibold text-white transition-colors hover:bg-cue disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-white">
+                  className={`${button("primary")} h-10 min-w-32`}>
                   {busy ? (
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                  ) : (
-                    <>{actionLabel} <ArrowUp className="h-4 w-4" /></>
-                  )}
+                    <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-ink/30 border-t-ink" />
+                  ) : actionLabel}
                 </button>
               </div>
             </div>
           </div>
           {mode === "edit" && <VideoUpload onReady={setUploadId} />}
-          {(mode === "clip" || mode === "edit") && <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" checked={confirmedOwnership} onChange={e => setConfirmedOwnership(e.target.checked)} />I own or have permission to use this video.</label>}
-          {settingsOpen && <section id="creation-settings" aria-label="Video settings" className="mt-3 rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
+          {(mode === "clip" || mode === "edit") && <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" className="size-4 accent-ink" checked={confirmedOwnership} onChange={e => setConfirmedOwnership(e.target.checked)} />I own or have permission to use this video.</label>}
+          {settingsOpen && <section id="creation-settings" aria-label="Video settings" className={`${panel} mt-3 p-4`}>
             <div className="grid gap-4 sm:grid-cols-2">
-              <fieldset><legend className="mb-2 text-xs font-semibold text-muted">Format</legend><div className="flex w-fit items-center gap-0.5 rounded-xl bg-paper p-0.5">{ASPECTS.map((a) => (
-                <button type="button" key={a.id} onClick={() => setAspect(a.id)} disabled={mode === 'generate' && generationKind === 'ai' && a.id === '1:1'}
-                  className={`rounded-lg px-3 py-2 font-mono text-[11px] font-semibold transition-colors disabled:opacity-35 ${aspect === a.id ? "bg-white text-ink shadow-sm" : "text-muted hover:text-ink"}`}>{a.label}</button>
+              <fieldset><legend className={`mb-2 ${label}`}>Format</legend><div className="flex w-fit items-center gap-1 rounded-md border border-line bg-paper p-1">{ASPECTS.map((a) => (
+                <button type="button" key={a.id} aria-pressed={aspect === a.id} onClick={() => setAspect(a.id)} disabled={mode === 'generate' && generationKind === 'ai' && a.id === '1:1'}
+                  className={`rounded-[4px] px-3 py-1.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${aspect === a.id ? "bg-cue text-ink" : "text-muted hover:text-ink"}`}>{a.label}</button>
               ))}</div></fieldset>
-              {mode === 'generate' && <label className="text-xs font-semibold text-muted">Video source
-                <select aria-label="Video type" value={generationKind} onChange={e => { setGenerationKind(e.target.value); if (e.target.value === 'ai' && aspect === '1:1') setAspect('9:16'); }} className="mt-2 block w-full rounded-lg border border-black/10 bg-white p-2.5 text-sm font-normal text-ink">
+              {mode === 'generate' && <label className={label}>Video source
+                <select aria-label="Video type" value={generationKind} onChange={e => { setGenerationKind(e.target.value); if (e.target.value === 'ai' && aspect === '1:1') setAspect('9:16'); }} className={`${field} mt-2 block w-full`}>
                   <option value="stock" disabled={!capabilities?.stockVideo.available}>Narration + stock footage{!capabilities?.stockVideo.available ? ' · unavailable' : ''}</option>
                   <option value="ai" disabled={!capabilities?.aiVideo.available}>AI video{!capabilities?.aiVideo.available ? ' · unavailable' : ''}</option>
                 </select>
               </label>}
-              {!(mode === 'generate' && generationKind === 'ai') && !brandKit && <label className="text-xs font-semibold text-muted">Captions
-                <select aria-label="Caption style" value={captionStyle} onChange={e => setCaptionStyle(e.target.value)} className="mt-2 block w-full rounded-lg border border-black/10 bg-white p-2.5 text-sm font-normal text-ink">
+              {!(mode === 'generate' && generationKind === 'ai') && !brandKit && <label className={label}>Captions
+                <select aria-label="Caption style" value={captionStyle} onChange={e => setCaptionStyle(e.target.value)} className={`${field} mt-2 block w-full`}>
                   <option value="auto">Automatic</option><option value="clean">Clean</option><option value="meme">Bold pop</option><option value="karaoke">Pop-in</option><option value="none">None</option>
                 </select>
               </label>}
@@ -264,16 +261,16 @@ function DashboardInner() {
             {user?.id && capabilities?.rendering.available && <AssemblyStarter compact key={user.id} accountKey={user.id} />}
             {capabilities?.telegram.available && <TelegramConnect compact />}
           </div>
-          <div className="mt-2 flex min-h-5 items-center px-1 font-mono text-[10px] text-muted">
+          <div className="mt-2 flex min-h-5 items-center px-1 text-sm text-muted">
             {status !== "out-of-credits" && (status ? <p>{status}</p> : activeCapability && !activeCapability.available ? <p>{activeCapability.reason}</p> : (
               <div className="flex items-center gap-1.5">
-                <span>{free > 0 ? "free generation" : "1 credit"}</span>
+                <span>{free > 0 ? "Uses 1 free video" : "Uses 1 credit"}</span>
                 {preferences.showShortcutHints && <>
                   <span aria-hidden="true">·</span>
                   <span className="inline-flex items-center gap-1" aria-label="Command plus Enter">
-                    <kbd aria-hidden="true" className="inline-flex size-5 items-center justify-center rounded border border-black/10 bg-white leading-none shadow-[0_1px_0_rgba(0,0,0,0.08)]">⌘</kbd>
+                    <kbd aria-hidden="true" className="inline-flex size-5 items-center justify-center rounded border border-line bg-surface text-xs leading-none">⌘</kbd>
                     <span aria-hidden="true">+</span>
-                    <kbd aria-hidden="true" className="inline-flex size-5 items-center justify-center rounded border border-black/10 bg-white leading-none shadow-[0_1px_0_rgba(0,0,0,0.08)]">↵</kbd>
+                    <kbd aria-hidden="true" className="inline-flex size-5 items-center justify-center rounded border border-line bg-surface text-xs leading-none">↵</kbd>
                   </span>
                   <span>to run</span>
                 </>}
@@ -281,36 +278,34 @@ function DashboardInner() {
             ))}
           </div>
           {status === "out-of-credits" && (
-            <div className="mt-3 flex items-center justify-between rounded-xl border border-line bg-white px-4 py-3">
-              <p className="font-sans text-sm">You're out of credits.</p>
-              <Link to="/pricing" className="inline-flex items-center gap-1.5 rounded-lg bg-cue px-4 py-2 text-sm font-semibold text-white">
-                Get credits <ArrowRight className="h-4 w-4" />
-              </Link>
+            <div className={`${panel} mt-3 flex items-center justify-between gap-3 px-4 py-3`}>
+              <p className="text-sm">You're out of credits. Buy a pack to keep creating.</p>
+              <Link to="/pricing" className={button("primary", "sm")}>Get credits</Link>
             </div>
           )}
         </div>
 
         {/* Gallery */}
         <div className="mt-14">
-          <div className="relative flex items-baseline justify-center text-center">
-            <h2 className="font-mono text-[11px] uppercase tracking-[0.22em] text-muted">Your reels</h2>
-            {jobs && jobs.length > 0 && <span className="absolute right-0 font-mono text-[11px] text-muted/70">{jobs.length} shown</span>}
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-lg font-semibold">Your videos</h2>
+            {jobs && jobs.length > 0 && <span className="text-sm text-muted">{jobs.length} shown</span>}
           </div>
 
           {jobs === undefined ? (
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="aspect-[9/16] animate-pulse rounded-xl bg-black/[0.06]" />
+                <div key={i} className="aspect-[9/16] rounded-xl bg-line motion-safe:animate-pulse" />
               ))}
             </div>
           ) : jobs.length === 0 ? (
-            <p className="mt-4 text-center font-sans text-sm text-muted">No reels yet. Your generations show up here.</p>
+            <p className="mt-4 text-sm text-muted">No videos yet. Write a prompt above and your finished videos appear here.</p>
           ) : (
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {jobs.map((j) => <ReelTile key={j._id} job={j} onOpen={() => navigate(`/studio/${j._id}`)} />)}
+              {jobs.map((j) => <ReelTile key={j._id} job={j} />)}
             </div>
           )}
-          {history.status === 'CanLoadMore' && <button type="button" onClick={() => history.loadMore(20)} className="mt-5 rounded-lg border border-black/15 px-4 py-2 text-sm">Load older videos</button>}
+          {history.status === 'CanLoadMore' && <button type="button" onClick={() => history.loadMore(20)} className={`${button("secondary", "sm")} mt-5`}>Load older videos</button>}
           {history.status === 'LoadingMore' && <p role="status" className="mt-5 text-sm text-muted">Loading older videos…</p>}
 
         </div>
@@ -319,47 +314,44 @@ function DashboardInner() {
   );
 }
 
-function ReelTile({ job, onOpen }: { job: Job; onOpen: () => void }) {
+function ReelTile({ job }: { job: Job }) {
   const cancel = useMutation(api.generate.cancelJob);
   const [cancelError, setCancelError] = useState("");
   const done = job.status === "done" && !!(job.hasOutput || job.resultUrl);
   const { url } = useVideoUrl(done ? job._id : undefined, job.hasOutput, job.resultUrl);
   const failed = job.status === "failed" || job.status === "cancelled";
-  return (
-    <div
-      onClick={() => done && onOpen()}
-      className={`group relative aspect-[9/16] overflow-hidden rounded-xl border border-black/10 bg-black ${done ? "cursor-pointer" : ""}`}
-    >
-      {done ? (
-        <video
-          src={url}
-          muted loop playsInline preload="metadata"
-          onMouseEnter={(e) => { void e.currentTarget.play().catch(() => {}); }}
-          onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
-          className="h-full w-full object-cover"
-        />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center bg-paper">
-          {failed
-            ? <span className="font-mono text-[10px] text-red-500">failed</span>
-            : <span className="flex flex-col items-center gap-2 text-muted"><span className="h-5 w-5 animate-spin rounded-full border-2 border-muted/30 border-t-muted" /><span className="font-mono text-[10px] uppercase tracking-widest">{job.status}</span></span>}
-        </div>
-      )}
-
-      {['queued', 'dispatched'].includes(job.status) && <button className="absolute left-2 top-2 rounded bg-white px-2 py-1 text-xs" onClick={e => { e.stopPropagation(); void cancel({ jobId: job._id }).catch(() => setCancelError('Already processing; could not cancel.')); }}>Cancel</button>}
-      {cancelError && <p role="status" className="absolute inset-x-2 top-10 bg-white p-2 text-xs">{cancelError}</p>}
-      {/* label + hover CTA */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent p-3">
-        <div className="font-mono text-[9px] uppercase tracking-widest text-white/60">{job.mode}</div>
-        <div className="mt-0.5 line-clamp-2 font-sans text-xs font-medium text-white">{job.prompt}</div>
+  const frame = "group relative block aspect-[9/16] overflow-hidden rounded-xl border border-line";
+  const caption = (
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-ink/85 p-2.5">
+      <div className="text-xs font-semibold text-cue">{MODES.find((m) => m.id === job.mode)?.label ?? job.mode}</div>
+      <div className="mt-0.5 line-clamp-2 text-xs text-surface">{job.prompt}</div>
+    </div>
+  );
+  if (done) return (
+    <Link to={`/studio/${job._id}`} aria-label={`Open in Studio: ${job.prompt}`} className={`${frame} bg-ink`}>
+      <video
+        src={url}
+        muted loop playsInline preload="metadata"
+        onMouseEnter={(e) => { void e.currentTarget.play().catch(() => {}); }}
+        onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
+        className="h-full w-full object-cover"
+      />
+      {caption}
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-ink/30 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+        <span className="rounded-md bg-cue px-3 py-1.5 text-xs font-bold text-ink">Open in Studio</span>
       </div>
-      {done && (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 transition-opacity group-hover:opacity-100">
-          <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/95 px-3 py-1.5 text-xs font-semibold text-ink">
-            Open in Studio <ArrowRight className="h-3.5 w-3.5" />
-          </span>
-        </div>
-      )}
+    </Link>
+  );
+  return (
+    <div className={`${frame} bg-paper`}>
+      <div className="flex h-full w-full items-center justify-center">
+        {failed
+          ? <span className="text-sm font-semibold text-warn">{STATUS[job.status]}</span>
+          : <span className="flex flex-col items-center gap-2 text-muted"><span aria-hidden="true" className="h-5 w-5 animate-spin rounded-full border-2 border-muted/30 border-t-muted" /><span className="text-sm font-semibold">{STATUS[job.status] ?? "Finishing"}</span></span>}
+      </div>
+      {['queued', 'dispatched'].includes(job.status) && <button type="button" className={`${button("secondary", "sm")} absolute left-2 top-2`} onClick={() => { void cancel({ jobId: job._id }).catch(() => setCancelError('This video already started rendering, so it cannot be cancelled.')); }}>Cancel</button>}
+      {cancelError && <p role="status" className="absolute inset-x-2 top-12 rounded-md border border-warn/40 bg-surface p-2 text-xs">{cancelError}</p>}
+      {caption}
     </div>
   );
 }

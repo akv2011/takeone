@@ -32,3 +32,21 @@ test('queued retry hides old active stages and legacy jobs retain useful status'
   view.rerender(<RenderProgress job={{ _id: 'b', status: 'processing' }} />);
   expect(screen.getByRole('status').textContent).toBe('Preparing your render.');
 });
+test('the bar track fills left to right by pipeline position and lights fully only when done', () => {
+  type Stage = 'script' | 'narration' | 'footage' | 'moments' | 'source' | 'transcription' | 'cut' | 'finishing' | 'checking' | 'saving';
+  const lit = (status: string, stage?: Stage) => {
+    const view = render(<RenderProgress job={{ _id: 'a', status, renderProgress: stage ? { attempt: 1, startedAt: 1, stages: [{ stage, startedAt: 1 }] } : undefined }} />);
+    const value = Number(view.container.querySelector('[data-lit]')?.getAttribute('data-lit'));
+    view.unmount();
+    return value;
+  };
+  expect(lit('queued')).toBe(0);
+  expect(lit('queued', 'cut')).toBe(0);
+  expect(lit('dispatched')).toBe(1);
+  expect(lit('processing', 'script')).toBe(2);
+  expect(lit('processing', 'cut')).toBe(5);
+  expect(lit('processing', 'saving')).toBe(6);
+  expect(lit('done', 'saving')).toBe(7);
+  const order: Stage[] = ['script', 'narration', 'footage', 'moments', 'source', 'transcription', 'cut', 'finishing', 'checking', 'saving'];
+  order.forEach((stage, i) => { if (i) expect(lit('processing', stage)).toBeGreaterThanOrEqual(lit('processing', order[i - 1])); });
+});

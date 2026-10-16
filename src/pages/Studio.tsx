@@ -25,8 +25,7 @@ import {
   useAction,
   usePaginatedQuery,
 } from "convex/react";
-import { ArrowLeft, ArrowRight } from "lucide-react";
-import PremiumBackground from "../components/PremiumBackground";
+import { ArrowLeft } from "lucide-react";
 import TakeOneLogo from "../components/TakeOneLogo";
 import { useVideoUrl } from "../lib/useVideoUrl";
 import { MusicPicker, type MusicSelection } from "../components/MusicPicker";
@@ -34,6 +33,7 @@ import { api } from "../lib/convexApi";
 import { CaptionRestyle } from "../components/CaptionRestyle";
 import { TimelineControls } from "../components/TimelineControls";
 import { useTimelinePlayer } from "../hooks/useTimelinePlayer";
+import { button, field, panel } from "../lib/ui";
 
 type Job =
   | {
@@ -59,6 +59,8 @@ type Job =
 type Msg = { role: "user" | "system"; text: string };
 
 // One-tap edits the ffmpeg pipeline handles well.
+const VERSION_STATUS: Record<string, string> = { done: "Ready", queued: "Queued", dispatched: "Starting", processing: "Rendering", failed: "Failed", cancelled: "Cancelled" };
+const RENDER_STATUS: Record<string, string> = { queued: "Waiting for a render slot…", dispatched: "Starting your render…", processing: "Rendering…" };
 const QUICK_EDITS: { label: string; transforms: EditTransforms }[] = [
   { label: "Make it square (1:1)", transforms: { aspect: "1:1" } },
   { label: "Make it landscape (16:9)", transforms: { aspect: "16:9" } },
@@ -69,27 +71,24 @@ const QUICK_EDITS: { label: string; transforms: EditTransforms }[] = [
 export default function Studio() {
   const { user } = useUser();
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-paper text-ink selection:bg-cue/15">
-      <div className="noise-overlay" />
-      <PremiumBackground />
+    <div className="min-h-screen overflow-x-hidden bg-paper text-ink">
       <SignedOut>
-        <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 text-center">
+        <div className="flex min-h-screen flex-col items-center justify-center px-6 text-center">
           <Link to="/" className="mb-8 flex items-center gap-2">
             <TakeOneLogo className="h-10 w-10 text-ink" />
-            <span className="font-display text-2xl font-bold tracking-tight">
-              takeone
+            <span className="font-display text-2xl font-bold">
+              TakeOne
             </span>
           </Link>
-          <div className="font-mono text-[11px] uppercase tracking-[0.22em] text-cueInk">
-            Studio
-          </div>
-          <h1 className="mt-2 font-display text-3xl font-extrabold tracking-[-0.03em]">
-            Sign in to open the studio
+          <h1 className="font-display text-4xl font-extrabold md:text-5xl">
+            Sign in to open Studio
           </h1>
+          <p className="mt-3 max-w-sm text-sm text-muted">
+            Studio holds your captions, trims, framing, music and versions.
+          </p>
           <SignInButton mode="modal">
-            <button className="group mt-7 inline-flex items-center gap-2 rounded-2xl bg-ink px-7 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-cue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-paper">
-              Continue with Google{" "}
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            <button className={`${button("primary")} mt-7`}>
+              Continue with Google
             </button>
           </SignInButton>
         </div>
@@ -209,7 +208,7 @@ function StudioInner() {
     if (job.status === "done") {
       setMessages((m) => [
         ...m,
-        { role: "system", text: "Done. Playing the updated reel." },
+        { role: "system", text: "Done. Playing the updated video." },
       ]);
       setLastNotified(key);
     } else if (job.status === "failed") {
@@ -309,8 +308,8 @@ function StudioInner() {
             code === "USE_CAPTION_CONTROLS"
               ? "Use the caption controls below to change style, font or wording. Submit timeline edits separately. No generation was used."
               : code === "NO_CREDITS"
-                ? "You're out of credits. Grab a pack to keep editing."
-                : "Something went wrong, try again.",
+                ? "You're out of credits. Buy a pack on the pricing page to keep editing."
+                : "The edit could not be queued. Check your connection and try again.",
         },
       ]);
     } finally {
@@ -320,31 +319,28 @@ function StudioInner() {
 
   return (
     <>
-      <header className="relative z-10 mx-auto flex max-w-[1600px] items-center justify-between px-6 py-5">
-        <Link
-          to="/create"
-          className="group inline-flex items-center gap-1.5 text-sm font-semibold text-muted transition-colors hover:text-ink"
-        >
-          <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />{" "}
-          Back to your reels
-        </Link>
-        <Link to="/" className="flex items-center gap-2">
-          <TakeOneLogo className="h-8 w-8 text-ink" />
-          <span className="font-display text-xl font-bold tracking-tight">
-            takeone
-          </span>
-        </Link>
+      <header className="border-b border-line bg-surface">
+        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-4 py-3.5 sm:px-6">
+          <Link
+            to="/create"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink underline-offset-4 hover:underline"
+          >
+            <ArrowLeft aria-hidden="true" className="h-4 w-4" />
+            Back to your videos
+          </Link>
+          <Link to="/" className="flex items-center gap-2">
+            <TakeOneLogo className="h-8 w-8 text-ink" />
+            <span className="font-display text-xl font-bold">
+              TakeOne
+            </span>
+          </Link>
+        </div>
       </header>
 
-      <main className="relative z-10 mx-auto min-h-[calc(100vh-76px)] max-w-[1600px] px-3 pb-8 sm:px-6">
-        <div className="mb-7">
-          <div className="font-mono text-[11px] uppercase tracking-[0.22em] text-cueInk">
-            Studio
-          </div>
-          <h1 className="mt-1.5 text-balance font-display text-2xl font-extrabold leading-tight tracking-[-0.02em] md:text-[28px]">
-            {job?.prompt || "Your reel"}
-          </h1>
-        </div>
+      <main className="mx-auto max-w-[1600px] px-3 pb-8 pt-6 sm:px-6">
+        <h1 className="mb-6 line-clamp-2 text-balance break-words font-display text-3xl font-extrabold leading-tight md:text-4xl">
+          {job?.prompt || "Your video"}
+        </h1>
 
         {job?.status === "done" && job.hasOutput && <ShareReview key={job._id} jobId={job._id} duration={duration} onSeek={timelinePlayer.seek} />}
         <StudioWorkspace
@@ -399,7 +395,7 @@ function StudioInner() {
                         jobId={job.parentJobId}
                       />
                     ) : (
-                      <div className="flex h-full w-full flex-col items-center justify-center gap-3 text-white/70">
+                      <div className="flex h-full w-full flex-col items-center justify-center gap-3 text-line">
                         {!isAuthenticated ? (
                           <p
                             role={authLoading ? "status" : "alert"}
@@ -415,9 +411,9 @@ function StudioInner() {
                             to your dashboard.
                           </p>
                         ) : job?.status === "failed" ? (
-                          <span className="font-mono text-xs text-red-400">
-                            generation failed
-                          </span>
+                          <p className="px-4 text-center text-sm font-semibold text-surface">
+                            This render failed. Open a completed version to keep editing.
+                          </p>
                         ) : job?.status === "cancelled" ? (
                           <p className="px-4 text-center text-sm">
                             This generation was cancelled. Your allowance was
@@ -425,9 +421,9 @@ function StudioInner() {
                           </p>
                         ) : (
                           <>
-                            <span className="h-6 w-6 animate-spin rounded-full border-2 border-white/25 border-t-white" />
-                            <span className="font-mono text-xs">
-                              {job ? `${job.status}…` : "loading…"}
+                            <span aria-hidden="true" className="h-6 w-6 animate-spin rounded-full border-2 border-surface/25 border-t-surface" />
+                            <span className="text-sm">
+                              {(job && RENDER_STATUS[job.status]) ?? "Loading…"}
                             </span>
                           </>
                         )}
@@ -436,13 +432,14 @@ function StudioInner() {
                   </div>
                 </div>
                 {ready && soundtrack && (
-                  <p className="text-xs text-muted">
+                  <p className="text-xs text-line">
                     Soundtrack: {soundtrack.label}. {soundtrack.attribution}
                   </p>
                 )}
                 {videoError && (
                   <button
-                    className="text-sm text-red-600"
+                    type="button"
+                    className="text-sm font-semibold text-cue underline underline-offset-4"
                     onClick={() => void refresh()}
                   >
                     {videoError}
@@ -452,7 +449,7 @@ function StudioInner() {
                   <a
                     href={url}
                     download
-                    className="rounded-xl border border-ink/10 bg-white px-4 py-2 text-sm font-semibold shadow-sm transition-colors hover:border-ink/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-paper"
+                    className={button("primary")}
                   >
                     Download
                   </a>
@@ -518,9 +515,9 @@ function StudioInner() {
               {versions && versions.length > 0 && (
                 <section
                   aria-label="Version history"
-                  className="w-full rounded-2xl border border-black/10 bg-white p-4"
+                  className={`${panel} w-full p-4`}
                 >
-                  <h2 className="text-sm font-semibold">Version history</h2>
+                  <h2 className="text-base font-semibold">Version history</h2>
                   <p className="mt-1 text-xs text-muted">
                     Opening an earlier version is free. Editing it creates a
                     separate version. The original stays available below. Load
@@ -532,7 +529,7 @@ function StudioInner() {
                         key={version._id}
                         className={
                           version.original
-                            ? "sticky top-0 z-10 rounded-lg bg-white"
+                            ? "sticky top-0 z-10 rounded-md bg-surface"
                             : undefined
                         }
                       >
@@ -541,13 +538,13 @@ function StudioInner() {
                           aria-current={
                             activeId === version._id ? "page" : undefined
                           }
-                          className={`block rounded-lg border p-2 text-xs ${activeId === version._id ? "border-ink bg-cue/5" : "border-black/10"}`}
+                          className={`block rounded-md border p-2 text-xs ${activeId === version._id ? "border-ink bg-cue" : "border-line bg-surface hover:border-muted"}`}
                         >
                           <span className="font-semibold">
                             {version.original ? "Original" : version.prompt}
                           </span>
-                          <span className="mt-1 block text-muted">
-                            {version.status} ·{" "}
+                          <span className={`mt-1 block ${activeId === version._id ? "text-ink" : "text-muted"}`}>
+                            {VERSION_STATUS[version.status] ?? version.status} ·{" "}
                             {new Date(version.createdAt).toLocaleString()}
                           </span>
                         </Link>
@@ -568,7 +565,7 @@ function StudioInner() {
                       type="button"
                       disabled={versionPages.status === "LoadingMore"}
                       onClick={() => versionPages.loadMore(20)}
-                      className="mt-3 rounded-lg border px-3 py-2 text-xs disabled:opacity-50"
+                      className={`${button("secondary", "sm")} mt-3`}
                     >
                       {versionPages.status === "LoadingMore"
                         ? "Loading older edits…"
@@ -576,7 +573,7 @@ function StudioInner() {
                     </button>
                   )}
                   {job?.status === "failed" && (
-                    <p className="mt-2 text-xs text-red-600">
+                    <p className="mt-2 text-xs text-warn">
                       This edit failed. Open a completed version above to
                       continue editing.
                     </p>
@@ -638,18 +635,18 @@ function StudioInner() {
                 <button
                   disabled={!ready || busy || rendering}
                   onClick={() => void send("Add selected soundtrack")}
-                  className="rounded-xl bg-ink px-4 py-2 text-sm text-white"
+                  className={`${button("primary")} w-full`}
                 >
                   Apply soundtrack · uses 1 generation
                 </button>
               )}
               {/* Edit console */}
-              <div className="flex flex-col rounded-2xl border border-black/[0.07] bg-white p-4">
-                <h2 className="font-display text-lg font-bold leading-none">
+              <div className={`${panel} flex flex-col p-4`}>
+                <h2 className="text-base font-semibold">
                   Edit with AI
                 </h2>
-                <p className="mt-1.5 font-mono text-[11px] text-muted">
-                  Describe a change and preview the result
+                <p className="mt-1 text-sm text-muted">
+                  Describe a change in plain words. Each edit uses 1 generation.
                 </p>
 
                 {/* Quick edits */}
@@ -659,7 +656,7 @@ function StudioInner() {
                       key={q.label}
                       onClick={() => void send(q.label, { transforms: { aspect: format.aspect, fit: format.fit, ...q.transforms } })}
                       disabled={!ready || busy || rendering}
-                      className="rounded-full border border-line bg-paper px-3.5 py-1.5 text-xs font-medium transition-colors hover:border-ink hover:text-cueInk disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink"
+                      className="rounded-md border border-line bg-surface px-3 py-1.5 text-sm font-medium transition-colors hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       {q.label}
                     </button>
@@ -669,16 +666,9 @@ function StudioInner() {
                 {/* Chat log */}
                 <div className="mt-4 max-h-60 space-y-2.5 overflow-y-auto pr-1">
                   {messages.length === 0 && (
-                    <div className="flex h-full flex-col items-start justify-center gap-1.5">
-                      <p className="font-sans text-sm text-ink/80">
-                        Tell it how to change the reel.
-                      </p>
-                      <p className="font-mono text-[11px] leading-relaxed text-muted">
-                        “make it square” · “add a watermark”
-                        <br />
-                        “add captions” · “speed it up 1.5x”
-                      </p>
-                    </div>
+                    <p className="text-sm text-muted">
+                      Try "make it square", "add captions" or "speed it up 1.5x".
+                    </p>
                   )}
                   {messages.map((m, i) => (
                     <div
@@ -690,16 +680,16 @@ function StudioInner() {
                       }
                     >
                       <span
-                        className={`inline-block max-w-[85%] rounded-2xl px-3.5 py-2 text-sm ${m.role === "user" ? "rounded-br-md bg-ink text-white" : "rounded-bl-md border border-black/[0.06] bg-paper text-ink"}`}
+                        className={`inline-block max-w-[85%] break-words rounded-[10px] px-3.5 py-2 text-sm ${m.role === "user" ? "bg-ink text-surface" : "border border-line bg-paper text-ink"}`}
                       >
                         {m.text}
                       </span>
                     </div>
                   ))}
                   {rendering && !!job?.hasSource && (
-                    <div className="flex items-center gap-2 font-mono text-xs text-muted">
-                      <span className="h-3 w-3 animate-spin rounded-full border-2 border-muted/30 border-t-muted" />{" "}
-                      rendering…
+                    <div role="status" className="flex items-center gap-2 text-sm text-muted">
+                      <span aria-hidden="true" className="h-3 w-3 animate-spin rounded-full border-2 border-muted/30 border-t-muted" />
+                      Rendering…
                     </div>
                   )}
                 </div>
@@ -721,24 +711,23 @@ function StudioInner() {
                         ? "Describe an edit…"
                         : rendering
                           ? "Rendering…"
-                          : "Waiting for the reel…"
+                          : "Waiting for the video…"
                     }
                     disabled={!ready || busy || rendering}
-                    className="min-w-0 flex-1 rounded-2xl border border-line bg-paper px-4 py-3 font-sans text-sm outline-none transition-colors focus:border-ink disabled:opacity-50"
+                    className={`${field} min-w-0 flex-1 disabled:cursor-not-allowed disabled:opacity-50`}
                   />
                   <button
                     type="submit"
                     disabled={
                       !ready || busy || rendering || !instruction.trim()
                     }
-                    className="group flex items-center gap-1.5 rounded-2xl bg-ink px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-cue disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                    className={button("primary")}
                   >
-                    Edit{" "}
-                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                    Edit
                   </button>
                 </form>
                 {edits > 0 && (
-                  <p className="mt-2 text-center font-mono text-[10px] uppercase tracking-wider text-muted">
+                  <p className="mt-2 text-xs text-muted">
                     {edits} edit{edits > 1 ? "s" : ""} · each edit uses 1
                     generation
                   </p>

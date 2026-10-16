@@ -19,7 +19,7 @@ test('a failed chunk shows recovery without leaking errors and a new route can r
  const Broken = lazy(async () => { throw new Error('private deployment details'); });
  const view = render(<PageBoundary key="broken" retryUrl="/studio/video?from=history"><Broken /></PageBoundary>);
  await act(async () => {});
- expect(screen.getByRole('alert').textContent).toContain('This page couldn’t load');
+ expect(screen.getByRole('alert').textContent).toContain('This page could not load');
  expect(screen.queryByText('private deployment details')).toBeNull();
  expect(screen.getByRole('link', { name: 'Reload page' }).getAttribute('href')).toBe('/studio/video?from=history');
  view.rerender(<PageBoundary key="new-route" retryUrl="/create"><h1>Your videos</h1></PageBoundary>);

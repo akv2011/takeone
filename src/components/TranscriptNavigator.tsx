@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { button, field, label, panel } from '../lib/ui';
 
 type Cue = { start: number; end: number; text: string };
 type Props = {
@@ -28,9 +29,9 @@ function validatedCues(value: unknown): Cue[] {
 }
 /** Saved captions only. Navigation never transcribes or submits an edit. */
 export function TranscriptNavigator(props: Props) {
-  return <section aria-label="Transcript navigation" className="mt-4 min-w-0 rounded-2xl border border-black/10 bg-white p-4">
-    <h2 className="text-sm font-semibold">Transcript</h2>
-    <p className="mt-1 text-xs text-muted">Find a phrase and jump to it. Searching and playback are free; caption wording stays unchanged.</p>
+  return <section aria-label="Transcript navigation" className={`${panel} min-w-0 p-4`}>
+    <h2 className="text-base font-semibold">Transcript</h2>
+    <p className="mt-1 text-sm text-muted">Find a phrase and jump to it. Searching and playback are free; caption wording stays unchanged.</p>
     {!props.available ? <p className="mt-3 text-xs text-muted">This version has no saved transcript. Videos with saved captions support transcript navigation.</p>
       : <SavedTranscript key={`${props.accountKey}:${props.jobId}`} {...props} />}
   </section>;
@@ -57,26 +58,26 @@ function SavedTranscript({ loadCues, currentTime, duration, playbackDisabled, on
     finally { if (alive.current) { setLoading(false); locked.current = false; } }
   }
   return <>
-    {(!cues || timingInvalid) && <button type="button" disabled={loading} onClick={() => void load()} className="mt-3 rounded-lg border border-ink/15 px-3 py-2 text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink disabled:opacity-50">{loading ? 'Loading transcript…' : timingInvalid ? 'Reload transcript · free' : 'Load transcript · free'}</button>}
-    {error && <p role="alert" className="mt-2 text-xs text-red-600">Could not load this transcript. Try again. No generation was used.</p>}
-    {timingInvalid && <p role="alert" className="mt-2 text-xs text-red-600">Saved cue timing does not match this video. Reload the transcript to try again. No generation was used.</p>}
+    {(!cues || timingInvalid) && <button type="button" disabled={loading} onClick={() => void load()} className={`${button('secondary', 'sm')} mt-3`}>{loading ? 'Loading transcript…' : timingInvalid ? 'Reload transcript · free' : 'Load transcript · free'}</button>}
+    {error && <p role="alert" className="mt-2 text-xs text-warn">Could not load this transcript. Try again. No generation was used.</p>}
+    {timingInvalid && <p role="alert" className="mt-2 text-xs text-warn">Saved cue timing does not match this video. Reload the transcript to try again. No generation was used.</p>}
     {cues && !timingInvalid && <>
       {cues.length === 0 ? <p className="mt-3 text-xs text-muted">There are no saved speech cues in this version.</p> : <>
-        <label className="mt-3 block text-xs">Search transcript<input type="search" maxLength={200} value={query} onChange={event => { setQuery(event.target.value); setPage(0); }} placeholder="Find a word or phrase" className="mt-1 block w-full min-w-0 rounded-lg border border-black/15 p-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink" /></label>
+        <label className={`mt-3 block ${label}`}>Search transcript<input type="search" maxLength={200} value={query} onChange={event => { setQuery(event.target.value); setPage(0); }} placeholder="Find a word or phrase…" className={`${field} mt-1 block w-full min-w-0`} /></label>
         <p role="status" className="mt-2 text-xs text-muted">{matches.length} {matches.length === 1 ? 'cue' : 'cues'}{query.trim() ? ' found' : ' saved'}{playbackDisabled ? ' · Video playback is unavailable.' : ''}</p>
         {!matches.length ? <p className="mt-3 text-sm">No matching phrases. Try another search.</p> : <>
           <ol className="mt-2 max-h-64 space-y-1 overflow-y-auto" aria-label="Transcript cues">
-            {matches.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map(({ cue, index }) => <li key={index} className={`flex min-w-0 items-start gap-2 rounded-lg border ${active === index ? 'border-ink/40 bg-cue/10' : 'border-transparent'}`}>
-              <button type="button" disabled={playbackDisabled || (duration !== undefined && cue.start >= duration)} aria-current={active === index ? 'true' : undefined} onClick={() => onSeek(cue.start)} className="flex min-w-0 flex-1 items-start gap-3 rounded-lg p-2 text-left text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink disabled:opacity-50">
-                <span className="shrink-0 pt-0.5 font-mono text-[10px] text-muted">{time(cue.start)}</span><span className="min-w-0 break-words [overflow-wrap:anywhere]">{cue.text}</span>
+            {matches.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map(({ cue, index }) => <li key={index} className={`flex min-w-0 items-start gap-2 rounded-md border ${active === index ? 'border-ink bg-cue/25' : 'border-transparent'}`}>
+              <button type="button" disabled={playbackDisabled || (duration !== undefined && cue.start >= duration)} aria-current={active === index ? 'true' : undefined} onClick={() => onSeek(cue.start)} className="flex min-w-0 flex-1 items-start gap-3 rounded-md p-2 text-left text-sm hover:bg-paper disabled:opacity-50">
+                <span className="shrink-0 pt-0.5 font-mono text-xs text-muted">{time(cue.start)}</span><span className="min-w-0 break-words [overflow-wrap:anywhere]">{cue.text}</span>
               </button>
-              <button type="button" disabled={playbackDisabled || (duration !== undefined && cue.start >= duration)} aria-label={`Preview cue ${index + 1}`} onClick={() => onPreview(cue.start, Math.min(cue.end, duration ?? cue.end), 1)} className="m-1 shrink-0 rounded-md border border-black/10 px-2 py-2 text-[10px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink disabled:opacity-50">Play</button>
+              <button type="button" disabled={playbackDisabled || (duration !== undefined && cue.start >= duration)} aria-label={`Preview cue ${index + 1}`} onClick={() => onPreview(cue.start, Math.min(cue.end, duration ?? cue.end), 1)} className="m-1 shrink-0 rounded-md border border-line px-2 py-1.5 text-xs font-semibold hover:border-ink disabled:opacity-50">Play</button>
             </li>)}
           </ol>
           {matches.length > PAGE_SIZE && <div className="mt-2 flex items-center justify-between gap-2 text-xs">
-            <button type="button" disabled={page === 0} onClick={() => setPage(value => value - 1)} className="rounded border px-2 py-2 disabled:opacity-40">Previous cues</button>
+            <button type="button" disabled={page === 0} onClick={() => setPage(value => value - 1)} className={button('secondary', 'sm')}>Previous cues</button>
             <span>Page {page + 1} of {Math.ceil(matches.length / PAGE_SIZE)}</span>
-            <button type="button" disabled={(page + 1) * PAGE_SIZE >= matches.length} onClick={() => setPage(value => value + 1)} className="rounded border px-2 py-2 disabled:opacity-40">Next cues</button>
+            <button type="button" disabled={(page + 1) * PAGE_SIZE >= matches.length} onClick={() => setPage(value => value + 1)} className={button('secondary', 'sm')}>Next cues</button>
           </div>}
         </>}
       </>}

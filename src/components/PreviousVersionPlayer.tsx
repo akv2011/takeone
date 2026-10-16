@@ -2,6 +2,7 @@ import { useConvexAuth, useQuery } from "convex/react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/convexApi";
 import { useVideoUrl } from "../lib/useVideoUrl";
+import { button } from "../lib/ui";
 
 export function PreviousVersionPlayer({ jobId }: { jobId: string }) {
   const { isAuthenticated } = useConvexAuth();
@@ -37,7 +38,7 @@ export function PreviousVersionPlayer({ jobId }: { jobId: string }) {
       )}
       <Link
         to={`/studio/${jobId}`}
-        className="mb-3 rounded-lg bg-white px-3 py-2 text-xs font-semibold"
+        className={`${button("primary", "sm")} mb-3`}
       >
         Open previous version
       </Link>
@@ -45,7 +46,7 @@ export function PreviousVersionPlayer({ jobId }: { jobId: string }) {
         <button
           type="button"
           onClick={() => void refresh()}
-          className="px-3 pb-3 text-xs"
+          className="px-3 pb-3 text-xs font-semibold text-cue underline underline-offset-4"
         >
           Reload previous video preview
         </button>

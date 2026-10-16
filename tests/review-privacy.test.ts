@@ -1,10 +1,16 @@
 // @vitest-environment jsdom
-import { afterEach, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 const analytics = vi.hoisted(() => ({ init: vi.fn() }));
 vi.mock('posthog-js', () => ({ default: analytics }));
 import { initPostHog } from '../src/lib/posthog';
 import { isPublicReviewPath } from '../src/lib/reviewPrivacy';
-afterEach(() => { window.history.replaceState(null, '', '/'); analytics.init.mockClear(); });
+beforeEach(() => { vi.stubEnv('VITE_POSTHOG_KEY', 'phc_test'); });
+afterEach(() => { window.history.replaceState(null, '', '/'); analytics.init.mockClear(); vi.unstubAllEnvs(); });
+test('does not initialize analytics without a configured key', () => {
+ vi.stubEnv('VITE_POSTHOG_KEY', '');
+ initPostHog();
+ expect(analytics.init).not.toHaveBeenCalled();
+});
 test('does not initialize analytics on a capability review URL, including its trailing slash', () => {
  for (const path of ['/review', '/review/', '/REVIEW', '/%72eview', '/review///']) {
   window.history.replaceState(null, '', `${path}#${'a'.repeat(64)}`);

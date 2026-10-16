@@ -1,4 +1,5 @@
 import type { OutputAspect, OutputFit } from "../lib/editTransforms";
+import { button, field, fieldsetPanel, label, legend } from "../lib/ui";
 export function TransformControls({
   aspect,
   fit,
@@ -15,37 +16,37 @@ export function TransformControls({
   return (
     <fieldset
       disabled={disabled}
-      className="rounded-2xl border border-black/10 bg-white p-4 disabled:opacity-50"
+      className={`${fieldsetPanel} disabled:opacity-50`}
     >
-      <legend className="px-1 text-sm font-semibold">Transform</legend>
-      <label className="block text-xs">
+      <legend className={legend}>Transform</legend>
+      <label className={`block ${label}`}>
         Output ratio
         <select
           value={aspect}
           onChange={(e) =>
             onChange({ aspect: e.target.value as OutputAspect, fit })
           }
-          className="mt-1 w-full rounded-lg border p-2"
+          className={`${field} mt-1 w-full`}
         >
           <option value="9:16">Portrait · 9:16</option>
           <option value="1:1">Square · 1:1</option>
           <option value="16:9">Landscape · 16:9</option>
         </select>
       </label>
-      <label className="mt-3 block text-xs">
+      <label className={`mt-3 block ${label}`}>
         Frame sizing
         <select
           value={fit}
           onChange={(e) =>
             onChange({ aspect, fit: e.target.value as OutputFit })
           }
-          className="mt-1 w-full rounded-lg border p-2"
+          className={`${field} mt-1 w-full`}
         >
           <option value="crop">Crop to fill</option>
           <option value="fit">Fit whole video</option>
         </select>
       </label>
-      <p className="mt-3 text-xs text-muted">
+      <p className="mt-3 text-sm text-muted">
         Framing preview is free and approximate. Automatic crop may adjust
         subject focus; Fit adds a blurred background in the export. Existing
         captions and marks in the video may be cropped.
@@ -53,7 +54,7 @@ export function TransformControls({
       <button
         type="button"
         onClick={onApply}
-        className="mt-3 rounded-lg bg-ink px-3 py-2 text-xs text-white"
+        className={`${button("primary", "sm")} mt-3`}
       >
         Apply framing · 1 generation
       </button>

@@ -3,6 +3,8 @@ import { guides } from './seo/guides';
 import { lazy } from 'react';
 import { Link, Route, Routes, useLocation } from 'react-router-dom';
 import { PageBoundary } from './components/PageBoundary';
+import { button } from './lib/ui';
+import { authEnabled } from './lib/convexApi';
 
 const Landing = lazy(() => import('./App'));
 const Pricing = lazy(() => import('./pages/Pricing'));
@@ -14,6 +16,15 @@ const Guides = lazy(() => import('./pages/Guides'));
 const Guide = lazy(() => import('./pages/Guide'));
 const Legal = lazy(() => import('./pages/Legal'));
 
+// main.tsx mounts ClerkProvider only when a publishable key is set; without it the private pages cannot render.
+function SignInUnavailable() {
+  return <main className="min-h-screen bg-paper px-6 py-24 text-center text-ink">
+    <h1 className="font-display text-4xl font-extrabold">Sign-in is not set up</h1>
+    <p className="mx-auto mt-3 max-w-md text-sm text-muted">The dashboard and Studio need a sign-in provider. Set VITE_CLERK_PUBLISHABLE_KEY for this deployment, then reload the page.</p>
+    <div className="mt-6 flex justify-center gap-3"><Link to="/guides" className={button("secondary")}>Read the guides</Link><Link to="/" className={button("primary")}>Go to the home page</Link></div>
+  </main>;
+}
+
 export function AppRoutes() {
   const location = useLocation();
   const url = location.pathname + location.search + location.hash;
@@ -23,17 +34,17 @@ export function AppRoutes() {
       <Route path="/guides" element={<Guides />} />
       {guides.map(guide => <Route key={guide.path} path={guide.path} element={<Guide />} />)}
       <Route path="/" element={<Landing />} />
-      <Route path="/pricing" element={<Pricing />} />
+      <Route path="/pricing" element={<Pricing auth={authEnabled} />} />
       <Route path="/review" element={<Review />} />
-      <Route path="/create" element={<Dashboard />} />
-      <Route path="/studio/project/:projectId" element={<AssemblyStudio />} />
-      <Route path="/studio/:id" element={<Studio />} />
+      <Route path="/create" element={authEnabled ? <Dashboard /> : <SignInUnavailable />} />
+      <Route path="/studio/project/:projectId" element={authEnabled ? <AssemblyStudio /> : <SignInUnavailable />} />
+      <Route path="/studio/:id" element={authEnabled ? <Studio /> : <SignInUnavailable />} />
       <Route path="/privacy" element={<Legal />} />
       <Route path="/terms" element={<Legal />} />
       <Route path="/acceptable-use" element={<Legal />} />
       <Route path="/copyright" element={<Legal />} />
       <Route path="/refund-policy" element={<Legal />} />
-      <Route path="*" element={<main className="min-h-screen bg-paper px-6 py-24 text-center text-ink"><h1 className="font-display text-2xl font-bold">Page not found</h1><Link to="/create" className="mt-6 inline-block underline">Go to your dashboard</Link></main>} />
+      <Route path="*" element={<main className="min-h-screen bg-paper px-6 py-24 text-center text-ink"><h1 className="font-display text-4xl font-extrabold">Page not found</h1><p className="mt-3 text-sm text-muted">This address does not match a TakeOne page. Check the link, or open your dashboard.</p><Link to="/create" className={`${button("primary")} mt-6`}>Go to your dashboard</Link></main>} />
     </Routes>
   </PageBoundary>;
 }

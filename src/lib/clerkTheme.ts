@@ -1,94 +1,111 @@
+// Clerk renders outside Tailwind, so these mirror the tokens in tailwind.config.js.
+const ink = '#1A1F36';
+const muted = '#5B6175';
+const line = '#D6DAE1';
+const paper = '#EEF0F3';
+const surface = '#FFFFFF';
+const cue = '#FFD23F';
+const warn = '#B4430B';
+const sans = "'Atkinson Hyperlegible Next', 'Atkinson Hyperlegible', system-ui, sans-serif";
+
 export const clerkAppearance = {
   variables: {
-    colorPrimary: '#151515',
-    colorBackground: '#f5f4f0',
-    colorText: '#151515',
-    colorTextSecondary: '#686868',
-    colorInputBackground: '#ffffff',
-    colorInputText: '#151515',
-    borderRadius: '0.75rem',
-    fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
+    colorPrimary: ink,
+    colorPrimaryForeground: surface,
+    colorBackground: surface,
+    colorForeground: ink,
+    colorMutedForeground: muted,
+    colorMuted: paper,
+    colorInput: surface,
+    colorInputForeground: ink,
+    colorBorder: line,
+    colorRing: ink,
+    colorDanger: warn,
+    borderRadius: '6px',
+    fontFamily: sans,
+    fontFamilyButtons: sans,
   },
   elements: {
     modalBackdrop: {
-      backgroundColor: 'rgba(20, 20, 20, 0.68)',
-      backdropFilter: 'blur(4px)',
+      backgroundColor: 'rgba(26, 31, 54, 0.6)',
     },
     modalContent: {
-      borderRadius: '1.25rem',
-      boxShadow: '0 24px 70px rgba(0, 0, 0, 0.22)',
+      borderRadius: '10px',
+      boxShadow: 'none',
       overflow: 'hidden',
-      backgroundColor: '#f5f4f0',
-      border: '1px solid rgba(21, 21, 21, 0.12)',
+      backgroundColor: surface,
+      border: `1px solid ${line}`,
     },
     navbar: {
-      backgroundColor: '#f5f4f0',
-      borderRight: '1px solid rgba(21, 21, 21, 0.1)',
+      backgroundColor: paper,
+      borderRight: `1px solid ${line}`,
     },
     navbarButton: {
-      borderRadius: '0.75rem',
-      color: '#525252',
+      borderRadius: '6px',
+      color: muted,
       fontWeight: 600,
     },
     navbarButton__active: {
-      backgroundColor: '#151515',
-      color: '#ffffff',
+      backgroundColor: cue,
+      color: ink,
     },
     scrollBox: {
-      backgroundColor: '#ffffff',
+      backgroundColor: surface,
     },
     pageScrollBox: {
-      backgroundColor: '#ffffff',
+      backgroundColor: surface,
     },
     actionCard: {
       width: '100%',
       padding: '1.25rem',
-      border: '1px solid rgba(21, 21, 21, 0.1)',
-      borderRadius: '1rem',
-      backgroundColor: '#fafaf8',
+      border: `1px solid ${line}`,
+      borderRadius: '10px',
+      backgroundColor: surface,
       boxShadow: 'none',
     },
     formFieldInput: {
       minHeight: '2.75rem',
-      border: '1px solid rgba(21, 21, 21, 0.16)',
-      borderRadius: '0.75rem',
+      border: `1px solid ${line}`,
+      borderRadius: '6px',
       boxShadow: 'none',
-      outlineColor: '#151515',
+      outlineColor: ink,
     },
     formButtonPrimary: {
       minHeight: '2.5rem',
-      borderRadius: '0.75rem',
-      backgroundColor: '#151515',
-      fontWeight: 600,
+      borderRadius: '6px',
+      backgroundColor: cue,
+      color: ink,
+      fontWeight: 700,
       boxShadow: 'none',
+      '&:hover': { backgroundColor: cue, outline: `1px solid ${ink}` },
     },
     formButtonReset: {
-      color: '#555555',
+      color: muted,
       fontWeight: 600,
     },
     profileSectionPrimaryButton: {
-      color: '#151515',
+      color: ink,
       fontWeight: 600,
     },
     profileSection__danger: {
       display: 'none',
     },
     profileSection: {
-      borderBottom: '1px solid rgba(21, 21, 21, 0.1)',
+      borderBottom: `1px solid ${line}`,
     },
     profileSectionTitle: {
-      color: '#151515',
+      color: ink,
       fontWeight: 700,
     },
     profileSectionContent: {
-      color: '#555555',
+      color: muted,
     },
     badge: {
-      backgroundColor: '#efeee9',
-      color: '#3f3f3f',
+      backgroundColor: paper,
+      color: ink,
     },
     menuButton: {
-      color: '#151515',
+      color: ink,
     },
   },
 } as const;

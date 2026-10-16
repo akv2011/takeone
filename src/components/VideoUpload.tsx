@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../lib/convexApi';
 import { uploadVideo } from '../lib/uploadVideo';
+import { field, panel } from '../lib/ui';
 export function VideoUpload({ onReady }: { onReady: (id?: string) => void }) {
   const begin = useMutation(api.uploads.begin), finish = useMutation(api.uploads.finish);
   const uploads = useQuery(api.uploads.list) as { _id: string; name: string; size: number }[] | undefined;
@@ -42,29 +43,29 @@ export function VideoUpload({ onReady }: { onReady: (id?: string) => void }) {
       const code = (error as { data?: string })?.data;
       if (active.signal.aborted) setStatus('Upload cancelled.');
       else if (code === 'UPLOAD_LIMIT') setStatus('Upload limit reached: five uploads per hour and ten saved sources. Remove an unused source or try again later.');
-      else setStatus(error instanceof Error && error.message.startsWith('Upload ') ? error.message : 'Could not save this upload. Please try again.');
+      else setStatus(error instanceof Error && error.message.startsWith('Upload ') ? error.message : 'The upload was not saved. Check your connection and try again.');
     }
     finally { if (controller.current === active) { controller.current = null; setProgress(undefined); } }
   }
-  return <div className="mt-4 space-y-2 rounded-xl border bg-white p-4 text-sm">
+  return <div className={`${panel} mt-4 space-y-2 p-4 text-sm`}>
     <label className="block font-semibold">Your video
-      <input aria-label="Upload video" type="file" accept="video/mp4,video/quicktime,video/webm" disabled={progress !== undefined} onChange={e => { void choose(e.target.files?.[0]); e.target.value = ''; }} className="mt-2 block w-full" />
+      <input aria-label="Upload video" type="file" accept="video/mp4,video/quicktime,video/webm" disabled={progress !== undefined} onChange={e => { void choose(e.target.files?.[0]); e.target.value = ''; }} className="mt-2 block w-full font-normal file:mr-3 file:rounded-md file:border file:border-ink file:bg-surface file:px-3 file:py-2 file:text-sm file:font-semibold file:text-ink hover:file:bg-paper disabled:opacity-50" />
     </label>
     <p className="text-xs text-muted">MP4, MOV or WebM · up to 50 MB and 5 minutes. Uploading uses no video allowance.</p>
-    {progress !== undefined && <><progress aria-label="Upload progress" value={progress} max={100} /><button onClick={() => controller.current?.abort()} className="ml-3 underline">Cancel upload</button></>}
-    {!!uploads?.length && <label className="block">Or choose an uploaded video
-      <select aria-label="Uploaded video" disabled={progress !== undefined} value={selected} onChange={e => { setSelected(e.target.value); onReady(e.target.value || undefined); setStatus(''); }} className="mt-1 block w-full rounded-lg border p-2">
+    {progress !== undefined && <><progress aria-label="Upload progress" value={progress} max={100} className="accent-ink" /><button type="button" onClick={() => controller.current?.abort()} className="ml-3 font-semibold underline underline-offset-4">Cancel upload</button></>}
+    {!!uploads?.length && <label className="block font-semibold">Or choose an uploaded video
+      <select aria-label="Uploaded video" disabled={progress !== undefined} value={selected} onChange={e => { setSelected(e.target.value); onReady(e.target.value || undefined); setStatus(''); }} className={`${field} mt-1 block w-full`}>
         <option value="">Choose a video</option>
         {uploads.map(u => <option key={u._id} value={u._id}>{u.name} · {(u.size / 1048576).toFixed(1)} MB</option>)}
       </select>
     </label>}
     {probeStatuses?.filter(upload => upload.status === 'failed').map(upload => <div key={upload._id} className="text-xs">
-      <span>{upload.name} could not be prepared. </span><button className="underline" onClick={async () => {
+      <span>{upload.name} could not be prepared. </span><button type="button" className="font-semibold underline underline-offset-4" onClick={async () => {
         try { await remove({ uploadId: upload._id }); setStatus('Failed upload removed.'); }
         catch { setStatus('Could not remove this upload.'); }
       }}>Remove failed upload</button>
     </div>)}
-    {selected && <button className="text-xs underline" onClick={async () => {
+    {selected && <button type="button" className="text-xs font-semibold underline underline-offset-4" onClick={async () => {
       try { await remove({ uploadId: selected }); setSelected(''); onReady(undefined); setStatus('Upload removed. Finished videos are still available.'); }
       catch { setStatus('Could not remove this upload. Wait for any active edits to finish.'); }
     }}>Remove uploaded source</button>}

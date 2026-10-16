@@ -26,17 +26,17 @@ export function AudioUpload({ onReady }: { onReady(id: string): void }) {
     } catch (error) {
       if (active.signal.aborted) setStatus('Audio upload cancelled.');
       else if ((error as { data?: string })?.data === 'UPLOAD_LIMIT') setStatus('Upload limit reached: five uploads per hour and ten saved sources, shared with videos.');
-      else setStatus('Could not upload this audio. Please try again.');
+      else setStatus('The audio did not upload. Check your connection and try again.');
     } finally {
       if (controller.current === active) { controller.current = null; setProgress(undefined); }
     }
   }
-  return <details className="rounded-lg border border-black/10 p-3">
-    <summary className="cursor-pointer font-medium">Upload your own soundtrack</summary>
+  return <details className="rounded-md border border-line p-3">
+    <summary className="cursor-pointer font-semibold">Upload your own soundtrack</summary>
     <p className="mt-2 text-xs text-muted">MP3, WAV or M4A · up to 20 MB. Uploading and previewing use no video allowance.</p>
-    <label className="mt-2 flex items-start gap-2 text-xs"><input type="checkbox" checked={rights} disabled={progress !== undefined} onChange={e => setRights(e.target.checked)} />I have permission to use this audio in exported videos.</label>
-    <input aria-label="Upload soundtrack" type="file" accept="audio/mpeg,audio/wav,audio/x-wav,audio/mp4,audio/x-m4a" disabled={!rights || progress !== undefined} onChange={e => { void choose(e.target.files?.[0]); e.target.value = ''; }} className="mt-2 block w-full text-xs" />
-    {progress !== undefined && <div className="mt-2"><progress aria-label="Audio upload progress" value={progress} max={100} /><button type="button" className="ml-2 text-xs underline" onClick={() => controller.current?.abort()}>Cancel audio upload</button></div>}
+    <label className="mt-2 flex items-start gap-2 text-xs"><input type="checkbox" className="size-4 shrink-0 accent-ink" checked={rights} disabled={progress !== undefined} onChange={e => setRights(e.target.checked)} />I have permission to use this audio in exported videos.</label>
+    <input aria-label="Upload soundtrack" type="file" accept="audio/mpeg,audio/wav,audio/x-wav,audio/mp4,audio/x-m4a" disabled={!rights || progress !== undefined} onChange={e => { void choose(e.target.files?.[0]); e.target.value = ''; }} className="mt-2 block w-full text-xs file:mr-3 file:rounded-md file:border file:border-ink file:bg-surface file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-ink disabled:opacity-50" />
+    {progress !== undefined && <div className="mt-2"><progress aria-label="Audio upload progress" value={progress} max={100} className="accent-ink" /><button type="button" className="ml-2 text-xs underline" onClick={() => controller.current?.abort()}>Cancel audio upload</button></div>}
     {status && <p role="status" className="mt-2 text-xs">{status}</p>}
   </details>;
 }
@@ -51,5 +51,5 @@ export function RemoveAudio({ trackId, onRemoved }: { trackId: string; onRemoved
     try { await remove({ uploadId: trackId.slice(7) }); if (alive.current) onRemoved(); }
     catch { if (alive.current) setError('Could not remove this audio. Wait for any active renders to finish.'); }
     finally { pending.current = false; if (alive.current) setBusy(false); }
-  }}>Remove uploaded soundtrack</button>{error && <p role="status" className="text-xs text-red-600">{error}</p>}</div>;
+  }}>Remove uploaded soundtrack</button>{error && <p role="status" className="text-xs text-warn">{error}</p>}</div>;
 }

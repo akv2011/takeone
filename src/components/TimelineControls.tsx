@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { EditTransforms } from "../lib/editTransforms";
 import { FramePreviews } from "./FramePreviews";
+import { button, field, fieldsetPanel, label, legend } from "../lib/ui";
 
 const timestamp = (seconds: number) => {
   const ms = Math.round(seconds * 1000);
@@ -72,10 +73,10 @@ export function TimelineControls({
   return (
     <fieldset
       disabled={disabled}
-      className="min-w-0 w-full rounded-2xl border border-black/10 bg-white p-4 disabled:opacity-50"
+      className={`${fieldsetPanel} min-w-0 w-full disabled:opacity-50`}
     >
-      <legend className="px-1 text-sm font-semibold">Trim & speed</legend>
-      <p className="mb-3 text-xs text-muted">
+      <legend className={legend}>Trim & speed</legend>
+      <p className="mb-3 text-sm text-muted">
         Times refer to the current video; decimals allow fine cuts. Export
         boundaries follow source frames. Preview is free; applying uses 1
         generation.
@@ -89,8 +90,8 @@ export function TimelineControls({
         />
       )}
       {onSeek && (
-        <div className="mb-4 rounded-xl bg-paper p-3">
-          <div className="mb-2 flex justify-between font-mono text-[10px] text-muted">
+        <div className="mb-4 rounded-md border border-line bg-paper p-3">
+          <div className="mb-2 flex justify-between font-mono text-xs text-muted">
             <span>{timestamp(playhead)}</span>
             <span>
               {limit === undefined ? "Loading duration…" : timestamp(limit)}
@@ -98,11 +99,11 @@ export function TimelineControls({
           </div>
           <div
             aria-hidden="true"
-            className="relative mb-2 h-5 overflow-hidden rounded bg-ink/10"
+            className="relative mb-2 h-5 overflow-hidden rounded-[3px] bg-line"
           >
             {limit !== undefined && valid && (
               <div
-                className="absolute inset-y-0 bg-cue/35"
+                className="absolute inset-y-0 bg-cue"
                 style={{
                   left: `${(from / limit) * 100}%`,
                   width: `${((to - from) / limit) * 100}%`,
@@ -116,7 +117,7 @@ export function TimelineControls({
               />
             )}
           </div>
-          <label className="block text-xs">
+          <label className={`block ${label}`}>
             Seek video
             <input
               type="range"
@@ -126,7 +127,7 @@ export function TimelineControls({
               value={playhead}
               disabled={disabled || limit === undefined}
               onChange={(e) => onSeek(Number(e.target.value))}
-              className="mt-1 block w-full accent-cue"
+              className="mt-1 block w-full accent-ink"
             />
           </label>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -134,7 +135,7 @@ export function TimelineControls({
               type="button"
               disabled={disabled || limit === undefined || !readCurrentTime}
               onClick={() => mark(setStart)}
-              className="rounded-lg border border-black/15 bg-white px-2 py-2 text-xs disabled:opacity-40"
+              className={button("secondary", "sm")}
             >
               Set start here
             </button>
@@ -142,12 +143,12 @@ export function TimelineControls({
               type="button"
               disabled={disabled || limit === undefined || !readCurrentTime}
               onClick={() => mark(setEnd)}
-              className="rounded-lg border border-black/15 bg-white px-2 py-2 text-xs disabled:opacity-40"
+              className={button("secondary", "sm")}
             >
               Set end here
             </button>
           </div>
-          <label className="mt-3 block text-xs">
+          <label className={`mt-3 block ${label}`}>
             Selection start
             <input
               type="range"
@@ -164,10 +165,10 @@ export function TimelineControls({
                 setStart(e.target.value);
                 onSeek(Number(e.target.value));
               }}
-              className="mt-1 block w-full accent-cue"
+              className="mt-1 block w-full accent-ink"
             />
           </label>
-          <label className="mt-2 block text-xs">
+          <label className={`mt-2 block ${label}`}>
             Selection end
             <input
               type="range"
@@ -180,13 +181,13 @@ export function TimelineControls({
                 setEnd(e.target.value);
                 onSeek(Number(e.target.value));
               }}
-              className="mt-1 block w-full accent-cue"
+              className="mt-1 block w-full accent-ink"
             />
           </label>
         </div>
       )}
       <div className="grid grid-cols-2 gap-3">
-        <label className="text-xs">
+        <label className={label}>
           Start (seconds)
           <input
             type="number"
@@ -194,10 +195,10 @@ export function TimelineControls({
             step="0.001"
             value={start}
             onChange={(e) => setStart(e.target.value)}
-            className="mt-1 w-full rounded-lg border p-2"
+            className={`${field} mt-1 w-full`}
           />
         </label>
-        <label className="text-xs">
+        <label className={label}>
           End (seconds)
           <input
             type="number"
@@ -206,16 +207,16 @@ export function TimelineControls({
             step="0.001"
             value={end}
             onChange={(e) => setEnd(e.target.value)}
-            className="mt-1 w-full rounded-lg border p-2"
+            className={`${field} mt-1 w-full`}
           />
         </label>
       </div>
-      <label className="mt-3 block text-xs">
+      <label className={`mt-3 block ${label}`}>
         Playback speed
         <select
           value={speed}
           onChange={(e) => setSpeed(e.target.value)}
-          className="ml-2 rounded-lg border p-2"
+          className={`${field} ml-2`}
         >
           {["0.5", "1", "1.5", "2", "3"].map((value) => (
             <option key={value} value={value}>
@@ -225,13 +226,13 @@ export function TimelineControls({
         </select>
       </label>
       {end !== "" && !valid && (
-        <p role="alert" className="mt-2 text-xs text-red-600">
+        <p role="alert" className="mt-2 text-xs text-warn">
           Use up to three decimal places, with the end after the start, within
           the video (maximum 300 seconds).
         </p>
       )}
       {valid && !withinExportLimit && (
-        <p role="alert" className="mt-2 text-xs text-red-600">
+        <p role="alert" className="mt-2 text-xs text-warn">
           The edited video would exceed 300 seconds. Shorten the selection or
           increase the speed before applying.
         </p>
@@ -247,7 +248,7 @@ export function TimelineControls({
           type="button"
           disabled={!valid || disabled}
           onClick={() => onPreview(from, to, Number(speed))}
-          className="rounded-lg border px-3 py-2 text-xs disabled:opacity-40"
+          className={button("secondary", "sm")}
         >
           Preview selection
         </button>
@@ -262,7 +263,7 @@ export function TimelineControls({
                 })
               : onApply?.(instruction)
           }
-          className="rounded-lg bg-ink px-3 py-2 text-xs text-white disabled:opacity-40"
+          className={button("primary", "sm")}
         >
           Apply trim & speed · 1 generation
         </button>

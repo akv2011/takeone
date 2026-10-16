@@ -34,7 +34,6 @@ vi.mock('convex/react', () => ({
  useMutation: () => mocks.mutation,
  useAction: (ref: Parameters<typeof getFunctionName>[0]) => getFunctionName(ref) === 'generate:getCaptionCues' ? mocks.read : mocks.download,
 }));
-vi.mock('../src/components/PremiumBackground', () => ({ default: () => null }));
 import Studio from '../src/pages/Studio';
 const page = () => <MemoryRouter initialEntries={['/studio/source']}><Routes><Route path="/studio/:id" element={<Studio />} /></Routes></MemoryRouter>;
 beforeEach(() => {

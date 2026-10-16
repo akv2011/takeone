@@ -5,6 +5,7 @@ import { Film, X } from 'lucide-react';
 import { api } from '../lib/convexApi';
 import { sourceKey, type SourceOption, type TimelineSource } from '../lib/assemblyTimeline';
 import { Tooltip } from './Tooltip';
+import { button, field, label, panel } from '../lib/ui';
 
 export function AssemblyStarter({ accountKey, compact = false }: { accountKey: string; compact?: boolean }) {
   const navigate = useNavigate();
@@ -55,24 +56,24 @@ export function AssemblyStarter({ accountKey, compact = false }: { accountKey: s
     finally { if (scopeEpoch.current === requestEpoch) { inFlight.current = false; setBusy(false); } }
   };
 
-  if (!open) return <Tooltip label="Combine 2 to 8 finished videos into one editable timeline" side="bottom"><button type="button" aria-label="Assemble clips" onClick={() => setOpen(true)} className={`inline-flex items-center gap-2 rounded-xl border border-black/10 bg-white text-sm font-semibold transition-colors hover:border-ink/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink ${compact ? 'h-9 px-3 text-xs shadow-sm' : 'px-4 py-2.5 shadow-sm'}`}><Film className="h-4 w-4" aria-hidden="true" />Assemble</button></Tooltip>;
-  return <section aria-label="Create an assembly" className="basis-full rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-    <div className="flex items-start justify-between"><div><h2 className="font-display text-xl font-bold">Assemble clips</h2><p className="mt-1 text-sm text-muted">Choose 2 to 8 source videos in playback order, then split or duplicate up to 12 clips in Studio. Creating and saving drafts is free; exporting uses one generation.</p></div><button aria-label="Close assembly builder" onClick={() => setOpen(false)}><X className="h-5 w-5" /></button></div>
+  if (!open) return <Tooltip label="Combine 2 to 8 finished videos into one editable timeline" side="bottom"><button type="button" aria-label="Assemble clips" onClick={() => setOpen(true)} className={`inline-flex items-center gap-2 rounded-md border border-line bg-surface text-sm font-semibold text-ink transition-colors hover:border-ink ${compact ? 'h-10 px-3' : 'px-4 py-2.5'}`}><Film className="h-4 w-4" aria-hidden="true" />Assemble</button></Tooltip>;
+  return <section aria-label="Create an assembly" className={`${panel} basis-full p-5`}>
+    <div className="flex items-start justify-between gap-3"><div><h2 className="text-lg font-semibold">Assemble clips</h2><p className="mt-1 text-sm text-muted">Choose 2 to 8 source videos in playback order, then split or duplicate up to 12 clips in Studio. Creating and saving drafts is free; exporting uses one generation.</p></div><button type="button" aria-label="Close assembly builder" onClick={() => setOpen(false)} className="rounded-md p-1 text-muted hover:bg-paper hover:text-ink"><X aria-hidden="true" className="h-5 w-5" /></button></div>
     {sources === undefined ? <p role="status" className="mt-5 text-sm">Loading your safe source library…</p> : sources.length < 2 ? <p className="mt-5 text-sm">Create or upload at least two ready videos first.</p> : <div className="mt-5 grid gap-2 sm:grid-cols-2">{sources.map(source => {
       const key = sourceKey(source.source); const position = selected.findIndex(item => sourceKey(item) === key) + 1;
-      return <label key={key} className="flex cursor-pointer gap-3 rounded-xl border border-black/10 p-3"><input type="checkbox" checked={position > 0} onChange={() => toggle(source.source)} aria-label={`Select ${source.label}`} /><span><strong className="block text-sm">{source.label}</strong><span className="text-xs text-muted">{(source.durationMs / 1000).toFixed(1)}s · {source.width}×{source.height}{position ? ` · selected ${position}` : ''}</span></span></label>;
+      return <label key={key} className="flex cursor-pointer gap-3 rounded-md border border-line p-3 hover:border-muted has-[:checked]:border-ink has-[:checked]:bg-cue/25"><input type="checkbox" className="size-4 shrink-0 accent-ink" checked={position > 0} onChange={() => toggle(source.source)} aria-label={`Select ${source.label}`} /><span><strong className="block text-sm">{source.label}</strong><span className="text-xs text-muted"><span className="font-mono">{(source.durationMs / 1000).toFixed(1)}s</span> · {source.width}×{source.height}{position ? ` · selected ${position}` : ''}</span></span></label>;
     })}</div>}
-    {selected.length > 0 && <ol aria-label="Selected playback order" className="mt-4 space-y-1 rounded-xl bg-paper p-3 text-sm">{selected.map(source => <li key={sourceKey(source)}>{selected.indexOf(source) + 1}. {byKey.get(sourceKey(source))?.label}</li>)}</ol>}
+    {selected.length > 0 && <ol aria-label="Selected playback order" className="mt-4 space-y-1 rounded-md border border-line bg-paper p-3 text-sm">{selected.map(source => <li key={sourceKey(source)}>{selected.indexOf(source) + 1}. {byKey.get(sourceKey(source))?.label}</li>)}</ol>}
     <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <label className="text-sm">Project name<input aria-label="Project name" value={name} maxLength={80} onChange={e => setName(e.target.value)} className="mt-1 w-full rounded-lg border p-2" /></label>
-      <label className="text-sm">Target length in seconds<input aria-label="Target length in seconds" type="number" min="0.2" max="300" step="0.1" value={seconds} onChange={e => setSeconds(e.target.value)} className="mt-1 w-full rounded-lg border p-2" /></label>
-      <label className="text-sm">Aspect<select aria-label="Assembly aspect" value={aspect} onChange={e => setAspect(e.target.value as typeof aspect)} className="mt-1 w-full rounded-lg border p-2"><option>9:16</option><option>1:1</option><option>16:9</option></select></label>
-      <label className="text-sm">Framing<select aria-label="Assembly framing" value={fit} onChange={e => setFit(e.target.value as typeof fit)} className="mt-1 w-full rounded-lg border p-2"><option value="crop">Fill and crop</option><option value="fit">Fit whole frame</option></select></label>
-      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={preserveAudio} onChange={e => setPreserveAudio(e.target.checked)} />Preserve source audio</label>
-      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={rights} onChange={e => setRights(e.target.checked)} />I own or have permission to use all selected footage.</label>
+      <label className={label}>Project name<input aria-label="Project name" value={name} maxLength={80} onChange={e => setName(e.target.value)} className={`${field} mt-1 w-full`} /></label>
+      <label className={label}>Target length in seconds<input aria-label="Target length in seconds" type="number" min="0.2" max="300" step="0.1" value={seconds} onChange={e => setSeconds(e.target.value)} className={`${field} mt-1 w-full`} /></label>
+      <label className={label}>Aspect<select aria-label="Assembly aspect" value={aspect} onChange={e => setAspect(e.target.value as typeof aspect)} className={`${field} mt-1 w-full`}><option>9:16</option><option>1:1</option><option>16:9</option></select></label>
+      <label className={label}>Framing<select aria-label="Assembly framing" value={fit} onChange={e => setFit(e.target.value as typeof fit)} className={`${field} mt-1 w-full`}><option value="crop">Fill and crop</option><option value="fit">Fit whole frame</option></select></label>
+      <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="size-4 shrink-0 accent-ink" checked={preserveAudio} onChange={e => setPreserveAudio(e.target.checked)} />Preserve source audio</label>
+      <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="size-4 shrink-0 accent-ink" checked={rights} onChange={e => setRights(e.target.checked)} />I own or have permission to use all selected footage.</label>
     </div>
-    {!Number.isNaN(targetMs) && targetMs > totalAvailableMs && selected.length > 0 && <p role="alert" className="mt-3 text-sm text-red-600">Target length exceeds the selected footage.</p>}
-    {error && <p role="alert" className="mt-3 text-sm text-red-600">{error}</p>}
-    <button type="button" disabled={!valid || busy} onClick={() => void submit()} className="mt-5 rounded-xl bg-ink px-5 py-3 text-sm font-semibold text-white disabled:opacity-40">{busy ? 'Creating…' : 'Create assembly · free'}</button>
+    {!Number.isNaN(targetMs) && targetMs > totalAvailableMs && selected.length > 0 && <p role="alert" className="mt-3 text-sm text-warn">Target length exceeds the selected footage.</p>}
+    {error && <p role="alert" className="mt-3 text-sm text-warn">{error}</p>}
+    <button type="button" disabled={!valid || busy} onClick={() => void submit()} className={`${button('primary')} mt-5`}>{busy ? 'Creating…' : 'Create assembly · free'}</button>
   </section>;
 }

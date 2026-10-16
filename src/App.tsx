@@ -2,12 +2,17 @@ import { guides } from './seo/guides';
 import { useEffect } from "react";
 import Header from "./components/Header";
 import HeroSection from "./components/HeroSection";
-import TakeOneLogo from "./components/TakeOneLogo";
-import Integrations from "./components/Integrations";
+import { TakeOneWordmark } from "./components/TakeOneLogo";
+import StudioTools from "./components/StudioTools";
 import PromptPlayground from "./components/PromptPlayground";
 import FinalCTA from "./components/FinalCTA";
 import ProductModes from "./components/ProductModes";
 import { Link } from "react-router-dom";
+
+const footerLinks = [
+  ["/pricing", "Pricing"], ["/guides", "Guides"], ["/create", "Dashboard"], ["/privacy", "Privacy"], ["/terms", "Terms"],
+  ["/acceptable-use", "Acceptable use"], ["/copyright", "Copyright"], ["/refund-policy", "Refunds"],
+] as const;
 
 function App() {
   // Always start at the top on every page load/refresh
@@ -16,50 +21,44 @@ function App() {
   }, []);
 
   return (
-    <div className="relative min-h-screen bg-paper selection:bg-black/10 selection:text-ink flex flex-col justify-between overflow-x-hidden">
+    <div className="flex min-h-screen flex-col overflow-x-hidden bg-paper">
+      <a href="#main" className="fixed -top-20 left-4 z-10 rounded-md bg-ink px-4 py-2 text-sm font-semibold text-surface focus:top-4">Skip to content</a>
       <Header />
 
-      <main className="flex-1 w-full flex flex-col">
+      <main id="main" className="flex w-full flex-1 flex-col">
         <HeroSection />
         <ProductModes />
-        <Integrations />
+        <StudioTools />
         <PromptPlayground />
-        <section className="mx-auto w-full max-w-7xl px-6 py-16 md:px-12" aria-labelledby="guides-heading">
-          <h2 id="guides-heading" className="font-display text-3xl font-bold">Video editing guides</h2>
-          <div className="mt-8 grid gap-8 md:grid-cols-3">{guides.map(guide => <article key={guide.path}><h3 className="text-lg font-semibold"><Link className="underline decoration-black/20 underline-offset-4" to={guide.path}>{guide.title}</Link></h3><p className="mt-3 text-sm leading-6 text-muted">{guide.intro}</p></article>)}</div>
+        <section className="border-t border-line px-4 py-20 sm:px-6 md:px-12 md:py-24" aria-labelledby="guides-heading">
+          <div className="mx-auto max-w-7xl">
+            <h2 id="guides-heading" className="font-display text-5xl font-extrabold leading-[0.9] text-ink md:text-6xl">Video editing guides</h2>
+            <div className="mt-12 grid gap-x-10 gap-y-10 md:grid-cols-2 lg:grid-cols-3">
+              {guides.map(guide => (
+                <article key={guide.path}>
+                  <h3 className="text-pretty text-lg font-bold leading-7 text-ink"><Link className="underline decoration-line decoration-2 underline-offset-4 transition-colors hover:decoration-ink" to={guide.path}>{guide.title}</Link></h3>
+                  <p className="mt-3 max-w-md text-base leading-7 text-muted">{guide.intro}</p>
+                </article>
+              ))}
+            </div>
+            <Link to="/guides" className="mt-10 inline-block text-base font-semibold text-ink underline decoration-line decoration-2 underline-offset-[6px] transition-colors hover:decoration-ink">All guides</Link>
+          </div>
         </section>
         <FinalCTA />
       </main>
 
-      <footer className="w-full bg-white border-t border-line py-12 px-6 md:px-12">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
-          {/* Copyright details */}
-          <div className="flex flex-col gap-1.5 items-center md:items-start text-center md:text-left">
-            <div className="flex items-center gap-2">
-              <TakeOneLogo className="w-5 h-5 text-ink" />
-              <span className="font-display font-bold text-sm text-ink tracking-tight">
-                takeone
-              </span>
-            </div>
-            <span className="font-mono text-[10px] text-muted">
-              © {new Date().getFullYear()} takeone. All rights reserved.
-            </span>
+      <footer className="w-full border-t border-line bg-paper px-4 py-12 sm:px-6 md:px-12">
+        <div className="mx-auto flex max-w-7xl flex-col gap-8 md:flex-row md:items-start md:justify-between">
+          <div className="flex flex-col gap-2">
+            <TakeOneWordmark className="text-xl text-ink" />
+            <span className="text-sm text-muted">© {new Date().getFullYear()} TakeOne</span>
           </div>
-
-          <nav aria-label="Footer" className="flex max-w-2xl flex-wrap justify-center gap-x-6 gap-y-3 text-xs font-mono text-muted">
-            <Link to="/pricing" className="hover:text-ink">Pricing</Link>
-            <Link to="/guides" className="hover:text-ink">Guides</Link>
-            <Link to="/create" className="hover:text-ink">Dashboard</Link>
-            <a href="#how-it-works" className="hover:text-ink">How it works</a>
-            <Link to="/privacy" className="hover:text-ink">Privacy</Link>
-            <Link to="/terms" className="hover:text-ink">Terms</Link>
-            <Link to="/acceptable-use" className="hover:text-ink">Acceptable use</Link>
-            <Link to="/copyright" className="hover:text-ink">Copyright</Link>
-            <Link to="/refund-policy" className="hover:text-ink">Refunds</Link>
+          <nav aria-label="Footer" className="flex max-w-2xl flex-wrap gap-x-6 gap-y-3 text-sm text-muted">
+            {footerLinks.map(([to, label]) => <Link key={to} to={to} className="underline-offset-4 hover:text-ink hover:underline">{label}</Link>)}
+            <a href="#how-it-works" className="underline-offset-4 hover:text-ink hover:underline">How it works</a>
           </nav>
         </div>
       </footer>
-
     </div>
   );
 }

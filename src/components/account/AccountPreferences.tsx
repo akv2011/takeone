@@ -6,6 +6,7 @@ import {
   normalizeAccountPreferences,
   type AccountPreferencesValue,
 } from '../../lib/accountPreferences';
+import { button, field } from '../../lib/ui';
 
 type Choice<T extends string> = { value: T; label: string };
 
@@ -41,14 +42,14 @@ function PreferenceSelect<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <label className="flex items-center justify-between gap-6 border-b border-black/10 py-4">
-      <span className="text-sm font-medium text-[#242424]">{label}</span>
+    <label className="flex items-center justify-between gap-6 border-b border-line py-4">
+      <span className="text-sm font-semibold text-ink">{label}</span>
       <select
         aria-label={label}
         name={name}
         value={value}
         onChange={(event) => onChange(event.target.value as T)}
-        className="min-w-36 cursor-pointer rounded-lg border border-black/15 bg-white px-3 py-2 text-sm text-[#444] outline-none transition hover:border-black/30 focus:border-black/45 focus:ring-2 focus:ring-black/5"
+        className={`${field} min-w-36 cursor-pointer`}
       >
         {choices.map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}
       </select>
@@ -58,14 +59,14 @@ function PreferenceSelect<T extends string>({
 
 function Toggle({ label, detail, checked, onChange }: { label: string; detail: string; checked: boolean; onChange: (checked: boolean) => void }) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-5 border-b border-black/10 py-4">
+    <label className="flex cursor-pointer items-center justify-between gap-5 border-b border-line py-4">
       <span>
-        <span className="block text-sm font-semibold text-[#151515]">{label}</span>
-        <span className="mt-0.5 block text-xs leading-5 text-[#6c6c6c]">{detail}</span>
+        <span className="block text-sm font-semibold text-ink">{label}</span>
+        <span className="mt-0.5 block text-xs leading-5 text-muted">{detail}</span>
       </span>
-      <span className={`relative h-5 w-9 shrink-0 rounded-full border transition ${checked ? 'border-muted bg-muted' : 'border-black/20 bg-[#deddd8]'}`}>
+      <span className={`relative h-5 w-9 shrink-0 rounded-full border transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink ${checked ? 'border-ink bg-cue' : 'border-muted bg-line'}`}>
         <input className="peer sr-only" type="checkbox" role="switch" aria-label={label} checked={checked} onChange={(event) => onChange(event.target.checked)} />
-        <span className={`absolute top-0.5 h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-4' : 'translate-x-0.5'}`} />
+        <span className={`absolute top-0.5 h-3.5 w-3.5 rounded-full transition-transform ${checked ? 'translate-x-4 bg-ink' : 'translate-x-0.5 bg-surface'}`} />
       </span>
     </label>
   );
@@ -109,12 +110,12 @@ export default function AccountPreferences() {
   };
 
   if (!hydrated) {
-    return <div className="min-h-[31rem] animate-pulse rounded-2xl border border-black/10 bg-[#f1f0eb]" aria-label="Loading preferences" />;
+    return <div className="min-h-[31rem] rounded-[10px] border border-line bg-paper motion-safe:animate-pulse" aria-label="Loading preferences" />;
   }
 
   return (
-    <section className="max-w-2xl text-[#151515]">
-      <p className="mb-6 text-sm leading-6 text-[#686868]">Choose how a fresh project begins. You can still change every setting before a render.</p>
+    <section className="max-w-2xl text-ink">
+      <p className="mb-6 text-sm leading-6 text-muted">Choose how a fresh project begins. You can still change every setting before a render.</p>
       <div>
         <PreferenceSelect label="Starting point" name="default-mode" choices={modes} value={draft.defaultMode} onChange={(value) => update('defaultMode', value)} />
         <PreferenceSelect label="Aspect ratio" name="default-aspect" choices={aspects} value={draft.defaultAspect} onChange={(value) => update('defaultAspect', value)} />
@@ -125,11 +126,11 @@ export default function AccountPreferences() {
         </div>
       </div>
       <div className="mt-7 flex items-center gap-3">
-        <button type="button" onClick={submit} disabled={!dirty || state === 'saving' || !me} className="rounded-lg border border-black/15 bg-white px-3 py-2 text-sm font-semibold text-[#242424] transition hover:bg-black/[0.04] disabled:cursor-not-allowed disabled:opacity-35">
-          {state === 'saving' ? 'Saving...' : 'Save preferences'}
+        <button type="button" onClick={submit} disabled={!dirty || state === 'saving' || !me} className={button('primary', 'sm')}>
+          {state === 'saving' ? 'Saving…' : 'Save preferences'}
         </button>
-        {state === 'saved' && <p role="status" aria-live="polite" className="text-sm text-muted">Saved</p>}
-        {state === 'error' && <p role="alert" className="text-sm text-[#8b2f2f]">Could not save your preferences. Try again.</p>}
+        {state === 'saved' && <p role="status" aria-live="polite" className="text-sm text-go">Saved</p>}
+        {state === 'error' && <p role="alert" className="text-sm text-warn">Could not save your preferences. Try again.</p>}
       </div>
     </section>
   );

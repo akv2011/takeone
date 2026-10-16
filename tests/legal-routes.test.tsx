@@ -4,6 +4,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, test } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import Legal from "../src/pages/Legal";
+import { CONTACT_EMAIL } from "../src/lib/brand";
 
 afterEach(cleanup);
 
@@ -17,5 +18,6 @@ test.each([
   render(React.createElement(MemoryRouter, { initialEntries: [path] }, React.createElement(Legal)));
   expect(screen.getByRole("heading", { name: title })).toBeTruthy();
   expect(screen.getByText(/Updated September 22, 2026/)).toBeTruthy();
-  expect(screen.getByRole("link", { name: "hello@takeone.web.app" }).getAttribute("href")).toBe("mailto:hello@takeone.web.app");
+  expect(screen.getByRole("link", { name: CONTACT_EMAIL }).getAttribute("href")).toBe(`mailto:${CONTACT_EMAIL}`);
+  expect(document.body.textContent).not.toContain("takeone.web.app");
 });

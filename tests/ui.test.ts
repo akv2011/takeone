@@ -26,7 +26,6 @@ vi.mock('convex/react', () => ({
  useAction: () => mocks.action,
 }));
 vi.mock('../src/lib/openCheckout', () => ({ openCheckout: mocks.redirect }));
-vi.mock('../src/components/PremiumBackground', () => ({ default: () => null }));
 import Pricing from '../src/pages/Pricing';
 import Dashboard from '../src/pages/Dashboard';
 import Studio from '../src/pages/Studio';
@@ -60,6 +59,16 @@ test('pricing renders all three packs and three free videos', () => {
  expect(screen.getByText('3', { selector: 'p' }).textContent).toContain('videos');
  for (const amount of ['$9.99', '$25', '$99.99']) expect(screen.getByText(amount)).toBeTruthy();
  expect(screen.queryByText('Priority queue')).toBeNull();
+});
+
+test('pricing without a sign-in provider shows packs with checkout disabled and no account queries', () => {
+ show(React.createElement(Pricing, { auth: false }));
+ for (const amount of ['$9.99', '$25', '$99.99']) expect(screen.getByText(amount)).toBeTruthy();
+ const buttons = screen.getAllByRole('button', { name: 'Checkout opening soon' });
+ expect(buttons).toHaveLength(3);
+ expect(buttons.every(button => (button as HTMLButtonElement).disabled)).toBe(true);
+ expect(screen.queryByRole('button', { name: /^Buy / })).toBeNull();
+ expect(mocks.queryArgs.has('payments:listHistory')).toBe(false);
 });
 
 test('unconfigured providers stay visible as unavailable instead of starting broken work', () => {
@@ -145,7 +154,7 @@ test('an edit completing after navigation cannot pull the user back into Studio'
  )));
  fireEvent.click(screen.getByRole('button', { name: 'Make it square (1:1)' }));
  expect(submit).toHaveBeenCalledTimes(1);
- fireEvent.click(screen.getByRole('link', { name: 'Back to your reels' }));
+ fireEvent.click(screen.getByRole('link', { name: 'Back to your videos' }));
  expect(screen.getByRole('heading', { name: 'Your dashboard' })).toBeTruthy();
  await act(async () => { resolve({ jobId: 'new-job' }); });
  expect(screen.getByRole('heading', { name: 'Your dashboard' })).toBeTruthy();
@@ -176,7 +185,8 @@ test('dashboard initializes saved preferences once and preserves later user choi
  const view = show(React.createElement(Dashboard));
  await waitFor(() => expect(screen.getByRole('button', { name: 'Clip' }).getAttribute('aria-pressed')).toBe('true'));
  fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
- expect(screen.getByRole('button', { name: '16:9' }).className).toContain('bg-white');
+ expect(screen.getByRole('button', { name: '16:9' }).getAttribute('aria-pressed')).toBe('true');
+ expect(screen.getByRole('button', { name: '16:9' }).className).toContain('bg-cue');
  expect((screen.getByLabelText('Caption style') as HTMLSelectElement).value).toBe('clean');
  expect(screen.queryByLabelText('Command plus Enter')).toBeNull();
 
@@ -247,7 +257,7 @@ test('private queries and account creation wait until backend authentication is 
 test('a failed sign-in bridge gives an actionable message without firing private queries', () => {
  mocks.auth = { isAuthenticated: false, isLoading: false };
  show(React.createElement(Dashboard));
- expect(screen.getByRole('alert').textContent).toContain('sign out and sign in again');
+ expect(screen.getByRole('alert').textContent).toContain('Sign out, then sign in again');
  expect(mocks.queryArgs.get('generate:listJobs')).toBe('skip');
 });
 test('purchase history distinguishes started checkouts from confirmed credit purchases', () => {
@@ -341,7 +351,7 @@ test.each([
  mocks.queries.set('generate:getJob', job);
  render(React.createElement(MemoryRouter, { initialEntries: ['/studio/source-job'] }, React.createElement(Routes, {}, React.createElement(Route, { path: '/studio/:id', element: React.createElement(Studio) }))));
  expect(screen.getByText(message)).toBeTruthy();
- expect(screen.queryByText('loading…')).toBeNull();
+ expect(screen.queryByText('Loading…')).toBeNull();
 });
 
 test('soundtrack replacement requires an explicit choice and warns about speech removal', async () => {

@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import TakeOneLogo from "../components/TakeOneLogo";
+import { CONTACT_EMAIL } from "../lib/brand";
 
 type Section = { heading: string; paragraphs?: string[]; items?: string[] };
 type Document = { title: string; intro: string; sections: Section[] };
@@ -14,7 +15,7 @@ const documents: Record<string, Document> = {
       { heading: "Information we collect", items: ["Account details supplied by your sign-in provider, such as name, email address and account identifier.", "Prompts, uploaded media, generated videos, edits, project history and support messages you choose to provide.", "Payment status and order references. Payment card details are handled by the payment provider and are not stored by TakeOne.", "Basic product analytics, device information, error details and service logs used to secure and improve the product."] },
       { heading: "How we use information", items: ["Provide video generation, editing, storage, delivery and account features.", "Process purchases, prevent duplicate charges, restore failed generations and investigate abuse.", "Monitor reliability, understand product usage and respond to support requests."] },
       { heading: "Service providers", paragraphs: ["TakeOne may send the minimum necessary data to hosting, authentication, analytics, email, payment, media and AI providers. Current infrastructure can include Vercel, Convex, Clerk, Google Cloud, PostHog, Resend, Dodo and connected media providers. Their handling of data is governed by their own terms and privacy policies."] },
-      { heading: "Storage and retention", paragraphs: ["Uploads and outputs are private by default. We retain account and project data while your account is active and as needed for billing, security, dispute resolution and legal obligations. Product retention periods may change as storage controls are added. You can remove eligible uploads in the product and request account deletion by emailing hello@takeone.web.app."] },
+      { heading: "Storage and retention", paragraphs: [`Uploads and outputs are private by default. We retain account and project data while your account is active and as needed for billing, security, dispute resolution and legal obligations. Product retention periods may change as storage controls are added. You can remove eligible uploads in the product and request account deletion by emailing ${CONTACT_EMAIL}.`] },
       { heading: "Your choices", paragraphs: ["You can disconnect Telegram, remove eligible uploads, control optional preferences and request access, correction or deletion of your personal information. Some records may be retained when required for payment, fraud prevention or legal compliance."] },
     ],
   },
@@ -43,7 +44,7 @@ const documents: Record<string, Document> = {
     intro: "TakeOne processes user-provided media. We respect copyright and respond to clear infringement notices.",
     sections: [
       { heading: "Before you create", paragraphs: ["Only upload, clip or remix material you own, that is licensed to you, or that you are otherwise legally permitted to use. A public URL does not automatically grant reuse rights."] },
-      { heading: "Send a notice", paragraphs: ["Email hello@takeone.web.app with your name and contact details, the protected work, the exact TakeOne material or link at issue, a good-faith statement that the use is unauthorized, a statement that the information is accurate, and your physical or electronic signature."] },
+      { heading: "Send a notice", paragraphs: [`Email ${CONTACT_EMAIL} with your name and contact details, the protected work, the exact TakeOne material or link at issue, a good-faith statement that the use is unauthorized, a statement that the information is accurate, and your physical or electronic signature.`] },
       { heading: "Response", paragraphs: ["We may remove or restrict material, ask for more information, notify the affected account and terminate repeat infringers when appropriate. If you believe material was removed by mistake, reply with the basis for your counter-notice and evidence of your rights."] },
     ],
   },
@@ -52,7 +53,7 @@ const documents: Record<string, Document> = {
     intro: "TakeOne sells one-time video credit packs. This policy explains when a purchase can be refunded.",
     sections: [
       { heading: "Failed videos", paragraphs: ["A job that fails before a verified finished video is delivered should automatically restore its reserved free generation or credit. This restoration is not a payment refund."] },
-      { heading: "Purchase refunds", paragraphs: ["Contact hello@takeone.web.app with the order reference and reason for your request. Refund eligibility depends on applicable law, payment status and credit usage. Used credits are generally not refundable unless required by law or the service failed to provide the purchased functionality."] },
+      { heading: "Purchase refunds", paragraphs: [`Contact ${CONTACT_EMAIL} with the order reference and reason for your request. Refund eligibility depends on applicable law, payment status and credit usage. Used credits are generally not refundable unless required by law or the service failed to provide the purchased functionality.`] },
       { heading: "Partial refunds and disputes", paragraphs: ["A partial refund removes the proportional number of credits. If refunded credits were already used, later credits may first cover the resulting account adjustment. Payment disputes can pause additional credit grants while the transaction is reviewed."] },
       { heading: "Processing", paragraphs: ["Approved refunds are returned through the original payment method. Bank and payment-provider processing times vary. Taxes and currency conversion are handled according to the checkout provider and applicable law."] },
     ],
@@ -63,20 +64,20 @@ export default function Legal() {
   const { pathname } = useLocation();
   const document = documents[pathname] ?? documents["/terms"];
   return <div className="min-h-screen bg-paper text-ink">
-    <header className="border-b border-black/10 px-6 py-5"><div className="mx-auto flex max-w-4xl items-center justify-between">
-      <Link to="/" className="flex items-center gap-2" aria-label="TakeOne home"><TakeOneLogo className="h-7 w-7" /><span className="font-display text-lg font-bold">takeone</span></Link>
-      <Link to="/create" className="text-sm font-semibold">Dashboard</Link>
+    <header className="border-b border-line bg-surface px-6 py-4"><div className="mx-auto flex max-w-4xl items-center justify-between">
+      <Link to="/" className="flex items-center gap-2" aria-label="TakeOne home"><TakeOneLogo className="h-7 w-7" /><span className="font-display text-lg font-bold">TakeOne</span></Link>
+      <Link to="/create" className="text-sm font-semibold underline-offset-4 hover:underline">Dashboard</Link>
     </div></header>
     <main className="mx-auto max-w-4xl px-6 py-14 sm:py-20">
-      <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted">Updated {updated}</p>
-      <h1 className="mt-4 font-display text-4xl font-extrabold tracking-[-0.04em] sm:text-5xl">{document.title}</h1>
+      <p className="text-sm text-muted">Updated {updated}</p>
+      <h1 className="mt-3 text-balance font-display text-4xl font-extrabold sm:text-5xl">{document.title}</h1>
       <p className="mt-5 max-w-2xl text-base leading-7 text-muted">{document.intro}</p>
       <div className="mt-12 space-y-10">{document.sections.map(section => <section key={section.heading}>
-        <h2 className="font-display text-xl font-bold">{section.heading}</h2>
+        <h2 className="text-lg font-semibold">{section.heading}</h2>
         {section.paragraphs?.map(paragraph => <p key={paragraph} className="mt-3 max-w-3xl text-sm leading-7 text-muted">{paragraph}</p>)}
         {section.items && <ul className="mt-3 max-w-3xl list-disc space-y-2 pl-5 text-sm leading-7 text-muted">{section.items.map(item => <li key={item}>{item}</li>)}</ul>}
       </section>)}</div>
-      <p className="mt-14 border-t border-black/10 pt-6 text-sm text-muted">Questions: <a className="font-semibold text-ink underline" href="mailto:hello@takeone.web.app">hello@takeone.web.app</a></p>
+      <p className="mt-14 border-t border-line pt-6 text-sm text-muted">Questions about this policy? Email <a className="font-semibold text-ink underline underline-offset-4" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.</p>
     </main>
   </div>;
 }

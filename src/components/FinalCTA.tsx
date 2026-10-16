@@ -2,16 +2,15 @@ import { Link } from "react-router-dom";
 
 export default function FinalCTA() {
   return (
-    <section className="border-t border-black/10 bg-white px-6 py-24 md:px-12">
-      <div className="mx-auto flex max-w-5xl flex-col items-start justify-between gap-8 md:flex-row md:items-end">
+    <section aria-labelledby="final-heading" className="border-t border-line bg-surface px-4 py-20 sm:px-6 md:px-12 md:py-24">
+      <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-8 md:flex-row md:items-end">
         <div>
-          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted">Ready when you are</p>
-          <h2 className="mt-4 max-w-3xl text-balance font-display text-4xl font-extrabold leading-[0.98] tracking-[-0.04em] text-ink sm:text-6xl">Your next cut starts with one prompt.</h2>
-          <p className="mt-5 max-w-xl text-base leading-7 text-muted">Start in the browser and take each video from an idea to a finished export.</p>
+          <h2 id="final-heading" className="text-balance font-display text-5xl font-black leading-[0.9] text-ink md:text-7xl">Make your first short.</h2>
+          <p className="mt-5 max-w-xl text-lg leading-8 text-muted">Sign in, pick what you are starting from, and get a captioned 9:16 cut back. Your first 3 videos are free.</p>
         </div>
-        <div className="flex shrink-0 flex-wrap gap-3">
-          <Link to="/create" className="rounded-xl bg-ink px-5 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-80">Create a video</Link>
-          <Link to="/pricing" className="rounded-xl border border-black/15 px-5 py-3 text-sm font-semibold transition-colors hover:bg-black/[0.04]">View pricing</Link>
+        <div className="flex shrink-0 flex-wrap items-center gap-3">
+          <Link to="/create" className="inline-flex items-center rounded-md border border-transparent bg-cue px-6 py-3.5 text-base font-bold text-ink transition-colors hover:border-ink">Make a short</Link>
+          <Link to="/pricing" className="inline-flex items-center rounded-md border border-ink bg-surface px-6 py-3.5 text-base font-semibold text-ink transition-colors hover:bg-paper">See pricing</Link>
         </div>
       </div>
     </section>

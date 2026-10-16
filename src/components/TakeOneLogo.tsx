@@ -1,33 +1,23 @@
+// A slate on take 1. The clapstick is the seven SMPTE colour bars; the board follows currentColor.
+const BARS = ["fill-bar-white", "fill-bar-yellow", "fill-bar-cyan", "fill-bar-green", "fill-bar-magenta", "fill-bar-red", "fill-bar-blue"];
+
 export default function TakeOneLogo({ className = "w-8 h-8 text-ink" }: { className?: string }) {
   return (
-    <svg 
-      viewBox="0 0 100 100" 
-      fill="currentColor" 
-      className={className} 
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {/* Tall capsule on the left */}
-      <rect x="20" y="10" width="14" height="48" rx="7" />
-      
-      {/* Small rounded square at the bottom left */}
-      <rect x="20" y="64" width="14" height="14" rx="4" />
-      
-      {/* 5 Audio waveform bars to the right of the square */}
-      {/* Center line of bottom square is y = 71 */}
-      {/* Bar 1 (Small) */}
-      <rect x="40" y="67" width="4" height="8" rx="2" />
-      
-      {/* Bar 2 (Medium) */}
-      <rect x="48" y="65" width="4" height="12" rx="2" />
-      
-      {/* Bar 3 (Tallest) */}
-      <rect x="56" y="60" width="4" height="22" rx="2" />
-      
-      {/* Bar 4 (Medium) */}
-      <rect x="64" y="65" width="4" height="12" rx="2" />
-      
-      {/* Bar 5 (Small) */}
-      <rect x="72" y="67" width="4" height="8" rx="2" />
+    <svg viewBox="0 0 32 32" className={className} aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+      <g transform="rotate(-11 3 12)">
+        {BARS.map((bar, i) => <rect key={bar} className={bar} x={3 + (i * 26) / 7} y="6" width={26 / 7 + 0.03} height="6" />)}
+      </g>
+      <path fill="currentColor" fillRule="evenodd" d="M5.5 13H26.5A2.5 2.5 0 0 1 29 15.5V27A2.5 2.5 0 0 1 26.5 29.5H5.5A2.5 2.5 0 0 1 3 27V15.5A2.5 2.5 0 0 1 5.5 13ZM14.6 16.4H18.6V27H15.4V20.3L12.9 21.6V18.3Z" />
     </svg>
+  );
+}
+
+// Mark plus name. Set the size with a text-* class; the mark scales with the type.
+export function TakeOneWordmark({ className = "text-2xl text-ink" }: { className?: string }) {
+  return (
+    <span className={`inline-flex items-center gap-[0.3em] ${className}`}>
+      <TakeOneLogo className="h-[1.15em] w-[1.15em]" />
+      <span translate="no" className="font-display font-extrabold leading-none tracking-[0.01em]">TakeOne</span>
+    </span>
   );
 }

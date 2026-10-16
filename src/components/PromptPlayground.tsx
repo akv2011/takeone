@@ -1,20 +1,19 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
-import { CornerDownLeft } from "lucide-react";
+import { Check } from "lucide-react";
+import { button, panel } from "../lib/ui";
 
 interface SuggestionChip {
   label: string;
   command: string;
-  outputSize: string;
   pipeline: string[];
 }
 
 const SUGGESTIONS: SuggestionChip[] = [
-  { label: "Trim a moment", command: "Trim 00:02.125 to 00:08.500", outputSize: "Example MP4", pipeline: ["Choose the source", "Set start and end", "Preview the cut", "Render a new version"] },
-  { label: "Add captions", command: "Add clean captions", outputSize: "Example MP4", pipeline: ["Read the spoken audio", "Time the words", "Place readable captions", "Export the video"] },
-  { label: "Make it vertical", command: "Make it vertical with blur padding", outputSize: "Example MP4", pipeline: ["Choose a video", "Set portrait canvas", "Keep the source in view", "Export the video"] },
-  { label: "Speed up a clip", command: "Trim 00:05 to 00:15 and speed 2x", outputSize: "Example MP4", pipeline: ["Choose the range", "Adjust playback speed", "Preview timing", "Render a new version"] },
+  { label: "Trim a moment", command: "Trim 00:02.125 to 00:08.500", pipeline: ["Choose the source", "Set start and end", "Preview the cut", "Render a new version"] },
+  { label: "Add captions", command: "Add clean captions", pipeline: ["Read the spoken audio", "Time the words", "Place readable captions", "Export the video"] },
+  { label: "Make it vertical", command: "Make it vertical and fit the whole frame", pipeline: ["Choose a video", "Set portrait canvas", "Keep the source in view", "Export the video"] },
+  { label: "Speed up a clip", command: "Trim 00:05 to 00:15 and speed 2x", pipeline: ["Choose the range", "Adjust playback speed", "Preview timing", "Render a new version"] },
 ];
 
 export default function PromptPlayground() {
@@ -37,7 +36,7 @@ export default function PromptPlayground() {
     setChatLog([
       {
         type: "bot",
-        text: "This is an interactive example. No file is uploaded, rendered or charged here. Try an editing instruction below.",
+        text: "This is an example. No file is uploaded, rendered or charged here. Pick an instruction below or type your own.",
         done: true,
       },
     ]);
@@ -79,9 +78,8 @@ export default function PromptPlayground() {
 
     // Find custom/mock info if user typed something not in chips
     const chip = chipContext || {
-      label: "Custom Command",
+      label: "Your instruction",
       command: textToSubmit,
-      outputSize: "Example MP4",
       pipeline: ["Choose your source", "Describe the edit", "Review your settings", "Submit in your dashboard"],
     };
 
@@ -94,7 +92,7 @@ export default function PromptPlayground() {
         ...prev,
         {
           type: "bot",
-          text: `Showing an example workflow...`,
+          text: "Showing the example steps…",
           details: chip,
           progress: 0,
           done: false,
@@ -112,7 +110,7 @@ export default function PromptPlayground() {
             item.progress = currentProgress;
             if (currentProgress >= 100) {
               item.done = true;
-              item.text = `Example complete. Open your dashboard to create a real video.`;
+              item.text = "Example complete. Open your dashboard to create a real video.";
               clearInterval(progressInterval);
             }
           }
@@ -128,94 +126,49 @@ export default function PromptPlayground() {
     }
   };
 
+
   return (
-    <section className="w-full py-20 bg-paper border-y border-line relative overflow-hidden">
-      <div className="max-w-4xl mx-auto px-6 md:px-12 relative z-10">
-        
-        {/* Title */}
-        <div className="text-left mb-12">
-          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted">Interactive example</span>
-          <h2 className="font-display font-extrabold text-4xl md:text-6xl tracking-[-0.04em] text-ink mt-4">
-            Try an editing instruction.
-          </h2>
-          <p className="font-sans text-muted text-base leading-7 mt-4 max-w-lg">
-            Explore an example workflow. This preview does not create a video or use your allowance.
-          </p>
-        </div>
+    <section aria-labelledby="try-heading" className="w-full border-t border-line px-4 py-20 sm:px-6 md:px-12 md:py-24">
+      <div className="mx-auto max-w-3xl">
+        <h2 id="try-heading" className="text-balance font-display text-5xl font-extrabold leading-[0.9] text-ink md:text-6xl">Try an editing instruction.</h2>
+        <p className="mt-5 max-w-lg text-lg leading-8 text-muted">See the steps TakeOne runs for a plain instruction, before you upload anything.</p>
 
-        {/* Command Terminal UI Wrapper */}
-        <div className="w-full bg-ink border border-ink2 rounded-2xl shadow-2xl overflow-hidden flex flex-col min-h-[480px]">
-          
-          {/* Top terminal bar */}
-          <div className="bg-[#181818] border-b border-ink2 px-4 py-3 flex justify-between items-center text-xs font-mono text-white/50">
-            <div className="flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-white/40" />
-              <span>TakeOne example</span>
-            </div>
-            <div className="flex gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-white/10" />
-              <div className="w-2.5 h-2.5 rounded-full bg-white/10" />
-              <div className="w-2.5 h-2.5 rounded-full bg-white/10" />
-            </div>
-          </div>
-
-          {/* Chat Logs Area */}
-          <div className="flex-1 p-6 space-y-6 overflow-y-auto max-h-[300px]">
+        <div className={`${panel} mt-10 overflow-hidden`}>
+          <div className="h-[340px] space-y-5 overflow-y-auto overscroll-contain p-5 sm:p-6">
             {chatLog.map((log, idx) => (
-              <div
-                key={idx}
-                className={`flex ${log.type === "user" ? "justify-end" : "justify-start"}`}
-              >
+              <div key={idx} className={`flex ${log.type === "user" ? "justify-end" : "justify-start"}`}>
                 {log.type === "user" ? (
-                  /* User message bubble */
-                  <div className="bg-[#222222] border border-[#333333] text-white px-4 py-2.5 rounded-xl rounded-tr-sm max-w-[85%] font-mono text-sm">
-                    {log.text}
-                  </div>
+                  <div className="max-w-[85%] break-words rounded-md bg-paper px-4 py-2.5 text-base text-ink">{log.text}</div>
                 ) : (
-                  /* Bot log output */
-                  <div className="text-white/90 space-y-3 max-w-[85%]">
-                    {/* Bot status statement */}
-                    <div className="font-mono text-sm leading-relaxed text-white/70">
-                      {log.text}
-                    </div>
-
-                    {/* Active compilation steps */}
+                  <div className="w-full max-w-[85%] space-y-3">
+                    <p aria-live="polite" className="text-base leading-7 text-ink2">{log.text}</p>
                     {log.details && (
-                      <div className="bg-[#181818] border border-ink2 rounded-xl p-4 space-y-2.5 font-mono text-xs shadow-inner">
-                        <div className="flex justify-between items-center text-white/40 border-b border-white/5 pb-1.5 mb-2">
-                          <span>EXAMPLE STEPS</span>
-                          <span>{log.progress}%</span>
+                      <div className="rounded-md border border-line p-4">
+                        <div className="flex items-center justify-between text-sm text-muted">
+                          <span>Example steps</span>
+                          <span className="tabular-nums">{log.progress}%</span>
                         </div>
-
-                        {log.details.pipeline.map((step, sIdx) => {
-                          const threshold = ((sIdx + 1) / log.details!.pipeline.length) * 100;
-                          const isDone = (log.progress || 0) >= threshold;
-                          
-                          return (
-                            <div key={sIdx} className="flex items-center gap-2">
-                              {isDone ? <span className="w-3.5 text-center text-white/70">✓</span> : (
-                                <div className="w-3.5 h-3.5 rounded-full border border-dashed border-white/20 animate-spin" />
-                              )}
-                              <span className={isDone ? "text-white" : "text-white/40"}>
+                        <div aria-hidden="true" className="mt-2 h-1.5 overflow-hidden rounded-full bg-paper">
+                          <div className="flex h-full w-full transition-[clip-path] duration-150" style={{ clipPath: `inset(0 ${100 - (log.progress ?? 0)}% 0 0)` }}>
+                            {["bg-bar-white", "bg-bar-yellow", "bg-bar-cyan", "bg-bar-green", "bg-bar-magenta", "bg-bar-red", "bg-bar-blue"].map((bar) => <span key={bar} className={`h-full flex-1 ${bar}`} />)}
+                          </div>
+                        </div>
+                        <ol className="mt-4 space-y-2 text-sm">
+                          {log.details.pipeline.map((step, sIdx) => {
+                            const isDone = (log.progress || 0) >= ((sIdx + 1) / log.details!.pipeline.length) * 100;
+                            return (
+                              <li key={sIdx} className={`flex items-center gap-2 ${isDone ? "text-ink" : "text-muted"}`}>
+                                {isDone ? <Check aria-hidden="true" className="h-4 w-4 text-go" /> : <span aria-hidden="true" className="mx-[3px] h-2.5 w-2.5 rounded-full border border-muted" />}
                                 {step}
-                              </span>
-                            </div>
-                          );
-                        })}
-
-                        {/* If completely finished, show file card output */}
+                              </li>
+                            );
+                          })}
+                        </ol>
                         {log.done && (
-                          <motion.div
-                            initial={{ opacity: 0, y: 5 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="bg-[#222222] border border-[#333333] p-3 rounded-lg flex items-center justify-between mt-3 text-xs"
-                          >
-                            <div>
-                              <div className="text-white font-semibold">example_result.{log.details.outputSize.split(" ")[1].toLowerCase()}</div>
-                              <div className="text-white/40 text-[10px] mt-0.5">{log.details.outputSize}</div>
-                            </div>
-                            <Link to="/create" className="h-8 px-3 rounded bg-white text-black hover:bg-white/80 transition-colors duration-200 flex items-center font-semibold text-[10px]">Create your video</Link>
-                          </motion.div>
+                          <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-4">
+                            <span className="text-sm text-muted">Example result, not a real file</span>
+                            <Link to="/create" className={button("primary", "sm")}>Create your video</Link>
+                          </div>
                         )}
                       </div>
                     )}
@@ -226,43 +179,38 @@ export default function PromptPlayground() {
             <div ref={chatBottomRef} />
           </div>
 
-          {/* Bottom input area */}
-          <div className="bg-[#181818] border-t border-ink2 p-4 flex gap-3 items-center">
+          <div className="flex gap-3 border-t border-line bg-paper p-3 sm:p-4">
             <input
               type="text"
+              name="instruction"
+              autoComplete="off"
+              aria-label="Editing instruction"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyPress}
               disabled={isTypingSim}
-              placeholder={isTypingSim ? "Simulating typing..." : "Type custom editing instructions... (e.g. Speed it up x2, convert to gif)"}
-              className="flex-1 bg-ink border border-ink2 rounded-xl px-4 py-3 text-sm font-mono text-white placeholder-white/20 outline-none focus:border-white/40 transition-colors"
+              placeholder={isTypingSim ? "Typing…" : "Trim 00:05 to 00:15 and speed 2x…"}
+              className="min-w-0 flex-1 rounded-md border border-line bg-surface px-3 py-2 text-base text-ink placeholder:text-muted hover:border-muted"
             />
-            <button
-              onClick={() => submitMessage(inputValue)}
-              disabled={isTypingSim || !inputValue.trim()}
-              className="h-11 px-4 rounded-xl bg-white text-ink hover:bg-white/80 disabled:opacity-40 transition-all duration-300 flex items-center justify-center gap-1.5 font-mono text-xs font-bold"
-            >
-              <span>Show example</span>
-              <CornerDownLeft className="w-3.5 h-3.5" />
+            <button type="button" onClick={() => submitMessage(inputValue)} disabled={isTypingSim || !inputValue.trim()} className={button("dark")}>
+              Show example
             </button>
           </div>
-
         </div>
 
-        {/* Suggestion Chips */}
-        <div className="mt-8 flex flex-wrap gap-2.5 justify-center">
-          {SUGGESTIONS.map((chip, idx) => (
+        <div className="mt-6 flex flex-wrap gap-2.5">
+          {SUGGESTIONS.map((chip) => (
             <button
-              key={idx}
+              key={chip.label}
+              type="button"
               onClick={() => simulateTyping(chip)}
               disabled={isTypingSim}
-              className="px-4 py-2 rounded-full border border-line bg-white text-xs font-mono text-muted hover:text-ink hover:border-ink disabled:opacity-50 transition-all duration-200 flex items-center gap-1.5"
+              className="rounded-md border border-line bg-surface px-3.5 py-2 text-sm font-semibold text-ink2 transition-colors hover:border-ink hover:text-ink disabled:opacity-50"
             >
-              <span>{chip.label}</span>
+              {chip.label}
             </button>
           ))}
         </div>
-
       </div>
     </section>
   );

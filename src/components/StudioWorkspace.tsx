@@ -18,17 +18,17 @@ export function StudioWorkspace({
   const [panel, setPanel] = useState<"inspector" | "versions">("inspector");
   return (
     <div className="studio-workspace">
-      <section aria-label="Video canvas" className="studio-canvas">
-        <div className="studio-canvas-label">
+      <section aria-label="Video canvas" className="studio-canvas rounded-[10px] border border-ink2 bg-ink p-4 text-surface">
+        <div className="mb-4 flex justify-between gap-3 text-sm font-semibold text-line">
           <span>Current cut</span>
-          <span>Preview is free</span>
+          <span className="font-normal">Preview is free</span>
         </div>
         {canvas}
       </section>
-      <section aria-label="Video timeline" className="studio-timeline">
+      <section aria-label="Video timeline" className="studio-timeline space-y-4">
         {timeline}
       </section>
-      <nav aria-label="Workspace panels" className="studio-panel-switcher">
+      <nav aria-label="Workspace panels" className="studio-panel-switcher flex gap-2">
         {(["inspector", "versions"] as const).map((name) => (
           <button
             key={name}
@@ -36,6 +36,7 @@ export function StudioWorkspace({
             aria-pressed={panel === name}
             aria-controls={`studio-${name}`}
             onClick={() => setPanel(name)}
+            className="flex-1 rounded-md border border-line bg-surface p-2.5 text-sm font-semibold text-ink aria-pressed:border-ink aria-pressed:bg-cue"
           >
             {name === "inspector" ? "Inspector" : "Versions"}
           </button>
@@ -44,31 +45,31 @@ export function StudioWorkspace({
       <aside
         id="studio-versions"
         aria-label="Project versions"
-        className="studio-versions"
+        className="studio-versions space-y-4"
         data-active={panel === "versions"}
       >
-        <div className="studio-panel-heading">
-          <h2>Project</h2>
-          <p>Keep every cut. Open a saved version to make a new edit.</p>
+        <div className="px-1">
+          <h2 className="text-lg font-semibold">Project</h2>
+          <p className="mt-1 text-sm text-muted">Keep every cut. Open a saved version to make a new edit.</p>
         </div>
         {versions}
       </aside>
       <aside
         id="studio-inspector"
         aria-label="Inspector"
-        className="studio-inspector"
+        className="studio-inspector space-y-4"
         data-active={panel === "inspector"}
       >
-        <div className="studio-panel-heading">
-          <h2>Inspector</h2>
-          <p>
+        <div className="px-1">
+          <h2 className="text-lg font-semibold">Inspector</h2>
+          <p className="mt-1 text-sm text-muted">
             Preview changes and save project drafts for free. Applying a rendered
             video edit or exporting a saved project uses one generation.
           </p>
         </div>
         {inspector}
       </aside>
-      <div className="studio-activity">{activity}</div>
+      <div className="studio-activity rounded-[10px] border border-line bg-surface">{activity}</div>
     </div>
   );
 }

@@ -122,10 +122,12 @@ test('shared user button orders the four account pages', () => {
   expect(mocks.profilePages).toEqual(['account', 'Preferences', 'security', 'Billing']);
 });
 
-test('account appearance is monochrome and removes the danger section', () => {
+test('account appearance uses the TakeOne palette, keeps ink text on yellow and removes the danger section', () => {
   const serialized = JSON.stringify(clerkAppearance).toLowerCase();
   expect(serialized).not.toContain('#2563eb');
   expect(serialized).not.toContain('blue');
   expect(serialized).not.toContain('rgb(37, 99, 235)');
   expect((clerkAppearance.elements as Record<string, unknown>).profileSection__danger).toEqual({ display: 'none' });
+  expect(clerkAppearance.elements.formButtonPrimary).toMatchObject({ backgroundColor: '#FFD23F', color: '#1A1F36' });
+  expect(clerkAppearance.variables.fontFamily).toContain('Atkinson Hyperlegible');
 });

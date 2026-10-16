@@ -1,6 +1,7 @@
 import { Component, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useConvexAuth, useMutation, useQuery } from 'convex/react';
 import { api } from '../lib/convexApi';
+import { button, panel } from '../lib/ui';
 
 type ProjectView = {
   projectId: string;
@@ -78,10 +79,10 @@ class ProjectReadBoundary extends Component<{ children: ReactNode }, { failed: b
   render() {
     if (!this.state.failed) return this.props.children;
     return (
-      <section aria-label="Editable project" className="mb-4 w-full rounded-2xl border border-black/10 bg-white p-4">
-        <h2 className="text-sm font-semibold">Project timeline</h2>
-        <p role="alert" className="mt-2 text-xs text-red-600">Project details could not load. The rest of Studio is still available.</p>
-        <button type="button" onClick={() => this.setState({ failed: false })} className="mt-3 rounded-lg border border-ink/15 px-3 py-2 text-xs font-semibold">
+      <section aria-label="Editable project" className={`${panel} w-full p-4`}>
+        <h2 className="text-base font-semibold">Project timeline</h2>
+        <p role="alert" className="mt-2 text-xs text-warn">Project details could not load. The rest of Studio is still available.</p>
+        <button type="button" onClick={() => this.setState({ failed: false })} className={`${button('secondary', 'sm')} mt-3`}>
           Retry project timeline
         </button>
       </section>
@@ -164,13 +165,13 @@ function ScopedProjectTimelinePanel({ sourceJobId, accountKey, duration, disable
   if (!isAuthenticated || !sourceJobId || !accountKey) return null;
 
   return (
-    <section aria-label="Editable project" className="mb-4 w-full rounded-2xl border border-black/10 bg-white p-4">
-      <h2 className="text-sm font-semibold">Project timeline</h2>
+    <section aria-label="Editable project" className={`${panel} w-full p-4`}>
+      <h2 className="text-base font-semibold">Project timeline</h2>
       {project ? (
         <div className="mt-3">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h3 className="font-semibold">{project.name}</h3>
-            <span className="font-mono text-[10px] text-muted">Revision {project.revision}</span>
+            <span className="text-xs text-muted">Revision {project.revision}</span>
           </div>
           <p className="mt-1 text-xs text-muted">
             {seconds(project.timeline.durationMs)}s total · {project.timeline.video.length}{' '}
@@ -187,7 +188,7 @@ function ScopedProjectTimelinePanel({ sourceJobId, accountKey, duration, disable
             type="button"
             disabled={disabled || creating || !validDuration}
             onClick={() => void create()}
-            className="mt-3 rounded-lg border border-ink/15 px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+            className={`${button('secondary', 'sm')} mt-3`}
           >
             {creating ? 'Creating editable project…' : failed ? 'Retry project creation' : 'Create editable project'}
           </button>
@@ -195,7 +196,7 @@ function ScopedProjectTimelinePanel({ sourceJobId, accountKey, duration, disable
             <p className="mt-2 text-xs text-muted">Load a video between 0.1 and 300 seconds before creating a project.</p>
           )}
           {failed && (
-            <p role="alert" className="mt-2 text-xs text-red-600">Could not create the project. Try again; the rest of Studio is still available.</p>
+            <p role="alert" className="mt-2 text-xs text-warn">Could not create the project. Try again; the rest of Studio is still available.</p>
           )}
         </div>
       )}
