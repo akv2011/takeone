@@ -9,6 +9,7 @@ const redirect = (id: string) => `https://vertexaisearch.cloud.google.com/ground
 type Body = { contents: { parts: { text: string }[] }[]; tools?: unknown; generationConfig?: unknown };
 const bodies = (fetcher: ReturnType<typeof vi.fn>) => fetcher.mock.calls.map(([, init]) => JSON.parse((init as RequestInit).body as string) as Body);
 const signal = () => AbortSignal.timeout(5_000);
+const CHIP = '<style>.chip{color:#5e5e5e}</style><div class="carousel"><a class="chip" href="https://vertexaisearch.cloud.google.com/grounding-api-redirect/q">eiffel tower height</a></div>';
 
 beforeEach(() => { vi.stubEnv('GEMINI_PROJECT', 'test-project'); vi.stubEnv('GEMINI_MODEL', 'gemini-test'); vi.stubEnv('GEMINI_LOCATION', ''); });
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.clearAllMocks(); });
@@ -28,14 +29,15 @@ test('lists claims, checks each with Google Search and takes only cited sources 
         { web: { uri: redirect('d'), title: 'fourth.example' } },
       ],
       groundingSupports: [{ segment: { startIndex: 0, endIndex: 20, text: 'The operator lists 330 m' }, groundingChunkIndices: [2, 0] }, { groundingChunkIndices: [0, 1, 99] }],
+      searchEntryPoint: { renderedContent: CHIP },
     });
-    return answer('VERDICT: disputed\nREASON: Sources put it at 100 C at sea level.');
+    return answer('VERDICT: disputed\nREASON: Sources put it at 100 C at sea level.', { searchEntryPoint: { renderedContent: ' \n ' } });
   });
   vi.stubGlobal('fetch', fetcher);
-  expect(await checkClaims('Did you know the Eiffel Tower is 330 metres tall? Water boils at 50 C.', signal())).toEqual({ status: 'checked', claims: [
+  expect(await checkClaims('Did you know the Eiffel Tower is 330 metres tall? Water boils at 50 C.', signal())).toStrictEqual({ status: 'checked', claims: [
     { text: 'The Eiffel Tower is 330 metres tall.', verdict: 'supported', reason: 'The operator lists 330 m, see https://made-up.example/proof',
       sources: [{ url: redirect('b'), title: 'britannica.com' }, { url: redirect('a'), title: 'toureiffel.paris' }],
-      searches: ['eiffel tower height'] },
+      searches: [] },
     { text: 'Water boils at 50 C at sea level.', verdict: 'disputed', reason: 'Sources put it at 100 C at sea level.', sources: [], searches: [] },
   ] });
   const [list, ...checks] = bodies(fetcher);
@@ -63,6 +65,15 @@ test.each([
   vi.stubGlobal('fetch', vi.fn(async (_url: string, init: RequestInit) =>
     JSON.parse(init.body as string).tools ? failing() : answer('{"claims":["The Moon orbits Earth."]}')));
   await expect(checkClaims('The Moon orbits Earth.', signal())).rejects.toThrow();
+});
+
+test('search suggestions and queries in the grounding metadata are never stored', async () => {
+  vi.stubGlobal('fetch', vi.fn(async (_url: string, init: RequestInit) => JSON.parse(init.body as string).tools
+    ? answer('VERDICT: supported\nREASON: NASA tracks the orbit.', { searchEntryPoint: { renderedContent: CHIP }, webSearchQueries: ['moon orbit earth'] })
+    : answer('{"claims":["The Moon orbits Earth."]}')));
+  expect(await checkClaims('The Moon orbits Earth.', signal())).toStrictEqual({ status: 'checked', claims: [
+    { text: 'The Moon orbits Earth.', verdict: 'supported', reason: 'NASA tracks the orbit.', sources: [], searches: [] },
+  ] });
 });
 
 test.each([

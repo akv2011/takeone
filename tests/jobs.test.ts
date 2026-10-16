@@ -3,7 +3,7 @@ import { beforeEach, afterEach, expect, test, vi } from 'vitest';
 import { makeFunctionReference as ref } from 'convex/server';
 import { ConvexError } from 'convex/values';
 import schema from '../convex/schema';
-import { FREE_LIMIT, freeDailyRenderCap } from '../convex/config';
+import { FREE_LIMIT, aiVideoDailyCap, freeDailyRenderCap } from '../convex/config';
 const modules = import.meta.glob('../convex/**/*.ts');
 const fn = (name: string) => ref<'mutation'>(`generate:${name}`);
 const outputMetadata = { mediaDurationMs: 1_000, mediaWidth: 1080, mediaHeight: 1920, mediaHasAudio: true };
@@ -361,4 +361,37 @@ test('free renders stop at the UTC daily cap without blocking retries or paid re
  vi.setSystemTime(dayStart + 86_400_000 + 1_000);
  expect(await submit(t, 'u2', 'cap-request-2')).toMatchObject({ billing: 'free' });
  expect((await account(t, 'u2'))?.freeUsed).toBe(1);
+});
+test('AI video daily cap reads a whole non-negative number and otherwise defaults to 10', () => {
+ for (const [raw, cap] of [[undefined, 10], ['0', 0], [' 7 ', 7], ['abc', 10], ['-1', 10], ['1.5', 10], ['', 10]] as const) {
+  expect(aiVideoDailyCap(raw === undefined ? {} : { AI_VIDEO_DAILY_CAP: raw }), `AI_VIDEO_DAILY_CAP=${String(raw)}`).toBe(cap);
+ }
+});
+const submitAi = (t: ReturnType<typeof convexTest>, user: string, requestId: string) => t.withIdentity({ subject: user }).mutation(fn('requestGeneration'), { mode: 'generate', generationKind: 'ai', prompt: 'A cinematic mountain sunrise', aspect: '9:16', requestId });
+test('AI renders stop at the UTC daily cap for free and paid users without blocking retries or stock renders, then reopen the next day', async () => {
+ const dayStart = Date.UTC(2026, 9, 17); vi.setSystemTime(dayStart + 12 * 3_600_000);
+ vi.stubEnv('AI_VIDEO_ENABLED', 'true'); vi.stubEnv('AI_VIDEO_DAILY_CAP', '2');
+ const t = await setup(4);
+ await t.run(async ctx => {
+  const payer = await ctx.db.query('users').withIndex('by_token', q => q.eq('tokenIdentifier', 'u3')).unique();
+  await ctx.db.patch(payer!._id, { freeUsed: FREE_LIMIT, credits: 5 });
+  // Yesterday's AI render and today's stock render must not count; today's paid AI render must.
+  await ctx.db.insert('genJobs', { userId: 'earlier', mode: 'generate', prompt: 'Yesterday AI video', status: 'done', generationKind: 'ai', reservation: 'free', createdAt: dayStart - 1 });
+  await ctx.db.insert('genJobs', { userId: 'stock', mode: 'generate', prompt: 'Stock video', status: 'done', generationKind: 'stock', reservation: 'free', createdAt: dayStart + 1 });
+  await ctx.db.insert('genJobs', { userId: 'payer', mode: 'generate', prompt: 'Paid AI video', status: 'done', generationKind: 'ai', reservation: 'credit', createdAt: dayStart + 1 });
+ });
+ const first = await submitAi(t, 'u0', 'ai-cap-request-0');
+ expect(first.billing).toBe('free');
+ const capped = await submitAi(t, 'u3', 'ai-cap-request-3').catch(error => error);
+ expect(capped).toBeInstanceOf(ConvexError);
+ expect(capped.data).toEqual({ code: 'AI_DAILY_CAP', message: "Today's AI video renders are used up. Try again tomorrow, or make a stock or upload video. No allowance was used." });
+ expect(await t.run(ctx => ctx.db.query('genJobs').withIndex('by_user', q => q.eq('userId', 'u3')).collect())).toEqual([]);
+ expect((await account(t, 'u3'))?.credits).toBe(5);
+ expect((await submitAi(t, 'u1', 'ai-cap-request-1').catch(error => error)).data?.code).toBe('AI_DAILY_CAP');
+ expect((await account(t, 'u1'))?.freeUsed).toBe(0);
+ expect(await submitAi(t, 'u0', 'ai-cap-request-0')).toEqual(first);
+ expect(await submit(t, 'u2', 'ai-cap-request-2')).toMatchObject({ billing: 'free' });
+ vi.setSystemTime(dayStart + 86_400_000 + 1_000);
+ expect(await submitAi(t, 'u3', 'ai-cap-request-3')).toMatchObject({ billing: 'credit' });
+ expect(await account(t, 'u3')).toMatchObject({ freeUsed: FREE_LIMIT, credits: 4 });
 });

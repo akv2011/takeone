@@ -814,6 +814,14 @@ test('a used-up free day shows the daily cap message', async () => {
  expect(await screen.findByText("Today's free renders are used up. Try again tomorrow.")).toBeTruthy();
 });
 
+test('a used-up AI day shows the AI cap message', async () => {
+ mocks.mutations.set('generate:requestGeneration', vi.fn().mockRejectedValue({ data: { code: 'AI_DAILY_CAP', message: "Today's AI video renders are used up. Try again tomorrow, or make a stock or upload video. No allowance was used." } }));
+ show(React.createElement(Dashboard));
+ fireEvent.change(screen.getByRole('textbox', { name: 'Video prompt' }), { target: { value: 'A reel about space' } });
+ fireEvent.click(screen.getByRole('button', { name: 'Create video', exact: true }));
+ expect(await screen.findByText("Today's AI video renders are used up. Try again tomorrow, or make a stock or upload video.")).toBeTruthy();
+});
+
 test('studio shows the claims panel for a finished video that has a claims result', async () => {
  mocks.queries.set('generate:getJob', { _id: 'source-job', status: 'done', mode: 'generate', prompt: 'Space video', hasOutput: true,
   claims: { status: 'checked', claims: [{ text: 'The Moon orbits Earth.', verdict: 'supported', reason: 'NASA says so.', sources: [], searches: [] }] } });

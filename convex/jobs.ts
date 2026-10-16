@@ -5,7 +5,7 @@ declare const process: { env: Record<string, string | undefined> };
 import { internalMutationGeneric as internalMutation, internalActionGeneric as internalAction, makeFunctionReference as ref } from 'convex/server';
 import { v, ConvexError } from 'convex/values';
 import { resolveOwnedMusic } from './music';
-import { FREE_LIMIT, freeDailyRenderCap } from './config';
+import { FREE_LIMIT, aiVideoDailyCap, freeDailyRenderCap } from './config';
 
 export const renderingPaused = () => process.env.MANAGED_RENDERING_PAUSED === 'true';
 export const MAX_ACTIVE = 10;
@@ -68,6 +68,14 @@ export async function enqueue(ctx: any, user: any, input: any) {
     ? (input.generationKind === 'ai' ? capabilities.aiVideo : capabilities.stockVideo)
     : input.mode === 'clip' && !input.sourceStorageId ? capabilities.youtubeClips : capabilities.rendering;
   if (!capability.available) throw new ConvexError({ code: "RENDER_UNAVAILABLE", message: `${capability.reason} No allowance was used.` });
+  const dayStart = Math.floor(Date.now() / 86_400_000) * 86_400_000;
+  if (input.generationKind === 'ai') {
+    const cap = aiVideoDailyCap(process.env);
+    // ponytail: an index scan bounded by the cap; move to a per-day counter row if the cap grows past about a thousand.
+    if (cap === 0 || (await ctx.db.query('genJobs').withIndex('by_kind_created', (q: any) => q.eq('generationKind', 'ai').gte('createdAt', dayStart)).take(cap)).length >= cap) {
+      throw new ConvexError({ code: 'AI_DAILY_CAP', message: "Today's AI video renders are used up. Try again tomorrow, or make a stock or upload video. No allowance was used." });
+    }
+  }
   const brand = await resolveBrand(ctx, user.tokenIdentifier, input.brandKit);
   if (brand && input.generationKind === 'ai') throw new ConvexError('AI_BRAND_UNAVAILABLE');
   const music = await resolveOwnedMusic(ctx, user.tokenIdentifier, input.music);
@@ -78,7 +86,7 @@ export async function enqueue(ctx: any, user: any, input: any) {
   const reservation = user.freeUsed < FREE_LIMIT ? 'free' : 'credit';
   if (reservation === 'credit' && user.credits < 1) throw new ConvexError({ code: 'NO_CREDITS' });
   if (reservation === 'free') {
-    const cap = freeDailyRenderCap(process.env), dayStart = Math.floor(Date.now() / 86_400_000) * 86_400_000;
+    const cap = freeDailyRenderCap(process.env);
     // ponytail: an index scan bounded by the cap; move to a per-day counter row if the cap grows past about a thousand.
     if (cap === 0 || (await ctx.db.query('genJobs').withIndex('by_reservation_created', (q: any) => q.eq('reservation', 'free').gte('createdAt', dayStart)).take(cap)).length >= cap) {
       throw new ConvexError({ code: 'FREE_DAILY_CAP', message: "Today's free renders are used up. Try again tomorrow. No allowance was used." });

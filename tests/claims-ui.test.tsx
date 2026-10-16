@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { getFunctionName } from 'convex/server';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
@@ -28,7 +28,7 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-test('each claim shows its verdict as text and colour, its reason and its sources in a new tab', () => {
+test('each claim shows its verdict as text and colour, its reason and its sources in a new tab, with no search chip or query links', () => {
   const view = render(<ClaimsPanel claims={checked} />);
   expect(screen.getByRole('heading', { name: 'Claims' })).toBeTruthy();
   expect(screen.getByText(/Gemini with Google Search checked the factual claims.*Verdicts can be wrong/)).toBeTruthy();
@@ -42,12 +42,12 @@ test('each claim shows its verdict as text and colour, its reason and its source
   expect(sourceLink.getAttribute('href')).toBe(redirect('a'));
   expect(sourceLink.getAttribute('target')).toBe('_blank');
   expect(sourceLink.getAttribute('rel')).toBe('noopener noreferrer');
-  const search = within(items[0]).getByRole('link', { name: 'eiffel tower height & width (opens in a new tab)' });
-  expect(search.getAttribute('href')).toBe('https://www.google.com/search?q=eiffel%20tower%20height%20%26%20width');
-  expect(search.getAttribute('rel')).toBe('noopener noreferrer');
+  expect(view.container.querySelector('iframe')).toBeNull();
+  expect(document.querySelector('[href^="https://www.google.com/search"]')).toBeNull();
   expect(within(items[1]).queryByRole('link')).toBeNull();
   expect(view.container.textContent).not.toMatch(/[–—]/);
 });
+
 
 test.each([
   [{ status: 'unavailable' } as const, 'The claims check could not finish for this video.'],

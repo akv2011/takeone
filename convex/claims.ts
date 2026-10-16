@@ -20,8 +20,8 @@ const https = (value: string) => {
   if (value.length > 2048) return false;
   try { return new URL(value).protocol === 'https:'; } catch { return false; }
 };
-const exact = (value: any, keys: string[]) => !!value && typeof value === 'object' && !Array.isArray(value)
-  && Object.keys(value).sort().join() === [...keys].sort().join();
+const exact = (value: any, keys: string[], optional: string[] = []) => !!value && typeof value === 'object' && !Array.isArray(value)
+  && Object.keys(value).filter(key => !optional.includes(key)).sort().join() === [...keys].sort().join();
 const strings = (value: unknown, count: number, max: number): value is string[] =>
   Array.isArray(value) && value.length <= count && value.every(item => typeof item === 'string' && text(item, max));
 /** Parses the worker's value instead of trusting the validator, so shape drift is stored as unavailable. */

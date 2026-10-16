@@ -154,6 +154,7 @@ function DashboardInner() {
       if (e?.data?.code === "NO_CREDITS") setStatus("out-of-credits");
       else if (e?.data?.code === "RENDER_UNAVAILABLE") setStatus(e.data.message);
       else if (e?.data?.code === "FREE_DAILY_CAP") setStatus("Today's free renders are used up. Try again tomorrow.");
+      else if (e?.data?.code === "AI_DAILY_CAP") setStatus("Today's AI video renders are used up. Try again tomorrow, or make a stock or upload video.");
       else setStatus("Could not queue the video. Check your prompt and try again; at most three videos can wait per account.");
     } finally { setBusy(false); }
   };

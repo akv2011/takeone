@@ -51,6 +51,8 @@ test.each([
   ['four sources', { status: 'checked', claims: [{ ...checked().claims[0], sources: [source('a'), source('b'), source('c'), source('d')] }] }],
   ['an empty reason', { status: 'checked', claims: [{ ...checked().claims[0], reason: '  ' }] }],
   ['an overlong claim', { status: 'checked', claims: [{ ...checked().claims[0], text: 'x'.repeat(501) }] }],
+  ['a stored search suggestion', { status: 'checked', claims: [{ ...checked().claims[0], searchSuggestion: 'x'.repeat(32_769) }] }],
+  ['a non-string search suggestion field', { status: 'checked', claims: [{ ...checked().claims[0], searchSuggestion: 42 }] }],
 ])('%s is stored as unavailable and the render still completes', async (_name, claims) => {
   const { complete, getJob } = await setup();
   expect(await complete({ claims })).toBe(true);

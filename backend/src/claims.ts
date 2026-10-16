@@ -7,7 +7,11 @@ export type ClaimVerdict = 'supported' | 'disputed' | 'unverified';
 export interface CheckedClaim {
   text: string; verdict: ClaimVerdict; reason: string;
   sources: { url: string; title: string }[];
-  /** The Google Search queries behind this verdict, kept so the panel can show them with it. */
+  /**
+   * Always empty for new checks; kept because older rows carry it. TakeOne opts out of Search Suggestions, which the
+   * Vertex AI pricing page allows for Gemini 3 under one million grounding prompts a day, because Google's terms forbid
+   * storing them and this panel is read after the render. Search queries are not stored either.
+   */
   searches: string[];
 }
 export type ClaimsCheck = { status: 'checked'; claims: CheckedClaim[] } | { status: 'unavailable' };
@@ -39,7 +43,7 @@ function httpsUrl(value: unknown): string | undefined {
 
 /** Only chunks that groundingSupports cite for the answer, in citation order. */
 export function groundingSources(grounding: unknown): Pick<CheckedClaim, 'sources' | 'searches'> {
-  const g = grounding as { groundingChunks?: unknown; groundingSupports?: unknown; webSearchQueries?: unknown } | undefined;
+  const g = grounding as { groundingChunks?: unknown; groundingSupports?: unknown } | undefined;
   const chunks = Array.isArray(g?.groundingChunks) ? g.groundingChunks as { web?: { uri?: unknown; title?: unknown; domain?: unknown } }[] : [];
   const cited = (Array.isArray(g?.groundingSupports) ? g.groundingSupports : [])
     .flatMap((support: { groundingChunkIndices?: unknown }) => Array.isArray(support?.groundingChunkIndices) ? support.groundingChunkIndices : []);
@@ -52,10 +56,7 @@ export function groundingSources(grounding: unknown): Pick<CheckedClaim, 'source
     sources.push({ url, title: title?.trim() ?? 'Search result' });
     if (sources.length === CLAIM_LIMITS.sources) break;
   }
-  const queries = Array.isArray(g?.webSearchQueries) ? g.webSearchQueries : [];
-  const searches = [...new Set(queries.filter((q): q is string => typeof q === 'string').map(q => q.trim()))]
-    .filter(q => q && q.length <= CLAIM_LIMITS.title).slice(0, CLAIM_LIMITS.searches);
-  return { sources, searches };
+  return { sources, searches: [] };
 }
 
 /** Throws on any provider or format problem; the caller records that as unavailable. */

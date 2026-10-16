@@ -40,17 +40,6 @@ export function ClaimsPanel({ claims }: { claims: ClaimsCheck }) {
                   ))}
                 </ul>
               )}
-              {claim.searches.length > 0 && (
-                <p className="mt-2 break-words text-xs text-muted">
-                  Google searches:{" "}
-                  {claim.searches.map((search, i) => (
-                    <span key={search}>
-                      {i > 0 && ", "}
-                      <a href={`https://www.google.com/search?q=${encodeURIComponent(search)}`} target="_blank" rel="noopener noreferrer" aria-label={newTab(search)} className={link}>{search}</a>
-                    </span>
-                  ))}
-                </p>
-              )}
             </li>
           ))}
         </ol>

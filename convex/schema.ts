@@ -208,5 +208,6 @@ export default defineSchema({
     .index("by_status_lease", ["status", "leaseExpiresAt"])
     .index("by_status_reservation", ["status", "reservation"])
     .index("by_reservation_created", ["reservation", "createdAt"])
+    .index("by_kind_created", ["generationKind", "createdAt"])
     .index("by_user", ["userId"]),
 });

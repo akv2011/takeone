@@ -13,7 +13,9 @@ export const PACKS = [
 export type PackId = (typeof PACKS)[number]["id"];
 export const packById = (id: string) => PACKS.find((p) => p.id === id);
 
-export function freeDailyRenderCap(env: Record<string, string | undefined>): number {
-  const raw = env.FREE_DAILY_RENDER_CAP?.trim() ?? "";
-  return /^\d+$/.test(raw) && Number.isSafeInteger(Number(raw)) ? Number(raw) : 150;
+function dailyCap(raw: string | undefined, fallback: number): number {
+  const value = raw?.trim() ?? "";
+  return /^\d+$/.test(value) && Number.isSafeInteger(Number(value)) ? Number(value) : fallback;
 }
+export const freeDailyRenderCap = (env: Record<string, string | undefined>) => dailyCap(env.FREE_DAILY_RENDER_CAP, 150);
+export const aiVideoDailyCap = (env: Record<string, string | undefined>) => dailyCap(env.AI_VIDEO_DAILY_CAP, 10);
