@@ -1,47 +1,58 @@
 # TakeOne
 
-TakeOne makes short vertical videos for creators. Type a topic and it writes a script, records narration, cuts stock footage to the voice and burns in timed captions. Upload a video you own and it edits that instead. Paste a YouTube link to a long video you have rights to and it picks one moment of up to 30 seconds, or cuts the exact range you name. Each job returns one captioned MP4, 9:16 by default, that opens in Studio for further edits. Every edit saves a new version, so the earlier cut is never lost.
+TakeOne turns one long video into captioned vertical shorts for audiences in their own language. Upload a video you own, write a prompt, or paste a public YouTube link. Gemini watches the video, frames and audio, picks the strongest moments with a hook and a reason, and a Cloud Run worker renders 9:16 shorts with word-timed captions in 12 languages. Every clip gets a claims check grounded in Google Search, and viewer notes turn into sentiment a creator can act on.
+
+Try it at **https://takeone.web.app**: choose "Continue as guest" and you get five free videos with no account.
+
+Built by team Hacker bros for the Google Cloud AI Builder Cup 2026, theme "Media, Content & Digital Experiences".
+
+## How it uses Google Cloud
+
+Everything runs in one Google Cloud project. Services call Google APIs as their own service accounts; the app holds no API keys.
+
+| Need | Google Cloud |
+|---|---|
+| Watch a video and pick moments, write scripts and hooks, check claims, summarize feedback | Gemini 3.8 Flash on Vertex AI, with Google Search grounding for claims |
+| Find moments in a public YouTube video without downloading it | Gemini on Vertex AI reading the YouTube URL |
+| Word-timed captions | Speech-to-Text v2, Chirp 3 |
+| Captions in 12 languages | Cloud Translation v3 |
+| Narration | Text-to-Speech, Chirp 3 HD voices |
+| AI video from a prompt | Veo 3.1 Fast, capped per day |
+| Cover image per short | Gemini image model |
+| Web app and sign-in | Firebase Hosting, Firebase Auth (Google and guest) |
+| Live render progress in Studio | Firestore |
+| Rendering | Cloud Run: a warm worker service fed by Cloud Tasks, plus the dispatcher |
+| Accounts, jobs and credits | Convex, self-hosted on a private Compute Engine VM behind Cloud Run HTTPS proxies |
+| Media | Cloud Storage, private, short-lived signed URLs |
+| Analytics | BigQuery `takeone_analytics` (renders and feedback) |
+| Secrets, images, infrastructure | Secret Manager, Cloud Build, Artifact Registry, Terraform |
+
+![TakeOne architecture on Google Cloud](docs/architecture.png)
 
 ## Features
 
-- Three ways in: a text prompt (stock footage plus narration), an uploaded video, or a YouTube link with or without timestamps.
-- Captions in clean, bold pop or short-phrase pop-in styles, three bundled fonts, top, middle or bottom placement, and cue-by-cue wording fixes that keep the original timing. Captions can be restyled or removed later without transcribing again.
-- Studio edits: millisecond trim, speed up to 3x, 9:16, 1:1 or 16:9 with fit or crop, frame previews, transcript search with click-to-seek, and a crop that follows a single speaker.
-- Soundtracks from an approved catalog or your own MP3, WAV or M4A, mixed with ducking and fades, or replacing the original audio.
-- Brand kits that save fonts, caption colors and a PNG logo, applied to new renders.
-- Three opening titles you write over the same video, previewed free and rendered as three versions.
-- Scene plans for prompt videos, with the option to swap one scene for your own footage.
-- A multi-shot timeline that trims, orders and crossfades finished videos and uploads into one export.
-- Review links that expire after one or seven days, where guests leave timestamped notes without an account.
-- An optional Telegram bot that accepts the same requests and sends the finished MP4 back to chat.
-- An optional Veo adapter for AI-generated scenes, off by default.
+- Best moment of an upload: Gemini watches the uploaded file itself, so videos without captions work, and returns a captioned 9:16 short.
+- Prompt to AI video with Veo 3.1, or narration over stock footage when a stock provider key is set.
+- YouTube moments: paste a public link and Gemini returns up to three moments. Each plays in the official YouTube player, unmodified, with captions synced below it, translation, a share page at `/clip/:id` and a hand-off to render an MP4 from your own copy. TakeOne never downloads YouTube video.
+- Captions from Speech-to-Text Chirp 3 in clean, bold pop or pop-in styles, in English, Hindi, Tamil, Telugu, Bengali, Marathi, Japanese, Korean, Simplified Chinese, Thai, Indonesian or Vietnamese, with Noto fonts for each script.
+- Claims check: Gemini lists up to five checkable claims in a clip and checks each with Google Search grounding, showing a verdict, a reason and the cited sources. TakeOne opts out of storing Search Suggestions, as Google's terms allow for Gemini 3.
+- Review links with timed guest notes, and a Gemini summary of overall sentiment, themes and a marker per note.
+- Studio: trim, speed, reframe, follow one speaker, three opening hooks, brand kits, soundtracks, caption restyling and wording fixes, a multi-shot timeline, and version history.
+- Live progress: the worker writes each render stage to Firestore and Studio shows it as it happens.
+- Cost guards: five free videos per account, `FREE_DAILY_RENDER_CAP` (150), `AI_VIDEO_DAILY_CAP` (10) and `YOUTUBE_DAILY_CAP` (100) per UTC day, checked before any work starts.
 
-The app reads a server-owned capability snapshot and hides any action whose provider is not configured, so an unconfigured stock provider, YouTube downloader, Telegram bot, music catalog, AI model or checkout never shows up as a working button.
+The app reads a server-owned capability snapshot and hides any action whose provider is not configured, so an unconfigured provider never shows up as a working button.
 
-## Stack
+## Configuration
 
-- Web app: React 19, Vite and Tailwind in the repo root. `npm run build` writes a static site to `dist/` and prerenders the public pages.
-- Accounts, jobs and state: [Convex](https://www.convex.dev) in `convex/`. It holds users, allowances, the job queue, leases and retries, projects, review links and upload metadata.
-- Auth: Firebase Authentication with Google sign-in and guest (anonymous) sessions. Convex verifies the Firebase ID token as a custom OIDC provider, configured by `FIREBASE_PROJECT_ID` in `convex/auth.config.ts`.
-- Rendering: a Cloud Run dispatcher service starts one Cloud Run Job execution per admitted job. The worker in `backend/` renders with FFmpeg and exits.
-- Storage: a private GCS bucket with public access prevention enforced. The app shows videos through short-lived signed URLs.
-- Infrastructure: Terraform in `infra/`, with a manual `Deploy GCP` GitHub Actions workflow.
-- Google Cloud access: the worker calls every Google API with its own service account through ADC. There are no Google API keys, and a missing required setting fails the job.
-- Scripts, scene plans, moment picking and subject crops: Gemini on Vertex AI, set by `GEMINI_PROJECT`, `GEMINI_LOCATION` and `GEMINI_MODEL` (for example `gemini-3.8-flash`). Gemini picks a YouTube moment from the video's transcript and a stored video's moment from the video file itself.
-- Captions: Speech-to-Text v2 with Chirp 3, set by `SPEECH_LOCATION` and `SPEECH_MODEL`. Audio goes through a short-lived `speech/` object in the bucket. Non-Latin captions use the Noto fonts in the worker image.
-- Narration: Cloud Text-to-Speech Chirp 3 HD voices, set by `TTS_VOICE` and `TTS_LANGUAGE`. Scripts over 5,000 UTF-8 bytes are split on sentence boundaries and joined with FFmpeg.
-- Stock footage comes from Pexels or Pixabay, reaction stickers from GIPHY.
-- Render progress mirror: the worker copies each render stage to Firestore `renders/{jobId}` when `FIRESTORE_PROJECT` is set. The copy is best effort and Convex stays the source of truth. The web app still reads progress from Convex.
-- Hosting config: `firebase.json` serves `dist/` on the Firebase Hosting site `takeone`, rewrites `/create`, `/studio` and `/review` to `app.html`, and sends `no-store` and `noindex` headers on review links. `.firebaserc` holds a placeholder project ID, and no workflow deploys it yet.
-- AI scenes: an optional Veo adapter on Vertex AI, enabled through the `veo` Terraform input and the `AI_VIDEO_ENABLED` Convex flag.
-- Caption language: the Dashboard can ask for captions in English, Hindi, Tamil, Telugu, Bengali, Marathi, Japanese, Korean, Simplified Chinese, Thai, Indonesian or Vietnamese. For an upload or a clip, the worker translates the transcribed cues with Cloud Translation v3 in `backend/src/google/translate.ts` when Speech-to-Text detects a different source language, and keeps each cue's timing. For a prompt video, Gemini writes the script in that language and the narration uses the same Chirp 3 HD voice as `TTS_VOICE` in that language's locale. A `TTS_VOICE` outside Chirp 3 HD fails the job. With no language chosen, nothing is translated.
-- Best moment of an upload: the Dashboard can send an upload as a `clip` job with no time range. The worker copies the file to `gs://$GCS_BUCKET/sources/<jobId>.mp4` and Gemini picks the moment from the video itself. The bucket deletes `sources/` and `speech/` objects after one day.
+- Gemini: `GEMINI_PROJECT`, `GEMINI_LOCATION` (default `global`), `GEMINI_MODEL` (for example `gemini-3.8-flash`).
+- Captions: `SPEECH_LOCATION` (`us` or `eu`), `SPEECH_MODEL` (`chirp_3`). Narration: `TTS_VOICE` (a Chirp 3 HD voice such as `en-US-Chirp3-HD-Charon`), `TTS_LANGUAGE`.
+- Covers: `IMAGE_MODEL`, `IMAGE_LOCATION`. Veo: the `veo` Terraform input plus `AI_VIDEO_ENABLED` in Convex.
+- Firestore progress: `FIRESTORE_PROJECT`. Analytics: `BIGQUERY_PROJECT`, `BIGQUERY_DATASET`.
+- Rendering path: Terraform `render_dispatch` is `tasks` (warm worker) or `jobs` (one Cloud Run Job per render), with `worker_min_instances` and `worker_max_instances`.
+- Convex: `FIREBASE_PROJECT_ID`, `WORKER_SECRET`, `DISPATCH_SECRET`, `DISPATCH_URL`, `APP_URL`, and the daily caps above.
 
-`backend/src/google/coverImage.ts` draws a 9:16 cover PNG with a Gemini image model set by `IMAGE_MODEL` and `IMAGE_LOCATION`. When `IMAGE_MODEL` is set, the worker makes one cover per finished video from its hook, or from the prompt of a new video, and saves it create-only as `videos/<jobId>/<lease>-cover.png`. Dashboard tiles show it through a short-lived signed URL. With `IMAGE_MODEL` empty, the worker makes no covers.
-
-Claims check: after a render with captions, the worker asks Gemini (`GEMINI_MODEL`) to list up to five checkable factual claims in the caption text or script, then checks each claim in its own call grounded with Google Search. Each verdict is `supported`, `disputed` or `unverified`, with a one-line reason, up to three source links taken from the grounding metadata and the Search queries behind it. Studio shows the result to the video's owner only. A provider failure or the 40-second limit records the check as unavailable and never fails the render.
-
-Convex admits at most ten running jobs at once and one per account. Free renders across all accounts stop at `FREE_DAILY_RENDER_CAP` per UTC day, 150 when unset. A rejected request uses no allowance, and credit renders are not capped. A worker holds a 90-second lease and Convex retries a lost job up to three times before it refunds the allowance. Sources are capped at 50 MiB and 300 seconds.
+Convex admits at most ten running jobs at once and one per account. A worker holds a 90-second lease and Convex retries a lost job up to three times before it refunds the allowance. Sources are capped at 50 MiB and 300 seconds.
 
 ## Local development
 
@@ -81,14 +92,14 @@ CI runs all of the above, then builds the production container and runs a real F
 
 ## Deployment
 
-Read these in order:
+The live deployment runs from the committed tree:
 
-1. [Connections to complete](docs/readiness/OWNER-CONNECTIONS.md)
-2. [Release acceptance](docs/readiness/RELEASE-ACCEPTANCE.md)
-3. [GCP infrastructure](infra/README.md)
-4. [Worker runtime](backend/docs/DEPLOY-GCP.md)
+1. Build the worker image with Cloud Build from `backend/` and pin its digest in your `infra/*.tfvars`.
+2. `terraform apply` in `infra/` creates the dispatcher, the warm worker, the Cloud Tasks queue, the render job, the bucket, the BigQuery dataset and every IAM binding. See [GCP infrastructure](infra/README.md).
+3. The Convex backend runs self-hosted on Compute Engine: `infra/convex-vm/startup.sh` boots it on a private VM, and `infra/convex-proxy/` is the Cloud Run HTTPS front. Deploy functions with `npx convex deploy` against `CONVEX_SELF_HOSTED_URL`.
+4. Build the web app and publish it with `node scripts/firebase-deploy.mjs`, which uploads `dist/` to Firebase Hosting and releases `firestore.rules` using only an OAuth access token.
 
-The manual `Deploy GCP` workflow needs a repository environment named `production`, Workload Identity Federation, an explicit project ID, a digest-pinned worker image, a remote Terraform state bucket and existing Secret Manager secret IDs. It runs `plan` by default. `apply` also requires typing the exact project ID.
+Readiness notes: [connections to complete](docs/readiness/OWNER-CONNECTIONS.md), [release acceptance](docs/readiness/RELEASE-ACCEPTANCE.md), [analytics queries](docs/readiness/analytics.md).
 
 ## Legal routes
 
