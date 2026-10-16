@@ -1,12 +1,14 @@
 # TakeOne backend
 
-A TypeScript and ffmpeg pipeline that generates a video from a topic, edits an existing video, or clips a YouTube segment. Production uses a Cloud Run dispatcher service and one-shot Cloud Run Job workers; Convex owns the durable queue, reservations, and lease reconciliation.
+A TypeScript and ffmpeg pipeline that generates a video from a topic, edits an existing video, or clips a YouTube segment. Production uses a Cloud Run dispatcher service that queues each render on Cloud Tasks for a warm Cloud Run worker service. Convex owns the durable queue, reservations, and lease reconciliation.
 
 ## Managed runtime
 
-`src/managed/server.ts` accepts authenticated dispatch requests and signs private output URLs. `src/managed/run.ts` claims exactly one job, renews its lease, renders one MP4, uploads it, and records fenced completion. Telegram and the web app use the same durable queue. Telegram webhook handling lives in the root Convex application.
+`src/managed/server.ts` accepts authenticated dispatch requests and signs private output URLs. `src/managed/workerService.ts` is the warm worker. Each `POST /run` from the queue runs one render or upload probe. A render claims exactly one job, renews its lease, renders one MP4, uploads it, and records fenced completion. `src/managed/run.ts` does the same single run as a one-shot Cloud Run Job, which production keeps for rollback. Telegram and the web app use the same durable queue. Telegram webhook handling lives in the root Convex application.
 
-Build with `backend/` as the Docker context. The default image command is `node dist/managed/server.js`; override it to `node dist/managed/run.js` for the worker Job. No resident VM, long-poll bot, deploy key, or shell-based cloud storage client is needed.
+Build with `backend/` as the Docker context. The default image command is `node dist/managed/server.js`. The worker service overrides it to `node dist/managed/workerService.js` and the rollback job to `node dist/managed/run.js`. No resident VM, long-poll bot, deploy key, or shell-based cloud storage client is needed.
+
+Terraform `render_dispatch` picks the render path. Production sets `tasks` in `infra/prod.tfvars`, and `jobs` switches back to the Cloud Run Job. With the warm worker an upload is ready in about 3 s instead of 1 to 2 minutes, and a full clip takes 115 s at best and 145 s at the median. See [render dispatch](docs/DEPLOY-GCP.md#render-dispatch) for the rollback and the checks to run after a deploy.
 
 See [managed runtime configuration](docs/DEPLOY-GCP.md) and [generation lifecycle](docs/WEB-GENERATION.md). Deployment and billing setup are separate operations.
 
@@ -42,7 +44,7 @@ The scoped `gaxios@6.7.1` → `uuid@11.1.1` override patches the UUID dependency
 
 ## Modules
 
-- `managed/`: HTTP dispatcher, one-shot worker, bounded source downloads, and temporary-file lifecycle.
+- `managed/`: HTTP dispatcher, warm worker service, one-shot rollback job, bounded source downloads, and temporary-file lifecycle.
 - `router/` and `gateway/`: validated operation plans and platform-independent request handling.
 - `queue/`: one-job executor, timeout/abort propagation, and intermediate-file cleanup.
 - `ingest/`, `media/`, `content/`, `transcribe/`, `search/`: source acquisition and rendering pipeline.

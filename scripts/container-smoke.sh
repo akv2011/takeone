@@ -5,6 +5,7 @@ ffmpeg -hide_banner -loglevel error -f lavfi -i color=c=red:s=320x240:r=10 -t 1 
 ffmpeg -hide_banner -loglevel error -stream_loop -1 -i /tmp/input.mp4 -t 5 -c copy /tmp/cutaway-source.mp4
 ffmpeg -hide_banner -loglevel error -f lavfi -i color=c=red:s=100x100:r=10 -t 2 /tmp/sticker.gif
 test -f dist/managed/run.js
+test -f dist/managed/workerService.js
 yt-dlp --version
 espeak-ng --version
 SMART_CROP=0 node --input-type=module <<'JS'

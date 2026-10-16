@@ -18,7 +18,7 @@ The website exposes integrations only after their complete capability gate is en
 
 ## Warm worker (Cloud Tasks)
 
-`render_dispatch` chooses how the dispatcher starts a render or upload probe. `jobs`, the default, starts one `takeone-video` Cloud Run Job execution per run. `tasks` enqueues a request on the `takeone-render` Cloud Tasks queue, which calls `POST /run` on the warm `takeone-worker` service with an OIDC token for `takeone-tasks-invoker`, so a run skips the job's cold start. The service has internal ingress, only that service account may invoke it, and it keeps `worker_min_instances` (default 1) warm at the idle rate. `worker_max_instances` (default 12) caps both its instances and the queue's concurrent dispatches.
+`render_dispatch` chooses how the dispatcher starts a render or upload probe. `jobs`, the default, starts one `takeone-video` Cloud Run Job execution per run. `tasks` enqueues a request on the `takeone-render` Cloud Tasks queue, which calls `POST /run` on the warm `takeone-worker` service with an OIDC token for `takeone-tasks-invoker`, so a run skips the job's cold start. The service has internal ingress, only that service account may invoke it, and it keeps `worker_min_instances` (default 1) warm at the idle rate. `worker_max_instances` (default 8) caps both its instances and the queue's concurrent dispatches.
 
 1. Apply with the defaults. This adds the queue, the worker service, the invoker service account and their IAM bindings without changing behavior, because the dispatcher still starts jobs. The `image` must already contain `dist/managed/workerService.js`.
 2. Confirm the latest `takeone-worker` revision is Ready.
