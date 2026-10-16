@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
  download: vi.fn(),
  sceneError: false,
 }));
-vi.mock('@clerk/clerk-react', () => ({ SignedIn: ({ children }: {children: unknown}) => children, SignedOut: () => null, SignInButton: () => null, useUser: () => ({ user: { id: mocks.userId } }) }));
+vi.mock('../src/lib/auth', () => ({ SignedIn: ({ children }: {children: unknown}) => children, SignedOut: () => null, SignInChoices: () => null, useAuth: () => ({ user: mocks.userId ? { id: mocks.userId, isGuest: false, name: 'Test User' } : null, loading: false }) }));
 vi.mock('convex/react', () => ({
  useConvexAuth: () => ({ isAuthenticated: mocks.authenticated, isLoading: false }),
  useQuery: (ref: Parameters<typeof getFunctionName>[0], args: unknown) => {

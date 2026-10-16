@@ -17,7 +17,7 @@ import { PreviousVersionPlayer } from "../components/PreviousVersionPlayer";
 import TelegramDeliveryStatus from "../components/TelegramDeliveryStatus";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { SignedIn, SignedOut, SignInButton, useUser } from "@clerk/clerk-react";
+import { SignedIn, SignedOut, SignInChoices, useAuth } from "../lib/auth";
 import {
   useConvexAuth,
   useQuery,
@@ -69,7 +69,7 @@ const QUICK_EDITS: { label: string; transforms: EditTransforms }[] = [
 ];
 
 export default function Studio() {
-  const { user } = useUser();
+  const { user } = useAuth();
   return (
     <div className="min-h-screen overflow-x-hidden bg-paper text-ink">
       <SignedOut>
@@ -86,11 +86,7 @@ export default function Studio() {
           <p className="mt-3 max-w-sm text-sm text-muted">
             Studio holds your captions, trims, framing, music and versions.
           </p>
-          <SignInButton mode="modal">
-            <button className={`${button("primary")} mt-7`}>
-              Continue with Google
-            </button>
-          </SignInButton>
+          <SignInChoices className="mt-7" />
         </div>
       </SignedOut>
       <SignedIn>
@@ -102,7 +98,7 @@ export default function Studio() {
 
 function StudioInner() {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
-  const { user } = useUser();
+  const { user } = useAuth();
   const { id } = useParams<{ id: string }>();
   const viewEpoch = useRef(0);
   const navigate = useNavigate();

@@ -45,7 +45,7 @@ export default defineSchema({
   }).index('by_review', ['reviewId']).index('by_request', ['reviewId', 'requestId']),
   brandKits: defineTable({ userId: v.string(), name: v.string(), revision: v.number(), settings: brandSettings }).index("by_user", ["userId"]),
   users: defineTable({
-    tokenIdentifier: v.string(), // Clerk subject
+    tokenIdentifier: v.string(), // Firebase Auth user id (token subject)
     email: v.optional(v.string()),
     name: v.optional(v.string()),
     credits: v.number(),

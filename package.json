@@ -13,9 +13,9 @@
     "seo:check-deployment": "node scripts/check-seo-deployment.mjs"
   },
   "dependencies": {
-    "@clerk/clerk-react": "^5.61.8",
     "canvas-confetti": "^1.9.4",
     "convex": "^1.42.1",
+    "firebase": "^13.0.0",
     "framer-motion": "^12.42.2",
     "gsap": "^3.15.0",
     "lucide-react": "^1.24.0",

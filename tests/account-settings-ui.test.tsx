@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { getFunctionName } from 'convex/server';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
@@ -9,17 +9,15 @@ const mocks = vi.hoisted(() => ({
   currentUser: undefined as unknown,
   updatePreferences: vi.fn(),
   queries: new Map<string, unknown>(),
-  profilePages: [] as string[],
+  user: { id: 'creator-1', isGuest: false, name: 'Test User', email: 'creator@example.com' } as { id: string; isGuest: boolean; name?: string; email?: string },
+  signOutUser: vi.fn(),
 }));
 
-vi.mock('@clerk/clerk-react', () => {
-  const UserButton = ({ children }: { children?: React.ReactNode }) => children ?? null;
-  UserButton.UserProfilePage = ({ children, label }: { children?: React.ReactNode; label: string }) => {
-    mocks.profilePages.push(label);
-    return children ?? null;
-  };
-  return { UserButton, useUser: () => ({ user: { id: 'creator-1' } }) };
-});
+vi.mock('../src/lib/auth', () => ({
+  useAuth: () => ({ user: mocks.user, loading: false }),
+  GuestNotice: () => 'Guest session notice',
+  signOutUser: mocks.signOutUser,
+}));
 vi.mock('convex/react', () => ({
   useQuery: (reference: unknown) => getFunctionName(reference as never) === 'users:currentUser' ? mocks.currentUser : mocks.queries.get(getFunctionName(reference as never)),
   useMutation: (reference: unknown) => getFunctionName(reference as never) === 'users:updatePreferences' ? mocks.updatePreferences : vi.fn(),
@@ -28,7 +26,6 @@ vi.mock('convex/react', () => ({
 import AccountPreferences from '../src/components/account/AccountPreferences';
 import AccountBilling from '../src/components/account/AccountBilling';
 import TakeOneUserButton from '../src/components/account/TakeOneUserButton';
-import { clerkAppearance } from '../src/lib/clerkTheme';
 
 const preferences = {
   defaultMode: 'clip' as const,
@@ -42,10 +39,20 @@ beforeEach(() => {
   mocks.currentUser = { preferences };
   mocks.updatePreferences.mockReset().mockResolvedValue(preferences);
   mocks.queries.clear();
-  mocks.profilePages = [];
+  mocks.user = { id: 'creator-1', isGuest: false, name: 'Test User', email: 'creator@example.com' };
+  mocks.signOutUser.mockReset().mockResolvedValue(undefined);
+  // jsdom has no showModal or close, so these mirror what the browser does to the open attribute.
+  HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) { this.setAttribute('open', ''); };
+  HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) { this.removeAttribute('open'); this.dispatchEvent(new Event('close')); };
 });
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+
+const openAccount = () => {
+  render(React.createElement(MemoryRouter, {}, React.createElement(TakeOneUserButton)));
+  fireEvent.click(screen.getByRole('button', { name: 'Account' }));
+  return screen.getByRole('navigation', { name: 'Account pages' });
+};
 
 test('Preferences loads saved values and enables save only after an edit', async () => {
   render(React.createElement(AccountPreferences));
@@ -117,17 +124,52 @@ test('Billing labels accounts with purchased credits as pay as you go without sh
   expect(screen.getByRole('link', { name: 'View plans' }).getAttribute('href')).toBe('/pricing');
 });
 
-test('shared user button orders the four account pages', () => {
+test('account dialog orders Account, Preferences and Billing and switches panels', () => {
   render(React.createElement(MemoryRouter, {}, React.createElement(TakeOneUserButton)));
-  expect(mocks.profilePages).toEqual(['account', 'Preferences', 'security', 'Billing']);
+  expect(screen.queryByRole('navigation', { name: 'Account pages' })).toBeNull();
+  expect(screen.queryByRole('combobox', { name: 'Starting point' })).toBeNull();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Account' }));
+  const nav = screen.getByRole('navigation', { name: 'Account pages' });
+  expect(within(nav).getAllByRole('button').map(page => page.textContent)).toEqual(['Account', 'Preferences', 'Billing']);
+  expect(within(nav).getByRole('button', { name: 'Account' }).getAttribute('aria-current')).toBe('page');
+  expect(screen.getByText('Test User')).toBeTruthy();
+  expect(screen.getByText('creator@example.com')).toBeTruthy();
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close' }));
+
+  fireEvent.click(within(nav).getByRole('button', { name: 'Preferences' }));
+  expect(within(nav).getByRole('button', { name: 'Preferences' }).getAttribute('aria-current')).toBe('page');
+  expect(within(nav).getByRole('button', { name: 'Account' }).getAttribute('aria-current')).toBeNull();
+  expect(screen.getByRole('combobox', { name: 'Starting point' })).toBeTruthy();
+
+  fireEvent.click(within(nav).getByRole('button', { name: 'Billing' }));
+  expect(screen.getByText('Current plan')).toBeTruthy();
+  expect(screen.queryByRole('combobox', { name: 'Starting point' })).toBeNull();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+  expect(screen.queryByRole('navigation', { name: 'Account pages' })).toBeNull();
+  expect(screen.queryByText('Current plan')).toBeNull();
 });
 
-test('account appearance uses the TakeOne palette, keeps ink text on yellow and removes the danger section', () => {
-  const serialized = JSON.stringify(clerkAppearance).toLowerCase();
-  expect(serialized).not.toContain('#2563eb');
-  expect(serialized).not.toContain('blue');
-  expect(serialized).not.toContain('rgb(37, 99, 235)');
-  expect((clerkAppearance.elements as Record<string, unknown>).profileSection__danger).toEqual({ display: 'none' });
-  expect(clerkAppearance.elements.formButtonPrimary).toMatchObject({ backgroundColor: '#FFD23F', color: '#1A1F36' });
-  expect(clerkAppearance.variables.fontFamily).toContain('Atkinson Hyperlegible');
+test('a signed-in Google account signs out without a guest warning', async () => {
+  const confirm = vi.spyOn(window, 'confirm');
+  openAccount();
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Sign out' })); });
+  expect(confirm).not.toHaveBeenCalled();
+  expect(mocks.signOutUser).toHaveBeenCalledTimes(1);
+});
+
+test('a guest sees the guest notice and must confirm before signing out', async () => {
+  mocks.user = { id: 'guest-1', isGuest: true };
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+  openAccount();
+  expect(screen.getByText('Guest')).toBeTruthy();
+  expect(screen.getByText('Guest session notice')).toBeTruthy();
+
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Sign out' })); });
+  expect(confirm).toHaveBeenCalledWith(expect.stringContaining('removes access to its videos'));
+  expect(mocks.signOutUser).not.toHaveBeenCalled();
+
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Sign out' })); });
+  expect(mocks.signOutUser).toHaveBeenCalledTimes(1);
 });

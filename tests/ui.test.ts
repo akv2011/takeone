@@ -6,13 +6,18 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { getFunctionName } from 'convex/server';
 import { PACKS } from '../convex/config';
 const mocks = vi.hoisted(() => ({ userId: 'u1' as string | undefined, redirect: vi.fn(), auth: { isAuthenticated: true, isLoading: false }, queryArgs: new Map<string, unknown>(), mutations: new Map<string, ReturnType<typeof vi.fn>>(), queries: new Map<string, unknown>(), action: vi.fn(), loadMore: vi.fn(), historyStatus: "Exhausted" }));
-vi.mock('@clerk/clerk-react', () => {
- const UserButton: any = () => null;
- UserButton.UserProfilePage = () => null;
- return {
-  SignedIn: ({ children }: any) => children, SignedOut: () => null, SignInButton: ({ children }: any) => children,
-  UserButton, useUser: () => ({ user: mocks.userId ? { id: mocks.userId, fullName: 'Test User' } : null }),
- };
+const authMocks = vi.hoisted(() => ({ guest: false, signInWithGoogle: vi.fn(), saveWithGoogle: vi.fn() }));
+vi.mock('../src/lib/auth', () => ({
+ SignedIn: ({ children }: any) => mocks.userId ? children : null, SignedOut: ({ children }: any) => mocks.userId ? null : children,
+ SignInChoices: () => null, GuestNotice: () => null,
+ useAuth: () => ({ user: mocks.userId ? { id: mocks.userId, isGuest: authMocks.guest, name: 'Test User' } : null, loading: false }),
+ signInWithGoogle: authMocks.signInWithGoogle, saveWithGoogle: authMocks.saveWithGoogle, signOutUser: vi.fn(),
+ signInErrorMessage: (error: { code?: string }) => error.code === 'auth/popup-closed-by-user' ? undefined : `Mapped ${error.code}`,
+}));
+beforeEach(() => {
+ authMocks.guest = false;
+ authMocks.signInWithGoogle.mockReset().mockResolvedValue(undefined);
+ authMocks.saveWithGoogle.mockReset().mockResolvedValue(undefined);
 });
 vi.mock('convex/react', () => ({
  useConvexAuth: () => mocks.auth,
@@ -69,6 +74,33 @@ test('pricing without a sign-in provider shows packs with checkout disabled and 
  expect(buttons.every(button => (button as HTMLButtonElement).disabled)).toBe(true);
  expect(screen.queryByRole('button', { name: /^Buy / })).toBeNull();
  expect(mocks.queryArgs.has('payments:listHistory')).toBe(false);
+});
+
+test('a signed-out pack button signs in with Google and shows only errors worth reporting', async () => {
+ mocks.userId = undefined;
+ show(React.createElement(Pricing));
+ const buttons = screen.getAllByRole('button', { name: 'Sign in to buy' });
+ expect(buttons).toHaveLength(3);
+ authMocks.signInWithGoogle.mockRejectedValueOnce({ code: 'auth/popup-closed-by-user' });
+ await act(async () => { fireEvent.click(buttons[0]); });
+ expect(authMocks.signInWithGoogle).toHaveBeenCalledTimes(1);
+ expect(screen.queryByRole('alert')).toBeNull();
+ authMocks.signInWithGoogle.mockRejectedValueOnce({ code: 'auth/popup-blocked' });
+ await act(async () => { fireEvent.click(buttons[1]); });
+ expect(screen.getByRole('alert').textContent).toBe('Mapped auth/popup-blocked');
+});
+
+test('a guest saves with Google before buying instead of starting a checkout', async () => {
+ authMocks.guest = true;
+ show(React.createElement(Pricing));
+ expect(screen.queryByRole('button', { name: /^Buy / })).toBeNull();
+ const save = screen.getAllByRole('button', { name: 'Save with Google to buy' });
+ expect(save).toHaveLength(3);
+ authMocks.saveWithGoogle.mockRejectedValueOnce({ code: 'auth/credential-already-in-use' });
+ await act(async () => { fireEvent.click(save[0]); });
+ expect(authMocks.saveWithGoogle).toHaveBeenCalledTimes(1);
+ expect(screen.getByRole('alert').textContent).toBe('Mapped auth/credential-already-in-use');
+ expect(mocks.action).not.toHaveBeenCalled();
 });
 
 test('unconfigured providers stay visible as unavailable instead of starting broken work', () => {
@@ -257,7 +289,8 @@ test('private queries and account creation wait until backend authentication is 
 test('a failed sign-in bridge gives an actionable message without firing private queries', () => {
  mocks.auth = { isAuthenticated: false, isLoading: false };
  show(React.createElement(Dashboard));
- expect(screen.getByRole('alert').textContent).toContain('Sign out, then sign in again');
+ expect(screen.getByRole('alert').textContent).toContain('Reload the page to try again');
+ expect(screen.getByRole('alert').textContent).not.toContain('Sign out');
  expect(mocks.queryArgs.get('generate:listJobs')).toBe('skip');
 });
 test('purchase history distinguishes started checkouts from confirmed credit purchases', () => {
@@ -730,4 +763,53 @@ test('dashboard includes selected brand revision in new renders and choosing it 
  fireEvent.change(screen.getByRole('textbox', { name: 'Video prompt' }), { target: { value: 'A detailed soap tutorial' } });
  fireEvent.click(screen.getByRole('button', { name: 'Create video', exact: true }));
  await waitFor(() => expect(mocks.mutations.get('generate:requestGeneration')).toHaveBeenCalledWith(expect.objectContaining({ brandKit: { kitId: 'kit-1', revision: 2 }, requestId: expect.any(String) })));
+});
+
+test('letting Gemini pick the moment sends an upload clip without a prompt', async () => {
+ mocks.queries.set('uploads:list', [{ _id: 'upload1', name: 'talk.mp4', size: 1048576 }]);
+ show(React.createElement(Dashboard));
+ fireEvent.click(screen.getByRole('button', { name: 'Edit upload' }));
+ fireEvent.change(screen.getByLabelText('Uploaded video'), { target: { value: 'upload1' } });
+ fireEvent.click(screen.getByRole('checkbox'));
+ expect((screen.getByRole('radio', { name: 'Describe the edit' }) as HTMLInputElement).checked).toBe(true);
+ fireEvent.click(screen.getByRole('button', { name: 'Edit video', exact: true }));
+ expect(screen.getByText('Type a prompt to start.')).toBeTruthy();
+ fireEvent.click(screen.getByRole('radio', { name: 'Let Gemini pick the best moment' }));
+ expect((screen.getByRole('textbox', { name: 'Video prompt' }) as HTMLTextAreaElement).disabled).toBe(true);
+ fireEvent.click(screen.getByRole('button', { name: 'Create clip', exact: true }));
+ const submit = mocks.mutations.get('uploads:requestEdit')!;
+ await waitFor(() => expect(submit).toHaveBeenCalledTimes(1));
+ expect(submit.mock.calls[0][0]).toMatchObject({ mode: 'clip', uploadId: 'upload1', confirmedOwnership: true, requestId: expect.any(String) });
+ expect('instruction' in submit.mock.calls[0][0]).toBe(false);
+});
+
+test('caption language is sent only when chosen and stays with a brand kit', async () => {
+ mocks.queries.set('brandKits:list', [{ _id: 'kit-1', name: 'Soap studio', revision: 2, settings: { font: 'serif', captionStyle: 'meme', textColor: '#FFFFFF', outlineColor: '#000000' } }]);
+ show(React.createElement(Dashboard));
+ fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+ const create = () => {
+  fireEvent.change(screen.getByRole('textbox', { name: 'Video prompt' }), { target: { value: 'A reel about monsoon street food' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Create video', exact: true }));
+ };
+ const submit = mocks.mutations.get('generate:requestGeneration')!;
+ create();
+ await waitFor(() => expect(submit).toHaveBeenCalledTimes(1));
+ expect(submit.mock.calls[0][0].captionLanguage).toBeUndefined();
+ fireEvent.change(screen.getByLabelText('Caption language'), { target: { value: 'hi' } });
+ create();
+ await waitFor(() => expect(submit).toHaveBeenCalledTimes(2));
+ expect(submit.mock.calls[1][0]).toMatchObject({ mode: 'generate', captionLanguage: 'hi' });
+ fireEvent.change(screen.getByLabelText('Saved brand kit'), { target: { value: 'kit-1' } });
+ expect(screen.queryByLabelText('Caption style')).toBeNull();
+ expect((screen.getByLabelText('Caption language') as HTMLSelectElement).value).toBe('hi');
+ fireEvent.change(screen.getByLabelText('Video type'), { target: { value: 'ai' } });
+ expect(screen.queryByLabelText('Caption language')).toBeNull();
+});
+
+test('a used-up free day shows the daily cap message', async () => {
+ mocks.mutations.set('generate:requestGeneration', vi.fn().mockRejectedValue({ data: { code: 'FREE_DAILY_CAP', message: "Today's free renders are used up. Try again tomorrow. No allowance was used." } }));
+ show(React.createElement(Dashboard));
+ fireEvent.change(screen.getByRole('textbox', { name: 'Video prompt' }), { target: { value: 'A reel about space' } });
+ fireEvent.click(screen.getByRole('button', { name: 'Create video', exact: true }));
+ expect(await screen.findByText("Today's free renders are used up. Try again tomorrow.")).toBeTruthy();
 });

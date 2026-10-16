@@ -1,7 +1,7 @@
 import { BrandKitPanel, type BrandSelection } from "../components/BrandKitPanel";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { SignedIn, SignedOut, SignInButton, useUser } from "@clerk/clerk-react";
+import { GuestNotice, SignedIn, SignedOut, SignInChoices, useAuth } from "../lib/auth";
 import { useConvexAuth, useMutation, useQuery, usePaginatedQuery } from "convex/react";
 import { Clapperboard, Scissors, SlidersHorizontal } from "lucide-react";
 import TakeOneLogo from "../components/TakeOneLogo";
@@ -15,6 +15,7 @@ import TakeOneUserButton from "../components/account/TakeOneUserButton";
 import { normalizeAccountPreferences, type AccountPreferencesValue } from "../lib/accountPreferences";
 import { useProductCapabilities } from "../hooks/useProductCapabilities";
 import { button, field, label, panel } from "../lib/ui";
+import { CAPTION_LANGUAGES } from "../../convex/captions";
 
 const MODES = [
   { id: "edit", label: "Edit upload", shortLabel: "Edit", help: "Upload footage, then describe the trim, speed, framing or caption changes.", placeholder: "What should change in your video?" },
@@ -49,11 +50,9 @@ function SignInGate() {
       </Link>
       <h1 className="font-display text-4xl font-extrabold md:text-5xl">Sign in to start creating</h1>
       <p className="mt-3 max-w-sm font-sans text-sm text-muted">
-        Use your Google account to get three free videos.
+        Use your Google account or a guest session to get three free videos.
       </p>
-      <SignInButton mode="modal">
-        <button className={`${button("primary")} mt-7`}>Continue with Google</button>
-      </SignInButton>
+      <SignInChoices className="mt-7" />
     </div>
   );
 }
@@ -64,7 +63,7 @@ type Job = { _id: string; mode: string; prompt: string; status: string; resultUr
 function DashboardInner() {
   const navigate = useNavigate();
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
-  const { user } = useUser();
+  const { user } = useAuth();
   const me = useQuery(api.users.currentUser, isAuthenticated ? {} : "skip") as Me;
   const ensureUser = useMutation(api.users.ensureUser);
   const [uploadId, setUploadId] = useState<string>();
@@ -83,6 +82,10 @@ function DashboardInner() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const selectedBrandKit = generationKind === 'ai' && mode === 'generate' ? undefined : brandKit;
   const selectedCaptionStyle = (mode === 'generate' && generationKind === 'ai') || captionStyle === 'auto' ? undefined : captionStyle;
+  const [captionLanguage, setCaptionLanguage] = useState('');
+  const selectedCaptionLanguage = (mode === 'generate' && generationKind === 'ai') || !captionLanguage ? undefined : captionLanguage;
+  const [editChoice, setEditChoice] = useState<'describe' | 'moment'>('describe');
+  const pickMoment = mode === 'edit' && editChoice === 'moment';
   const [aspect, setAspect] = useState<string>("9:16");
   const [prompt, setPrompt] = useState("");
   const [status, setStatus] = useState("");
@@ -96,10 +99,10 @@ function DashboardInner() {
   const initializeAccount = useCallback(async () => {
     if (!user?.id || !isAuthenticated) return;
     setPreparingAccount(true); setAccountError(false);
-    try { await ensureUser({ email: user.primaryEmailAddress?.emailAddress, name: user.fullName ?? undefined }); }
+    try { await ensureUser({ email: user.email, name: user.name }); }
     catch { setAccountError(true); }
     finally { setPreparingAccount(false); }
-  }, [ensureUser, isAuthenticated, user?.id, user?.primaryEmailAddress?.emailAddress, user?.fullName]);
+  }, [ensureUser, isAuthenticated, user?.id, user?.email, user?.name]);
   useEffect(() => { void initializeAccount(); }, [initializeAccount]);
   useEffect(() => { setBrandKit(undefined); }, [user?.id]);
   useEffect(() => {
@@ -129,7 +132,7 @@ function DashboardInner() {
   }, [jobs, navigate, submittedJob]);
   const chooseMode = (next: string) => {
     setMode(next); setConfirmedOwnership(false); setStatus('');
-    if (next !== 'edit') setUploadId(undefined);
+    if (next !== 'edit') { setUploadId(undefined); setEditChoice('describe'); }
   };
 
   const generate = async () => {
@@ -137,12 +140,12 @@ function DashboardInner() {
     if (!me) { setStatus("Your account is still being set up. Wait a moment, or retry setup if it fails."); return; }
     if (mode === "edit" && !uploadId) { setStatus("Upload a video first."); return; }
     if ((mode === "clip" || mode === "edit") && !confirmedOwnership) { setStatus("Confirm that you have permission to use this video."); return; }
-    if (!prompt.trim()) { setStatus("Type a prompt to start."); return; }
+    if (!pickMoment && !prompt.trim()) { setStatus("Type a prompt to start."); return; }
     setBusy(true); setStatus("");
-    const payload = JSON.stringify({ brandKit: selectedBrandKit, captionStyle: selectedCaptionStyle, mode, generationKind, aspect, prompt: prompt.trim(), confirmedOwnership, uploadId });
+    const payload = JSON.stringify({ brandKit: selectedBrandKit, captionStyle: selectedCaptionStyle, captionLanguage: selectedCaptionLanguage, mode, pickMoment, generationKind, aspect, prompt: prompt.trim(), confirmedOwnership, uploadId });
     if (pending.current?.payload !== payload) pending.current = { payload, requestId: crypto.randomUUID() };
     try {
-      const r = (await (mode === "edit" ? requestUploadEdit({ brandKit: selectedBrandKit, captionStyle: selectedCaptionStyle, uploadId, aspect, instruction: prompt.trim(), confirmedOwnership, requestId: pending.current.requestId }) : requestGeneration({ brandKit: selectedBrandKit, captionStyle: selectedCaptionStyle, mode, generationKind: mode === "generate" ? generationKind : undefined, aspect, prompt: prompt.trim(), confirmedOwnership, requestId: pending.current.requestId }))) as { billing: string; jobId?: string };
+      const r = (await (mode === "edit" ? requestUploadEdit({ brandKit: selectedBrandKit, captionStyle: selectedCaptionStyle, captionLanguage: selectedCaptionLanguage, uploadId, aspect, ...(pickMoment ? { mode: 'clip' } : { instruction: prompt.trim() }), confirmedOwnership, requestId: pending.current.requestId }) : requestGeneration({ brandKit: selectedBrandKit, captionStyle: selectedCaptionStyle, captionLanguage: selectedCaptionLanguage, mode, generationKind: mode === "generate" ? generationKind : undefined, aspect, prompt: prompt.trim(), confirmedOwnership, requestId: pending.current.requestId }))) as { billing: string; jobId?: string };
       if (r.jobId) setSubmittedJob({ id: r.jobId, openWhenDone: preferences.openFinishedInStudio });
       setStatus(r.billing === "free" ? "Queued. One free video reserved. It'll appear below shortly." : "Queued. One credit reserved. It'll appear below shortly.");
       setPrompt("");
@@ -150,6 +153,7 @@ function DashboardInner() {
     } catch (e: any) {
       if (e?.data?.code === "NO_CREDITS") setStatus("out-of-credits");
       else if (e?.data?.code === "RENDER_UNAVAILABLE") setStatus(e.data.message);
+      else if (e?.data?.code === "FREE_DAILY_CAP") setStatus("Today's free renders are used up. Try again tomorrow.");
       else setStatus("Could not queue the video. Check your prompt and try again; at most three videos can wait per account.");
     } finally { setBusy(false); }
   };
@@ -157,7 +161,7 @@ function DashboardInner() {
   const free = me?.freeRemaining ?? 0;
   const credits = me?.credits ?? 0;
   const activeMode = MODES.find((m) => m.id === mode)!;
-  const actionLabel = mode === 'edit' ? 'Edit video' : mode === 'clip' ? 'Create clip' : 'Create video';
+  const actionLabel = mode === 'clip' || pickMoment ? 'Create clip' : mode === 'edit' ? 'Edit video' : 'Create video';
   const activeCapability = mode === 'edit' ? capabilities?.rendering : mode === 'clip' ? capabilities?.youtubeClips : generationKind === 'ai' ? capabilities?.aiVideo : capabilities?.stockVideo;
 
   return (
@@ -188,7 +192,8 @@ function DashboardInner() {
         {/* Composer */}
         <div className="mx-auto max-w-3xl">
           {!!me?.creditAdjustment && <p role="status" className={`${panel} mb-4 p-4 text-sm`}>A refund removed credits that had already been used. Your next purchased credits will first cover this {me.creditAdjustment}-credit adjustment. Your purchase history shows the refund.</p>}
-          {!authLoading && !isAuthenticated && <p role="alert" className="mb-4 rounded-[10px] border border-warn/40 bg-surface p-4 text-sm">Your sign-in did not reach the video service. Sign out, then sign in again.</p>}
+          <GuestNotice className="mb-4" />
+          {!authLoading && !isAuthenticated && <p role="alert" className="mb-4 rounded-[10px] border border-warn/40 bg-surface p-4 text-sm">Your sign-in did not reach the video service. Reload the page to try again.</p>}
           {accountError && <div role="alert" className="mb-4 rounded-[10px] border border-warn/40 bg-surface p-4 text-sm">
             We could not finish setting up your account. Your allowance has not been charged.
             <button disabled={preparingAccount} onClick={() => void initializeAccount()} className="ml-2 font-semibold underline">Retry account setup</button>
@@ -215,8 +220,9 @@ function DashboardInner() {
               onChange={(e) => setPrompt(e.target.value)}
               onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); void generate(); } }}
               rows={4}
-              placeholder={activeMode.placeholder}
-              className="w-full resize-none bg-transparent px-5 pt-5 pb-3 text-base leading-relaxed outline-none placeholder:text-muted"
+              disabled={pickMoment}
+              placeholder={pickMoment ? "Gemini watches your upload and picks the best 15 to 30 seconds." : activeMode.placeholder}
+              className="w-full resize-none bg-transparent px-5 pt-5 pb-3 text-base leading-relaxed outline-none placeholder:text-muted disabled:cursor-not-allowed"
             />
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-3 py-3">
               <Tooltip label="Choose format, captions, video source and brand kit">
@@ -236,6 +242,11 @@ function DashboardInner() {
             </div>
           </div>
           {mode === "edit" && <VideoUpload onReady={setUploadId} />}
+          {mode === "edit" && <fieldset className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+            <legend className="sr-only">How to edit the upload</legend>
+            <label className="flex items-center gap-2"><input type="radio" name="edit-choice" className="size-4 accent-ink" checked={editChoice === 'describe'} onChange={() => setEditChoice('describe')} />Describe the edit</label>
+            <label className="flex items-center gap-2"><input type="radio" name="edit-choice" className="size-4 accent-ink" checked={editChoice === 'moment'} onChange={() => setEditChoice('moment')} />Let Gemini pick the best moment</label>
+          </fieldset>}
           {(mode === "clip" || mode === "edit") && <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" className="size-4 accent-ink" checked={confirmedOwnership} onChange={e => setConfirmedOwnership(e.target.checked)} />I own or have permission to use this video.</label>}
           {settingsOpen && <section id="creation-settings" aria-label="Video settings" className={`${panel} mt-3 p-4`}>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -252,6 +263,12 @@ function DashboardInner() {
               {!(mode === 'generate' && generationKind === 'ai') && !brandKit && <label className={label}>Captions
                 <select aria-label="Caption style" value={captionStyle} onChange={e => setCaptionStyle(e.target.value)} className={`${field} mt-2 block w-full`}>
                   <option value="auto">Automatic</option><option value="clean">Clean</option><option value="meme">Bold pop</option><option value="karaoke">Pop-in</option><option value="none">None</option>
+                </select>
+              </label>}
+              {!(mode === 'generate' && generationKind === 'ai') && <label className={label}>Language
+                <select aria-label="Caption language" value={captionLanguage} onChange={e => setCaptionLanguage(e.target.value)} className={`${field} mt-2 block w-full`}>
+                  <option value="">Same as the video</option>
+                  {CAPTION_LANGUAGES.map(language => <option key={language.code} value={language.code}>{language.label}</option>)}
                 </select>
               </label>}
             </div>

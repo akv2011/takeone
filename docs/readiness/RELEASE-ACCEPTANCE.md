@@ -11,7 +11,7 @@ Historical external project identifiers below are replaced with descriptive plac
 - Privacy, Terms, Acceptable Use, Copyright and Refund routes are implemented and linked from the landing page.
 - An internal aggregate readiness query reports missing capability gates and active legacy jobs without returning user identifiers, prompts, provider credentials or object names.
 - Managed rendering stays paused (`MANAGED_RENDERING_PAUSED=true`) until any legacy jobs are reconciled and a staging render passes.
-- Clerk production keys and the matching Convex JWT issuer are required before inviting users. Development keys carry strict usage limits.
+- Firebase Authentication (Google and Anonymous providers, authorized domains) and `FIREBASE_PROJECT_ID` in Convex are required before inviting users. Deploy the Convex auth config and the web build together.
 
 No release-ready claim is valid until the live gates below have evidence.
 

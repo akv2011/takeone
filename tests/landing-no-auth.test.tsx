@@ -11,7 +11,7 @@ import Header from "../src/components/Header";
 
 afterEach(cleanup);
 
-test("the public header renders without Clerk or Convex configuration", () => {
+test("the public header renders without Firebase or Convex configuration", () => {
   render(React.createElement(MemoryRouter, {}, React.createElement(Header)));
   expect(screen.getByRole("link", { name: "TakeOne home" })).toBeTruthy();
   expect(screen.getByRole("link", { name: "Start" }).getAttribute("href")).toBe("/create");

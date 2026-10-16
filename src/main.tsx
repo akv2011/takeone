@@ -4,15 +4,12 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import { BrowserRouter } from 'react-router-dom'
 import { AppRoutes } from './AppRoutes'
-import { ClerkProvider, useAuth } from '@clerk/clerk-react'
-import { ConvexProvider, ConvexReactClient } from 'convex/react'
-import { ConvexProviderWithClerk } from 'convex/react-clerk'
+import { ConvexProvider, ConvexProviderWithAuth, ConvexReactClient } from 'convex/react'
 import { authEnabled } from './lib/convexApi'
-import { clerkAppearance, clerkLocalization } from './lib/clerkTheme'
+import { AuthProvider, useFirebaseConvexAuth } from './lib/auth'
 
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 
-const pk = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined
 const convexUrl = (import.meta.env.VITE_CONVEX_URL as string | undefined) || 'https://placeholder.convex.cloud'
 const convex = new ConvexReactClient(convexUrl)
 
@@ -22,16 +19,15 @@ const routes = (
   </BrowserRouter>
 )
 
-// Clerk (Google sign-in) activates when the publishable key is set; Convex is always provided.
+// Firebase sign-in activates when its web config is set; Convex is always provided.
 function Root() {
-  if (!isPublicReviewPath(window.location.pathname) && authEnabled && pk) {
+  if (!isPublicReviewPath(window.location.pathname) && authEnabled) {
     return (
-      <ClerkProvider publishableKey={pk} afterSignOutUrl="/" appearance={clerkAppearance} localization={clerkLocalization}
-        signInForceRedirectUrl="/create" signUpForceRedirectUrl="/create">
-        <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
+      <AuthProvider>
+        <ConvexProviderWithAuth client={convex} useAuth={useFirebaseConvexAuth}>
           {routes}
-        </ConvexProviderWithClerk>
-      </ClerkProvider>
+        </ConvexProviderWithAuth>
+      </AuthProvider>
     )
   }
   return <ConvexProvider client={convex}>{routes}</ConvexProvider>

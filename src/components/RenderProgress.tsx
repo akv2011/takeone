@@ -1,4 +1,9 @@
 import { useEffect, useState } from 'react';
+import { doc, getFirestore, onSnapshot, type DocumentData } from 'firebase/firestore';
+import { app } from '../lib/firebase';
+
+// Created here rather than in lib/firebase so the Firestore SDK loads with Studio, not with every page.
+const firestore = app && getFirestore(app);
 
 const labels = {
   script: 'Writing the script', narration: 'Recording narration',
@@ -14,6 +19,28 @@ export interface RenderAttempt {
 }
 interface Props {
   job?: { _id: string; status: string; createdAt?: number; finishedAt?: number; refunded?: boolean; renderProgress?: RenderAttempt } | null;
+}
+type Stage = keyof typeof labels;
+type Live = { stages: Stage[]; at: number } | null;
+/** `renders/{jobId}` keeps `stages` across retries, so the current attempt ends at `stage`. */
+function parseLive(data: DocumentData | undefined): Live {
+  const stages = (Array.isArray(data?.stages) ? data.stages : []).filter((s): s is Stage => typeof s === 'string' && Object.hasOwn(labels, s));
+  const cut = stages.findIndex(s => s === data?.stage);
+  const current = cut < 0 ? stages : stages.slice(0, cut + 1);
+  return current.length ? { stages: current, at: typeof data?.updatedAt?.toMillis === 'function' ? data.updatedAt.toMillis() : Date.now() } : null;
+}
+function useLiveStages(jobId: string | undefined, running: boolean): Live {
+  const [live, setLive] = useState<Live>(null);
+  useEffect(() => {
+    if (!firestore || !jobId || !running) return;
+    const stop = onSnapshot(doc(firestore, 'renders', jobId), snap => setLive(parseLive(snap.data())), () => setLive(null));
+    return () => { stop(); setLive(null); };
+  }, [jobId, running]);
+  return running ? live : null;
+}
+function fromLive(live: NonNullable<Live>, recorded?: RenderAttempt): RenderAttempt {
+  const stages = live.stages.map(stage => ({ stage, startedAt: recorded?.stages.find(entry => entry.stage === stage)?.startedAt ?? live.at }));
+  return { attempt: recorded?.attempt ?? 1, startedAt: recorded?.startedAt ?? stages[0].startedAt, finishedAt: recorded?.finishedAt, stages };
 }
 const seconds = (start: number, end: number) => `${Math.max(0, Math.floor((end - start) / 1000))}s`;
 /** Bars lit by pipeline position, not by time. Paths skip stages, so this never claims a percentage. */
@@ -31,7 +58,8 @@ export function RenderProgress({ job }: Props) {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, [job?._id, running, queued]);
-  const progress = job?.renderProgress;
+  const live = useLiveStages(job?._id, running);
+  const progress = live ? fromLive(live, job?.renderProgress) : job?.renderProgress;
   const current = progress?.stages.at(-1);
   const message = !job ? 'Waiting for video details.'
     : job.status === 'queued' ? 'Waiting for a render slot.'

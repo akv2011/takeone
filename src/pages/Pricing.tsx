@@ -2,7 +2,7 @@ import { openCheckout } from "../lib/openCheckout";
 import { PAYMENT_ACTION_COPY } from '../../convex/paymentStates';
 import { Fragment, useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { SignedIn, SignedOut, SignInButton, useUser } from "@clerk/clerk-react";
+import { SignedIn, SignedOut, saveWithGoogle, signInErrorMessage, signInWithGoogle, useAuth } from "../lib/auth";
 import { useAction, useQuery, useConvexAuth, usePaginatedQuery } from "convex/react";
 import { api } from "../lib/convexApi";
 import TakeOneLogo from "../components/TakeOneLogo";
@@ -51,7 +51,7 @@ function ResumeCheckout({ orderId }: { orderId: string }) {
   }}>{busy ? 'Verifying checkout…' : 'Continue checkout'}</button>{message && <p role="status" className="mt-1 max-w-sm text-xs text-muted">{message}</p>}</div>;
 }
 function PurchaseHistory() {
-  const { user } = useUser();
+  const { user } = useAuth();
   const { isAuthenticated } = useConvexAuth();
   const history = usePaginatedQuery(api.payments.listHistory, isAuthenticated && user?.id ? { accountKey: user.id } : 'skip', { initialNumItems: 20 });
   const orders = history.results as { id: string; canResume?: boolean; packId: string; credits: number; amountUsd: number; paidAmountUsd?: number; refundedAmountUsd?: number; refundedCredits?: number; status: string; disputeReview?: boolean; createdAt: number; environment: string }[] | undefined;
@@ -83,13 +83,14 @@ export default function Pricing({ auth = true }: { auth?: boolean }) {
   return auth ? <SignedInPricing /> : <PricingContent auth={false} />;
 }
 function SignedInPricing() {
-  const { user } = useUser();
+  const { user } = useAuth();
   // An account change must invalidate outstanding redirects and UI locks.
   return <PricingContent key={user?.id ?? 'signed-out'} auth />;
 }
 const Nothing = () => null;
-// Without ClerkProvider the Clerk components throw, so the page renders its signed-out view directly.
+// Without Firebase config there is no account to sign in to, so the page renders its signed-out view with checkout disabled.
 function PricingContent({ auth }: { auth: boolean }) {
+  const { user } = useAuth();
   const WhenSignedIn = auth ? SignedIn : Nothing;
   const WhenSignedOut = auth ? SignedOut : Fragment;
   const capabilities = useProductCapabilities();
@@ -113,6 +114,12 @@ function PricingContent({ auth }: { auth: boolean }) {
     } catch { /* Storage may be disabled. */ }
     if (checkoutAttempts.current[order.packId] === order.requestId) delete checkoutAttempts.current[order.packId];
   }, [orderId, order?.requestId, order?.packId, order?.status]);
+
+  const authenticate = async (action: () => Promise<void>) => {
+    setError('');
+    try { await action(); }
+    catch (caught) { const message = signInErrorMessage(caught); if (message && active.current) setError(message); }
+  };
 
   const buy = async (packId: string) => {
     if (submitting.current) return;
@@ -212,12 +219,13 @@ function PricingContent({ auth }: { auth: boolean }) {
                 <li>Failed jobs restore the credit</li>
               </ul>
               <WhenSignedIn>
-                <button disabled={busy || !capabilities?.payments.available} onClick={() => buy(p.id)} className={`${button(i === 0 ? "primary" : "secondary")} mt-auto w-full`}>{!capabilities?.payments.available ? 'Checkout opening soon' : busy ? 'Opening checkout…' : `Buy ${p.credits} credits`}</button>
+                {/* Paid credits on a guest account are lost with the browser data, so a guest saves with Google first. */}
+                {user?.isGuest ? <button disabled={!capabilities?.payments.available} onClick={() => void authenticate(saveWithGoogle)} className={`${button(i === 0 ? "primary" : "secondary")} mt-auto w-full`}>{capabilities?.payments.available ? 'Save with Google to buy' : 'Checkout opening soon'}</button>
+                  : <button disabled={busy || !capabilities?.payments.available} onClick={() => buy(p.id)} className={`${button(i === 0 ? "primary" : "secondary")} mt-auto w-full`}>{!capabilities?.payments.available ? 'Checkout opening soon' : busy ? 'Opening checkout…' : `Buy ${p.credits} credits`}</button>}
               </WhenSignedIn>
               <WhenSignedOut>
-                {auth ? <SignInButton mode="modal">
-                  <button disabled={!capabilities?.payments.available} className={`${button(i === 0 ? "primary" : "secondary")} mt-auto w-full`}>{capabilities?.payments.available ? 'Sign in to buy' : 'Checkout opening soon'}</button>
-                </SignInButton> : <button disabled className={`${button(i === 0 ? "primary" : "secondary")} mt-auto w-full`}>Checkout opening soon</button>}
+                {auth ? <button disabled={!capabilities?.payments.available} onClick={() => void authenticate(signInWithGoogle)} className={`${button(i === 0 ? "primary" : "secondary")} mt-auto w-full`}>{capabilities?.payments.available ? 'Sign in to buy' : 'Checkout opening soon'}</button>
+                  : <button disabled className={`${button(i === 0 ? "primary" : "secondary")} mt-auto w-full`}>Checkout opening soon</button>}
               </WhenSignedOut>
             </div>
           ))}

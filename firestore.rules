@@ -1,0 +1,11 @@
+rules_version = '2';
+// Anything not matched below is denied. The render worker writes with the server SDK, which these rules do not govern.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // A renders doc holds only stage names, status and timestamps, so any signed-in user (anonymous
+    // guests included) may get one by job id. Listing stays denied, so job ids cannot be discovered.
+    match /renders/{jobId} {
+      allow get: if request.auth != null;
+    }
+  }
+}

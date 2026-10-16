@@ -16,11 +16,11 @@ const Guides = lazy(() => import('./pages/Guides'));
 const Guide = lazy(() => import('./pages/Guide'));
 const Legal = lazy(() => import('./pages/Legal'));
 
-// main.tsx mounts ClerkProvider only when a publishable key is set; without it the private pages cannot render.
+// main.tsx mounts AuthProvider only when the Firebase web config is set; without it the private pages cannot render.
 function SignInUnavailable() {
   return <main className="min-h-screen bg-paper px-6 py-24 text-center text-ink">
     <h1 className="font-display text-4xl font-extrabold">Sign-in is not set up</h1>
-    <p className="mx-auto mt-3 max-w-md text-sm text-muted">The dashboard and Studio need a sign-in provider. Set VITE_CLERK_PUBLISHABLE_KEY for this deployment, then reload the page.</p>
+    <p className="mx-auto mt-3 max-w-md text-sm text-muted">The dashboard and Studio need a sign-in provider. Set VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_PROJECT_ID and VITE_FIREBASE_APP_ID for this deployment, then build and deploy the site again.</p>
     <div className="mt-6 flex justify-center gap-3"><Link to="/guides" className={button("secondary")}>Read the guides</Link><Link to="/" className={button("primary")}>Go to the home page</Link></div>
   </main>;
 }

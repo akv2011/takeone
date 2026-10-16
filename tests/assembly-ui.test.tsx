@@ -14,11 +14,11 @@ const mocks = vi.hoisted(() => ({
   mutations: new Map<string, ReturnType<typeof vi.fn>>(),
 }));
 
-vi.mock('@clerk/clerk-react', () => ({
+vi.mock('../src/lib/auth', () => ({
   SignedIn: ({ children }: any) => children,
   SignedOut: () => null,
-  SignInButton: ({ children }: any) => children,
-  useUser: () => ({ user: mocks.userId ? { id: mocks.userId } : null }),
+  SignInChoices: () => null,
+  useAuth: () => ({ user: mocks.userId ? { id: mocks.userId, isGuest: false, name: 'Test User' } : null, loading: false }),
 }));
 vi.mock('convex/react', () => ({
   useConvexAuth: () => ({ isAuthenticated: mocks.authenticated, isLoading: false }),

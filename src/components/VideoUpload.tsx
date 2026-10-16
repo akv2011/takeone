@@ -18,7 +18,7 @@ export function VideoUpload({ onReady }: { onReady: (id?: string) => void }) {
     if (!preparing) return;
     if (uploads?.some(upload => upload._id === preparing.id)) {
       setSelected(preparing.id); onReady(preparing.id);
-      setStatus(`${preparing.name} is ready. Describe your edit, then create your video.`);
+      setStatus(`${preparing.name} is ready. Describe your edit or let Gemini pick the best moment.`);
       setPreparing(undefined); return;
     }
     if (probeStatuses?.some(upload => upload._id === preparing.id && upload.status === 'failed')) {

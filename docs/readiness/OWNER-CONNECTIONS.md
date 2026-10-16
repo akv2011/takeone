@@ -6,7 +6,7 @@ This is the list of accounts, credentials and settings a TakeOne deployment need
 
 Choose or create the GCP project before you run any deployment command. Terraform has no default project, and the manual GitHub Actions workflow asks for the exact project ID twice before an apply. Set your local CLI explicitly with `gcloud --configuration=takeone config set project YOUR_PROJECT_ID` rather than relying on whatever project your default configuration selects. Never copy the wrong project ID into repository variables, examples, frontend variables or Convex variables.
 
-Use a Clerk production instance before inviting users. Clerk development keys carry strict usage limits and show a warning in the browser. Enable the sign-in methods you want, add the production domain and callback URLs, create the `convex` JWT template, set the issuer as `CLERK_JWT_ISSUER_DOMAIN` in Convex, set `VITE_CLERK_PUBLISHABLE_KEY` for the frontend build and redeploy it. Then test sign-up, sign-in, sign-out and a returning account.
+In Firebase Authentication, enable Google and Anonymous sign-in and list every domain that serves the app under Authorized domains. Register a Web app, copy its config into the four `VITE_FIREBASE_*` build variables, set `FIREBASE_PROJECT_ID` in Convex and deploy the Convex auth config together with the web build. Then test Google sign-in, guest sign-in, Save with Google, sign-out, a returning account, three free videos and owner-scoped data.
 
 ### Connect the GCP project
 
@@ -25,7 +25,7 @@ The deployment runs on a static web host, Convex, Cloud Run Jobs and private GCS
 | Mark when ready | What to connect | Where it belongs | What we will test with it |
 |---|---|---|---|
 | [ ] | Target GCP project and billing | GitHub `production` environment and local CLI; confirm the exact project ID before provisioning | Deploy staging dispatcher, jobs and storage; run ten overlapping video jobs and queue an eleventh |
-| [ ] | Production Clerk instance and matching Convex auth configuration | Clerk, production Convex and the frontend build | Sign-up, sign-in, sign-out, returning account, three free videos and owner-scoped data; no development-key warning in the browser |
+| [ ] | Firebase Authentication and matching Convex auth configuration | Firebase, production Convex and the frontend build | Google sign-in, guest sign-in, Save with Google, sign-out, returning account, three free videos and owner-scoped data |
 | [ ] | Telegram bot token, webhook secret, matching bot username and app origin | Staging Convex `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_BOT_USERNAME` and `APP_URL`; token in worker Secret Manager for source downloads | Link an account, generate, edit, receive a playable video, retry delivery and confirm shared credits |
 | [ ] | Two consenting Telegram test accounts | A browser session the tester can observe | Real messages and playable results, plus isolation between the two accounts |
 | [ ] | Model, transcription and voice credentials, stock-provider keys and `GIPHY_API_KEY`, with quotas confirmed | Worker Secret Manager | Render real source and topic videos; inspect speech, captions, framing, music and failures |
@@ -44,7 +44,7 @@ For each real run, record the environment, input, test identity, result, elapsed
 
 Deployment steps and migration safeguards are in [managed hosting](../../infra/README.md).
 
-Creator-owned audio (MP3, WAV or M4A, up to 20 MB) uses Convex storage, so it needs no catalog objects in GCS. Test upload, preview, deletion, web generation and Telegram reuse against a matching staging Convex and Clerk pair. The approved music catalog still needs its GCS objects and catalog configuration. Upload listings and URL issuance are owner-scoped, but Convex storage URLs work as bearer links rather than expiring GCS signatures. Deleting a source revokes its URL. Upload transport caps and orphan cleanup are still acceptance gaps.
+Creator-owned audio (MP3, WAV or M4A, up to 20 MB) uses Convex storage, so it needs no catalog objects in GCS. Test upload, preview, deletion, web generation and Telegram reuse against a matching staging Convex and Firebase Authentication pair. The approved music catalog still needs its GCS objects and catalog configuration. Upload listings and URL issuance are owner-scoped, but Convex storage URLs work as bearer links rather than expiring GCS signatures. Deleting a source revokes its URL. Upload transport caps and orphan cleanup are still acceptance gaps.
 
 Abandoned Convex uploads have an internal paginated cleanup that defaults to audit-only. In staging, inspect `storageCleanup:status`, confirm the protected fixtures survive and review a full sweep before you set Convex `UPLOAD_CLEANUP_MODE=delete`. `off` pauses scanning. No local test turns on production deletion. This covers Convex orphan blobs only. GCS failed-attempt artifacts and upload transport limits are separate work.
 

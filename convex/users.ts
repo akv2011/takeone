@@ -59,7 +59,8 @@ export const ensureUser = mutation({
     const existing = await ctx.db.query("users").withIndex("by_token", (q: any) => q.eq("tokenIdentifier", id.subject)).unique();
     if (existing) return existing._id;
 
-    const email = (id.email ?? "").trim().toLowerCase();
+    // The waitlist claim and founding bonus are granted by email, so only a verified one counts.
+    const email = id.emailVerified === true ? (id.email ?? "").trim().toLowerCase() : "";
 
     // Claim a pre-migrated waitlist row (tokenIdentifier "waitlist:<email>") instead of duplicating.
     const byEmail = email

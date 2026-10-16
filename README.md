@@ -22,7 +22,7 @@ The app reads a server-owned capability snapshot and hides any action whose prov
 
 - Web app: React 19, Vite and Tailwind in the repo root. `npm run build` writes a static site to `dist/` and prerenders the public pages.
 - Accounts, jobs and state: [Convex](https://www.convex.dev) in `convex/`. It holds users, allowances, the job queue, leases and retries, projects, review links and upload metadata.
-- Auth: Clerk, verified by Convex through a JWT template.
+- Auth: Firebase Authentication with Google sign-in and guest (anonymous) sessions. Convex verifies the Firebase ID token as a custom OIDC provider, configured by `FIREBASE_PROJECT_ID` in `convex/auth.config.ts`.
 - Rendering: a Cloud Run dispatcher service starts one Cloud Run Job execution per admitted job. The worker in `backend/` renders with FFmpeg and exits.
 - Storage: a private GCS bucket with public access prevention enforced. The app shows videos through short-lived signed URLs.
 - Infrastructure: Terraform in `infra/`, with a manual `Deploy GCP` GitHub Actions workflow.

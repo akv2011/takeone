@@ -81,6 +81,7 @@ export const api = {
   },
 };
 
-// Clerk drives the sign-in UI. Convex adds the credit backend on top.
-export const authEnabled = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
+// Firebase Authentication signs people in and Convex verifies its ID tokens. src/lib/firebase.ts reads the same config.
+export const authEnabled = Boolean(import.meta.env.VITE_FIREBASE_API_KEY && import.meta.env.VITE_FIREBASE_AUTH_DOMAIN
+  && import.meta.env.VITE_FIREBASE_PROJECT_ID && import.meta.env.VITE_FIREBASE_APP_ID);
 export const convexEnabled = Boolean(import.meta.env.VITE_CONVEX_URL);

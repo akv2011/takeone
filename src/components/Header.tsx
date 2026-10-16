@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { SignedIn, SignedOut, SignInButton } from "@clerk/clerk-react";
+import { SignedIn, SignedOut } from "../lib/auth";
 import { TakeOneWordmark } from "./TakeOneLogo";
 import TakeOneUserButton from "./account/TakeOneUserButton";
 import { authEnabled } from "../lib/convexApi";
@@ -21,7 +21,7 @@ export default function Header() {
           <Link to="/pricing" className={`hidden sm:inline ${navLink}`}>Pricing</Link>
           {!showAuth && start}
           {showAuth && <SignedOut>
-            <SignInButton mode="modal"><button type="button" className={`hidden sm:inline ${navLink}`}>Sign in</button></SignInButton>
+            <Link to="/create" className={`hidden sm:inline ${navLink}`}>Sign in</Link>
             {start}
           </SignedOut>}
           {showAuth && <SignedIn>

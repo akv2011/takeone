@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { SignedIn, SignedOut, SignInButton, useUser } from '@clerk/clerk-react';
+import { SignedIn, SignedOut, SignInChoices, useAuth } from '../lib/auth';
 import { useConvexAuth, useMutation, useQuery } from 'convex/react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowDown, ArrowUp, Copy, Scissors, Trash2 } from 'lucide-react';
@@ -14,12 +14,12 @@ const tool = 'rounded-md border border-line p-2 text-xs font-semibold text-ink h
 type ProjectView = { projectId: string; name: string; activeRevisionId: string; revision: number; timeline: Timeline; updatedAt: number };
 
 export default function AssemblyStudio() {
-  return <div className="min-h-screen bg-paper text-ink"><SignedOut><div className="flex min-h-screen flex-col items-center justify-center px-6 text-center"><TakeOneLogo className="h-10 w-10" /><h1 className="mt-4 font-display text-4xl font-extrabold">Sign in to edit this project</h1><SignInButton mode="modal"><button className={`${button('primary')} mt-6`}>Continue with Google</button></SignInButton></div></SignedOut><SignedIn><AssemblyEditor /></SignedIn></div>;
+  return <div className="min-h-screen bg-paper text-ink"><SignedOut><div className="flex min-h-screen flex-col items-center justify-center px-6 text-center"><TakeOneLogo className="h-10 w-10" /><h1 className="mt-4 font-display text-4xl font-extrabold">Sign in to edit this project</h1><SignInChoices className="mt-6" /></div></SignedOut><SignedIn><AssemblyEditor /></SignedIn></div>;
 }
 
 function AssemblyEditor() {
   const { projectId } = useParams<{ projectId: string }>();
-  const { user } = useUser();
+  const { user } = useAuth();
   const { isAuthenticated, isLoading } = useConvexAuth();
   const navigate = useNavigate();
   const project = useQuery(api.projects.get, projectId && user?.id && isAuthenticated ? { projectId, accountKey: user.id } : 'skip') as ProjectView | null | undefined;
