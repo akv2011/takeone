@@ -26,6 +26,19 @@ export interface GenerateJsonRequest<T> {
 export type ThinkingLevel = 'LOW' | 'HIGH';
 const thinkingConfig = (level?: ThinkingLevel) => level ? { thinkingConfig: { thinkingLevel: level } } : {};
 
+/** Gemini watches video against M:SS markers and, asked for numeric seconds, writes 5:07 as 507. Video
+ * positions are therefore requested as this string and read back with parseTimestamp. */
+export const TIMESTAMP = { type: 'string', description: 'M:SS from the start of the video, or H:MM:SS past an hour' };
+const CLOCK = /^(?:(\d+):([0-5]\d)|(\d+)):([0-5]\d(?:\.\d+)?)$/;
+
+/** Seconds for M:SS, MM:SS or H:MM:SS. A bare number is ambiguous and returns undefined. */
+export function parseTimestamp(value: unknown): number | undefined {
+  if (typeof value !== 'string') return undefined;
+  const m = CLOCK.exec(value.trim());
+  if (!m) return undefined;
+  return m[1] !== undefined ? +m[1] * 3600 + +m[2] * 60 + +m[4] : +m[3] * 60 + +m[4];
+}
+
 const MAX_RESPONSE_BYTES = 1024 * 1024;
 
 export function geminiConfigured(): boolean {

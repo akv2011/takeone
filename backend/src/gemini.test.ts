@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 const token = vi.hoisted(() => vi.fn(async () => 'test-token'));
 vi.mock('google-auth-library', () => ({ GoogleAuth: class { getAccessToken = token; } }));
-import { generateGrounded, generateJson, geminiConfigured } from './gemini.js';
+import { generateGrounded, generateJson, geminiConfigured, parseTimestamp } from './gemini.js';
 
 const answer = (text: string, extra: Record<string, unknown> = {}) =>
   new Response(JSON.stringify({ candidates: [{ content: { role: 'model', parts: [{ text }] }, finishReason: 'STOP', ...extra }] }));
@@ -101,4 +101,18 @@ test('a requested thinking level reaches generationConfig for JSON and grounded 
   const grounded = JSON.parse(fetcher.mock.calls[1][1].body as string);
   expect(grounded.tools).toEqual([{ googleSearch: {} }]);
   expect(grounded.generationConfig).toEqual({ thinkingConfig: { thinkingLevel: 'LOW' } });
+});
+
+test.each<[string, number]>([
+  ['0:12', 12], ['5:07', 307], ['05:07', 307], ['12:31.5', 751.5], ['75:30', 4530], ['1:02:03', 3723], [' 8:18 ', 498],
+])('timestamp %j is %d seconds', (value, seconds) => {
+  expect(parseTimestamp(value)).toBe(seconds);
+});
+
+// A bare number is the ambiguous answer this format exists to avoid: Gemini wrote 5:07 as 507.
+test.each<[string, unknown]>([
+  ['a number', 507], ['a numeric string', '507'], ['one seconds digit', '5:7'], ['60 seconds', '1:60'],
+  ['60 minutes under an hour', '1:60:00'], ['empty', ''], ['words', 'about five minutes'], ['a negative', '-0:05'], ['null', null],
+])('timestamp rejects %s', (_label, value) => {
+  expect(parseTimestamp(value)).toBeUndefined();
 });
