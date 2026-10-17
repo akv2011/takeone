@@ -9,15 +9,15 @@ export default function AccountBilling() {
 
   return (
     <section className="max-w-xl text-ink">
-      <h2 className="text-base font-semibold">Current plan</h2>
+      <h2 className="text-[13px] font-medium text-ink2">Current plan</h2>
 
-      <div className="mt-5 flex items-center justify-between gap-6 border-b border-line pb-5">
+      <div className="mt-1 flex items-center justify-between gap-6 pb-5 hairline-bottom">
         <div>
-          <p className="text-sm font-semibold">
-            {me === undefined ? 'Loading plan…' : hasPurchasedCredits ? 'Pay as you go' : 'Free'}
-          </p>
+          {me === undefined
+            ? <p className="h-8 w-40 rounded-control bg-ink/5 motion-safe:animate-pulse"><span className="sr-only">Loading plan…</span></p>
+            : <p className="font-display text-[26px] font-semibold tracking-[-0.03em]">{hasPurchasedCredits ? 'Pay as you go' : 'Free'}</p>}
           {me !== undefined && (
-            <p className="mt-1 text-sm leading-5 text-muted">
+            <p className="mt-1 text-sm leading-5 text-ink2">
               {hasPurchasedCredits
                 ? 'Use your video credits whenever you create.'
                 : 'Create with TakeOne before choosing a paid plan.'}
@@ -27,13 +27,13 @@ export default function AccountBilling() {
 
         <Link
           to="/pricing"
-          className={`${button('secondary', 'sm')} shrink-0`}
+          className={`${button(hasPurchasedCredits ? 'secondary' : 'primary', 'md')} shrink-0`}
         >
           {hasPurchasedCredits ? 'View plans' : 'Upgrade'}
         </Link>
       </div>
 
-      <p className="mt-5 text-xs leading-5 text-muted">
+      <p className="mt-4 text-[13px] leading-5 text-muted">
         TakeOne plans use one-time credit packs. There is no recurring subscription.
       </p>
     </section>

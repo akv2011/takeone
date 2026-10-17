@@ -12,7 +12,7 @@ const labels = {
   finishing: 'Adding captions and sound', checking: 'Checking the final video', saving: 'Saving the video',
 };
 const pipeline = Object.keys(labels) as (keyof typeof labels)[];
-const bars = ['bg-bar-white', 'bg-bar-yellow', 'bg-bar-cyan', 'bg-bar-green', 'bg-bar-magenta', 'bg-bar-red', 'bg-bar-blue'];
+const FRAMES = 7;
 export interface RenderAttempt {
   attempt: number; startedAt: number; finishedAt?: number;
   stages: { stage: keyof typeof labels; startedAt: number }[];
@@ -45,11 +45,20 @@ function fromLive(live: NonNullable<Live>, recorded?: RenderAttempt): RenderAtte
 const seconds = (start: number, end: number) => `${Math.max(0, Math.floor((end - start) / 1000))}s`;
 /** Bars lit by pipeline position, not by time. Paths skip stages, so this never claims a percentage. */
 function litBars(status: string | undefined, stage?: keyof typeof labels) {
-  if (status === 'done') return bars.length;
+  if (status === 'done') return FRAMES;
   if (!stage) return status === 'dispatched' || status === 'processing' ? 1 : 0;
   return 1 + Math.ceil((pipeline.indexOf(stage) + 1) / 2);
 }
-export function RenderProgress({ job }: Props) {
+// One film frame per lit step; the next frame develops while a stage runs.
+export function FilmFrames({ lit, running, stopped, className = '' }: { lit: number; running?: boolean; stopped?: boolean; className?: string }) {
+  return <div aria-hidden="true" data-lit={lit} className={`relative flex gap-[3px] rounded-[3px] bg-film px-[4px] py-[8px] ${stopped ? 'opacity-50' : ''} ${className}`}>
+    <span className="absolute inset-x-[4px] top-[2.5px] h-[3px] bg-[repeating-linear-gradient(90deg,#efebe3_0_4px,transparent_4px_9px)] opacity-80" />
+    <span className="absolute inset-x-[4px] bottom-[2.5px] h-[3px] bg-[repeating-linear-gradient(90deg,#efebe3_0_4px,transparent_4px_9px)] opacity-80" />
+    {Array.from({ length: FRAMES }, (_, index) => <span key={index}
+      className={`h-full min-h-3 flex-1 rounded-[1.5px] transition-colors duration-700 ease-paper ${index < lit ? 'bg-[#efe9dc]' : running && index === lit ? 'bg-[#8a8273] motion-safe:animate-pulse' : 'bg-[#3a352d]'}`} />)}
+  </div>;
+}
+function useRenderState(job: Props['job']) {
   const [now, setNow] = useState(Date.now);
   const running = job?.status === 'processing';
   const queued = job?.status === 'queued' || job?.status === 'dispatched';
@@ -61,6 +70,23 @@ export function RenderProgress({ job }: Props) {
   const live = useLiveStages(job?._id, running);
   const progress = live ? fromLive(live, job?.renderProgress) : job?.renderProgress;
   const current = progress?.stages.at(-1);
+  const lit = litBars(job?.status, queued ? undefined : current?.stage);
+  const stopped = job?.status === 'failed' || job?.status === 'cancelled';
+  return { now, running, queued, progress, current, lit, stopped };
+}
+
+/** Compact strip for a video card: the frames plus the current stage, no history. */
+export function RenderStrip({ job }: Props) {
+  const { running, queued, current, lit, stopped } = useRenderState(job);
+  const stage = queued ? (job?.status === 'queued' ? 'Waiting for a slot' : 'Starting') : running ? (current ? labels[current.stage] : 'Preparing') : stopped ? 'Stopped' : 'Finishing';
+  return <div className="w-full rounded-[10px] bg-film/85 p-2 backdrop-blur-sm">
+    <FilmFrames lit={lit} running={running} stopped={stopped} className="h-6" />
+    <p className="mt-1.5 text-[12px] font-medium leading-tight text-[#efe9dc]">{stage}</p>
+  </div>;
+}
+
+export function RenderProgress({ job }: Props) {
+  const { now, running, queued, progress, current, lit, stopped } = useRenderState(job);
   const message = !job ? 'Waiting for video details.'
     : job.status === 'queued' ? 'Waiting for a render slot.'
       : job.status === 'dispatched' ? 'Starting your render.'
@@ -69,27 +95,23 @@ export function RenderProgress({ job }: Props) {
             : job.status === 'cancelled' ? 'Cancelled. Your allowance was restored.'
               : 'This render failed. Open a completed version to continue editing.';
   const end = progress?.finishedAt ?? job?.finishedAt ?? now;
-  const lit = litBars(job?.status, queued ? undefined : current?.stage);
-  const stopped = job?.status === 'failed' || job?.status === 'cancelled';
   return <div>
-    <h2 className="text-base font-semibold">Render activity</h2>
+    <h2 className="text-[13px] font-medium text-ink2">Render activity</h2>
     <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
-      <div aria-hidden="true" data-lit={lit} className={`flex h-4 w-44 shrink-0 overflow-hidden rounded-[3px] ring-1 ring-ink/20 sm:w-56 ${stopped ? 'opacity-40' : ''}`}>
-        {bars.map((color, index) => <span key={color} className={`flex-1 ${index < lit ? color : running && index === lit ? 'bg-ink/25 motion-safe:animate-pulse' : 'bg-line'}`} />)}
-      </div>
-      <p role="status" className="text-sm font-semibold">{message}</p>
+      <FilmFrames lit={lit} running={running} stopped={stopped} className="h-9 w-48 shrink-0 sm:w-60" />
+      <p role="status" aria-live="polite" className="text-[15px] font-semibold text-ink">{message}</p>
     </div>
-    {job?.status === 'failed' && job.refunded && <p className="mt-1 text-sm text-muted">Your allowance was restored.</p>}
-    {queued && job?.createdAt !== undefined && <p className="mt-2 text-xs text-muted">{seconds(job.createdAt, now)} since submitted{progress ? ' · Waiting to retry' : ''}</p>}
+    {job?.status === 'failed' && job.refunded && <p className="mt-1.5 text-sm text-ink2">Your allowance was restored.</p>}
+    {queued && job?.createdAt !== undefined && <p className="mt-2 text-[13px] tabular-nums text-muted">{seconds(job.createdAt, now)} since submitted{progress ? ' · Waiting to retry' : ''}</p>}
     {progress && !queued && <>
-      <p className="mt-2 text-xs text-muted">Attempt {progress.attempt} · {seconds(progress.startedAt, end)} elapsed</p>
-      <ol aria-label="Recorded render stages" className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs">
+      <p className="mt-2 text-[13px] tabular-nums text-muted">Attempt {progress.attempt} · {seconds(progress.startedAt, end)} elapsed</p>
+      <ol aria-label="Recorded render stages" className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-[13px]">
         {progress.stages.map((entry, index) => {
           const next = progress.stages[index + 1];
           const complete = !!next || job?.status === 'done';
-          return <li key={entry.stage} aria-current={running && !next ? 'step' : undefined} className={complete ? 'text-muted' : 'font-semibold text-ink'}>
-            <span><span aria-hidden="true" className={complete ? 'text-go' : ''}>{complete ? '✓ ' : running ? '● ' : '○ '}</span>{labels[entry.stage]}</span>
-            <span className="ml-2 text-muted">{seconds(entry.startedAt, next?.startedAt ?? end)}{complete ? ' · Completed' : running ? ' · In progress' : ' · Stopped'}</span>
+          return <li key={entry.stage} aria-current={running && !next ? 'step' : undefined} className={complete ? 'text-ink2' : 'font-semibold text-ink'}>
+            <span><span aria-hidden="true" className={complete ? 'text-go' : running ? 'text-grease' : 'text-muted'}>{complete ? '✓ ' : running ? '● ' : '○ '}</span>{labels[entry.stage]}</span>
+            <span className="ml-2 font-normal tabular-nums text-muted">{seconds(entry.startedAt, next?.startedAt ?? end)}{complete ? ' · Completed' : running ? ' · In progress' : ' · Stopped'}</span>
           </li>;
         })}
       </ol>

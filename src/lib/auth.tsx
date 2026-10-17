@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { GoogleAuthProvider, linkWithPopup, onIdTokenChanged, signInAnonymously, signInWithPopup, signOut, type User } from 'firebase/auth';
 import { auth } from './firebase';
-import { button, panel } from './ui';
+import { GoogleLogo, UserCircle } from '@phosphor-icons/react';
+import { button } from './ui';
 
 export type AuthUser = { id: string; isGuest: boolean; email?: string; name?: string; photoURL?: string };
 type AuthState = { user: AuthUser | null; loading: boolean };
@@ -98,12 +99,12 @@ function useAuthAction() {
 export function SignInChoices({ className = '' }: { className?: string }) {
   const { busy, error, run } = useAuthAction();
   return <div className={className}>
-    <div className="flex flex-wrap justify-center gap-3">
-      <button type="button" disabled={busy} onClick={() => void run(signInWithGoogle)} className={button('primary')}>Continue with Google</button>
-      <button type="button" disabled={busy} onClick={() => void run(continueAsGuest)} className={button('secondary')}>Continue as guest</button>
+    <div className="mx-auto flex w-full max-w-xs flex-col gap-3">
+      <button type="button" disabled={busy} onClick={() => void run(signInWithGoogle)} className={button('primary', 'lg')}><GoogleLogo aria-hidden="true" size={18} weight="bold" />Continue with Google</button>
+      <button type="button" disabled={busy} onClick={() => void run(continueAsGuest)} className={button('secondary', 'lg')}><UserCircle aria-hidden="true" size={20} />Continue as guest</button>
     </div>
-    <p className="mx-auto mt-3 max-w-sm text-xs text-muted">Guest videos stay in this browser until you save them with Google.</p>
-    {error && <p role="alert" className="mx-auto mt-3 max-w-sm text-sm text-warn">{error}</p>}
+    <p className="mx-auto mt-4 max-w-xs text-[13px] text-muted">Guest videos stay in this browser until you save them with Google.</p>
+    {error && <p role="alert" className="mx-auto mt-3 max-w-xs text-sm text-grease">{error}</p>}
   </div>;
 }
 
@@ -111,10 +112,12 @@ export function GuestNotice({ className = '' }: { className?: string }) {
   const { user } = useAuth();
   const { busy, error, run } = useAuthAction();
   if (!user?.isGuest) return null;
-  return <section aria-label="Guest session" className={`${panel} p-4 text-sm ${className}`}>
-    <p><strong className="font-semibold">You are using a guest session.</strong> Your videos stay in this browser until you save them with Google.</p>
-    <button type="button" disabled={busy} onClick={() => void run(saveWithGoogle)} className={`${button('primary', 'sm')} mt-3`}>Save with Google</button>
-    {error && <p role="alert" className="mt-2 text-warn">{error}</p>}
+  return <section aria-label="Guest session" className={`text-sm text-ink2 ${className}`}>
+    <p className="flex items-start gap-2">
+      <UserCircle aria-hidden="true" size={18} className="mt-px shrink-0 text-muted" />
+      <span>Guest session. Your videos stay in this browser until you save them with Google. <button type="button" disabled={busy} onClick={() => void run(saveWithGoogle)} className="-my-2.5 rounded-[6px] py-2.5 font-semibold text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink disabled:opacity-50">Save with Google</button></span>
+    </p>
+    {error && <p role="alert" className="mt-1 text-grease">{error}</p>}
   </section>;
 }
 
