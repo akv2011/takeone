@@ -64,9 +64,9 @@ function Toggle({ label, detail, checked, onChange }: { label: string; detail: s
         <span className="block text-sm text-ink">{label}</span>
         <span className="mt-0.5 block text-xs leading-5 text-muted">{detail}</span>
       </span>
-      <span className={`relative h-5 w-10 shrink-0 border border-ink transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-1 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink ${checked ? 'bg-ink' : 'bg-surface'}`}>
+      <span className={`relative h-6 w-10 shrink-0 rounded-full transition-colors duration-150 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink ${checked ? 'bg-ink' : 'bg-ink/15'}`}>
         <input className="peer sr-only" type="checkbox" role="switch" aria-label={label} checked={checked} onChange={(event) => onChange(event.target.checked)} />
-        <span className={`absolute top-0.5 h-3.5 w-4 transition-transform duration-200 ease-paper ${checked ? 'translate-x-[19px] bg-surface' : 'translate-x-0.5 bg-ink'}`} />
+        <span className={`absolute top-0.5 size-5 rounded-full bg-surface shadow-[0_1px_2px_rgba(20,19,17,.25)] transition-transform duration-200 ease-paper ${checked ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
       </span>
     </label>
   );
@@ -110,28 +110,28 @@ export default function AccountPreferences() {
   };
 
   if (!hydrated) {
-    return <div className="sheet-ruled min-h-[31rem] border border-line motion-safe:animate-pulse" aria-label="Loading preferences" />;
+    return <div className="min-h-[31rem] rounded-card bg-ink/5 motion-safe:animate-pulse" aria-label="Loading preferences" />;
   }
 
   return (
     <section className="max-w-2xl text-ink">
-      <h2 className="eyebrow">New project defaults</h2>
-      <p className="mt-1 mb-3 text-sm text-ink2">You can still change every setting before a render.</p>
+      <h2 className="font-display text-[19px] font-semibold tracking-[-0.02em]">New project defaults</h2>
+      <p className="mb-2 mt-1 text-sm text-ink2">You can still change every setting before a render.</p>
       <div>
         <PreferenceSelect label="Starting point" name="default-mode" choices={modes} value={draft.defaultMode} onChange={(value) => update('defaultMode', value)} />
         <PreferenceSelect label="Aspect ratio" name="default-aspect" choices={aspects} value={draft.defaultAspect} onChange={(value) => update('defaultAspect', value)} />
         <PreferenceSelect label="Caption style" name="default-caption" choices={captions} value={draft.defaultCaptionStyle} onChange={(value) => update('defaultCaptionStyle', value)} />
         <div>
           <Toggle label="Open finished videos in Studio" detail="Go straight to the timeline when a render finishes." checked={draft.openFinishedInStudio} onChange={(value) => update('openFinishedInStudio', value)} />
-          <Toggle label="Show keyboard shortcuts" detail="Keep the Command and Enter hint beneath the composer." checked={draft.showShortcutHints} onChange={(value) => update('showShortcutHints', value)} />
+          <Toggle label="Show keyboard shortcuts" detail="Show the Enter hint on the create button." checked={draft.showShortcutHints} onChange={(value) => update('showShortcutHints', value)} />
         </div>
       </div>
       <div className="mt-7 flex items-center gap-3">
-        <button type="button" onClick={submit} disabled={!dirty || state === 'saving' || !me} className={button('primary', 'sm')}>
+        <button type="button" onClick={submit} disabled={!dirty || state === 'saving' || !me} className={button('primary', 'md')}>
           {state === 'saving' ? 'Saving…' : 'Save preferences'}
         </button>
-        {state === 'saved' && <p role="status" aria-live="polite" className="stamp -rotate-3 px-2! py-0.5! text-[10px]! text-go">Saved</p>}
-        {state === 'error' && <p role="alert" className="border-l-2 border-signal pl-2 text-sm text-signal">Could not save your preferences. Try again.</p>}
+        {state === 'saved' && <p role="status" aria-live="polite" className="text-sm font-medium text-go">Saved</p>}
+        {state === 'error' && <p role="alert" className="text-sm text-grease">Could not save your preferences. Try again.</p>}
       </div>
     </section>
   );
