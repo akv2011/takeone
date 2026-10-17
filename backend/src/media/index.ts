@@ -57,15 +57,14 @@ export const mediaCore: MediaCore = {
       }
       case 'cutaways': {
         // b-roll cutaways over the A-roll: fetch stock footage per window, overlay it while the
-        // original audio keeps playing. Production requires footage for each usable
-        // requested window; explicit offline mode can skip missing assets.
+        // original audio keeps playing. Cutaways only come from Gemini's edit plan, as extras on an
+        // edit that already trims, reframes and captions, so a window with no stock match is skipped.
         const [w, h] = [meta?.width || 1080, meta?.height || 1920];
         const segments = clampSegments(op.segments, meta?.durationSec ?? 0);
         const clips = await Promise.all(segments.map(async (s) => ({
           seg: s, path: await fetchStockBroll(s.keywords, sig),
         })));
         const usable = clips.filter((c): c is { seg: typeof c.seg; path: string } => !!c.path);
-        if (ctx.strictMedia && (!usable.length || usable.length !== segments.length)) throw new MediaError('Stock footage unavailable for requested cutaways');
         const o = out(ctx, 'cutaways');
         if (!usable.length) { await ff([...inp(input), '-c', 'copy', o], sig); return { outputPath: o }; }
         const graph = cutawayGraph(usable.map((c) => c.seg), w, h);
@@ -169,11 +168,10 @@ export const mediaCore: MediaCore = {
         return { outputPath: o };
       }
       case 'gifs': {
-        // Production requires requested stickers; explicit offline mode can skip missing assets.
+        // Stickers, like cutaways, are optional extras from Gemini's edit plan; one GIPHY miss is skipped.
         const items = clampGifs(op.items, meta?.durationSec ?? 0);
         const fetched = await Promise.all(items.map(async (g) => ({ g, path: await fetchSticker(g.query, sig) })));
         const usable = fetched.filter((f): f is { g: typeof f.g; path: string } => !!f.path);
-        if (ctx.strictMedia && (!usable.length || usable.length !== items.length)) throw new MediaError('Sticker footage unavailable for requested overlays');
         const o = out(ctx, 'gifs');
         if (!usable.length) { await ff([...inp(input), '-c', 'copy', o], sig); return { outputPath: o }; }
         const gifInputs = usable.flatMap((f) => ['-ignore_loop', '0', '-i', f.path]);
