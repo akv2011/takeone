@@ -40,7 +40,7 @@ export async function renderClaim(job: ClaimedJob, signal: AbortSignal, deps: Pi
       const [moment] = await deps.pick(source, 1, signal);
       if (!moment) throw Error('No moment found');
       text = url ? `clip ${url} ${moment.start} to ${moment.end} ${text.replace(url, '')}` : `trim ${moment.start} to ${moment.end} ${text}`;
-      // Cutaways and stickers need a stock or GIPHY key; without one Gemini's picks for them are dropped.
+      // Strict renders fail on cutaways or stickers they cannot fetch, so keep only what a configured provider can supply.
       const stock = Boolean(process.env.PEXELS_API_KEY || process.env.PIXABAY_API_KEY), stickers = Boolean(process.env.GIPHY_API_KEY);
       editPlan = { hook: moment.hook, reframe: moment.reframe, zooms: moment.zooms, broll: stock ? moment.broll : undefined, gifs: stickers ? moment.gifs : undefined };
     }

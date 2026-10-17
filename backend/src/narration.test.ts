@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-vi.mock('./search/index.js', () => ({ searchFacts: vi.fn(async () => []) }));
+vi.mock('./search/index.js', () => ({ search: vi.fn(async () => ({ facts: [] })) }));
 vi.mock('./content/index.js', () => ({ content: { brainstorm: vi.fn(async () => [{}]), script: vi.fn(async () => ({ script: 'one two three four' })) } }));
 vi.mock('./media/index.js', () => ({ mediaCore: { runOp: vi.fn(async (_input, op) => ({ outputPath: op.op === 'voiceover' ? '/voice.m4a' : '/broll.mp4' })) } }));
 vi.mock('./media/ffmpeg.js', () => ({ ff: vi.fn(async () => {}), ffprobe: vi.fn(async () => ({ durationSec: 42 })) }));

@@ -9,7 +9,7 @@ vi.mock('./media/index.js', () => ({ mediaCore: { runOp: mocks.op } }));
 vi.mock('./media/ffmpeg.js', () => ({ ff: vi.fn(), ffprobe: vi.fn(async () => ({ durationSec: 1 })) }));
 vi.mock('./content/scenes.js', () => ({ planStockScenes: vi.fn(async () => ({})) }));
 vi.mock('./media/scenes.js', () => ({ renderStockScenes: vi.fn(async () => '/tmp/scenes.mp4') }));
-vi.mock('./search/index.js', () => ({ searchFacts: vi.fn(async () => []) }));
+vi.mock('./search/index.js', () => ({ search: vi.fn(async () => ({ facts: [] })) }));
 vi.mock('./content/index.js', () => ({ content: { brainstorm: vi.fn(async () => ['angle']), script: vi.fn(async () => ({ script: 'hello' })), captionText: vi.fn(async () => 'hello') } }));
 vi.mock('./transcribe/index.js', () => ({ transcriber: { transcribe: mocks.transcribe } }));
 vi.mock('./ingest/index.js', () => ({ ingest: { ingest: vi.fn(async () => ({ path: '/tmp/source.mp4', meta: { durationSec: 1, width: 100, height: 200 } })) } }));

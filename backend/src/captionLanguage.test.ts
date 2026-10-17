@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-vi.mock('./search/index.js', () => ({ searchFacts: vi.fn(async () => []) }));
+vi.mock('./search/index.js', () => ({ search: vi.fn(async () => ({ facts: [] })) }));
 vi.mock('./content/index.js', async original => {
   const { content } = await original<typeof import('./content/index.js')>();
   return { content: { ...content, brainstorm: vi.fn(async () => [{ hook: 'h', premise: 'p', whyViral: 'w' }]), script: vi.fn(async () => ({ script: 'one two three four', captions: '' })) } };
