@@ -14,8 +14,8 @@ import type {
   OutputAspect,
   OutputFit,
 } from "../lib/editTransforms";
-import { StudioWorkspace } from "../components/StudioWorkspace";
-import { PreviousVersionPlayer } from "../components/PreviousVersionPlayer";
+import { GenerationCost, InspectorSection, PanelState, StudioWorkspace } from "../components/StudioWorkspace";
+import { PreviousVersionPlayer, VersionThumbnail } from "../components/PreviousVersionPlayer";
 import TelegramDeliveryStatus from "../components/TelegramDeliveryStatus";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -27,7 +27,7 @@ import {
   useAction,
   usePaginatedQuery,
 } from "convex/react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ClockCounterClockwise, PencilSimple, FilmStrip } from "@phosphor-icons/react";
 import TakeOneLogo from "../components/TakeOneLogo";
 import { useVideoUrl } from "../lib/useVideoUrl";
 import { MusicPicker, type MusicSelection } from "../components/MusicPicker";
@@ -71,22 +71,31 @@ const QUICK_EDITS: { label: string; transforms: EditTransforms }[] = [
   { label: "Speed it up 1.5x", transforms: { speed: 1.5 } },
 ];
 
+function relativeVersionTime(createdAt: number) {
+  const minutes = Math.floor((Date.now() - createdAt) / 60_000);
+  if (minutes < 1) return 'Just now';
+  const format = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
+  if (minutes < 60) return format.format(-minutes, 'minute');
+  const hours = Math.floor(minutes / 60);
+  return hours < 24 ? format.format(-hours, 'hour') : format.format(-Math.floor(hours / 24), 'day');
+}
+
 export default function Studio() {
   const { user } = useAuth();
   return (
-    <div className="min-h-screen overflow-x-hidden bg-paper text-ink">
+    <div className="min-h-screen overflow-x-hidden text-ink">
       <SignedOut>
         <div className="flex min-h-screen flex-col items-center justify-center px-6 text-center">
           <Link to="/" className="mb-8 flex items-center gap-2">
             <TakeOneLogo className="h-10 w-10 text-ink" />
-            <span className="font-display text-2xl font-bold">
+            <span className="font-display font-semibold text-2xl">
               TakeOne
             </span>
           </Link>
-          <h1 className="font-display text-4xl font-extrabold md:text-5xl">
+          <h1 className="font-display font-semibold text-4xl md:text-5xl">
             Sign in to open Studio
           </h1>
-          <p className="mt-3 max-w-sm text-sm text-muted">
+          <p className="mt-3 max-w-sm text-sm text-ink2">
             Studio holds your captions, trims, framing, music and versions.
           </p>
           <SignInChoices className="mt-7" />
@@ -318,26 +327,27 @@ function StudioInner() {
 
   return (
     <>
-      <header className="border-b border-line bg-surface">
+      <header className="studio-topbar">
         <div className="mx-auto flex max-w-[1600px] items-center justify-between px-4 py-3.5 sm:px-6">
           <Link
             to="/create"
             className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink underline-offset-4 hover:underline"
           >
             <ArrowLeft aria-hidden="true" className="h-4 w-4" />
-            Back to your videos
+            Your videos
           </Link>
           <Link to="/" className="flex items-center gap-2">
             <TakeOneLogo className="h-8 w-8 text-ink" />
-            <span className="font-display text-xl font-bold">
+            <span className="font-display font-semibold text-xl">
               TakeOne
             </span>
           </Link>
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1600px] px-3 pb-8 pt-6 sm:px-6">
-        <h1 className="mb-6 line-clamp-2 text-balance break-words font-display text-3xl font-extrabold leading-tight md:text-4xl">
+      <main className="studio-page mx-auto max-w-[1600px] px-3 pb-8 pt-5 sm:px-6">
+        <p className="eyebrow mb-2">Studio</p>
+        <h1 className="studio-title mb-5 line-clamp-2 break-words font-display font-semibold text-3xl leading-tight">
           {job?.prompt || "Your video"}
         </h1>
 
@@ -381,6 +391,8 @@ function StudioInner() {
                         onTimeUpdate={timelinePlayer.update}
                         onPause={timelinePlayer.cancel}
                       />
+                    ) : videoError ? (
+                      <div role="alert" className="flex h-full flex-col items-center justify-center gap-3 px-5 text-center text-sm text-surface"><FilmStrip size={32} weight="regular" aria-hidden="true" /><span>Playback unavailable.</span><span className="text-[13px] text-surface/80">Refresh the video link below to try again.</span></div>
                     ) : job?.parentJobId &&
                       [
                         "queued",
@@ -394,7 +406,7 @@ function StudioInner() {
                         jobId={job.parentJobId}
                       />
                     ) : (
-                      <div className="flex h-full w-full flex-col items-center justify-center gap-3 text-line">
+                      <div className="flex h-full w-full flex-col items-center justify-center gap-3 text-surface/80">
                         {!isAuthenticated ? (
                           <p
                             role={authLoading ? "status" : "alert"}
@@ -420,7 +432,8 @@ function StudioInner() {
                           </p>
                         ) : (
                           <>
-                            <span aria-hidden="true" className="h-6 w-6 animate-spin rounded-full border-2 border-surface/25 border-t-surface" />
+                            <FilmStrip aria-hidden="true" size={32} weight="regular" />
+                            <span aria-hidden="true" className="studio-skeleton w-24" />
                             <span className="text-sm">
                               {(job && RENDER_STATUS[job.status]) ?? "Loading…"}
                             </span>
@@ -430,15 +443,16 @@ function StudioInner() {
                     )}
                   </div>
                 </div>
+                <div className="studio-timecode"><span><b>{new Date(currentTime * 1000).toISOString().slice(14, 23)}</b> / {duration ? new Date(duration * 1000).toISOString().slice(14, 23) : "--:--.---"}</span><span>{previewAspect} / {format.fit === "fit" ? "Fit" : "Fill"}</span></div>
                 {ready && soundtrack && (
-                  <p className="text-xs text-line">
+                  <p className="text-[13px] text-surface/80">
                     Soundtrack: {soundtrack.label}. {soundtrack.attribution}
                   </p>
                 )}
                 {videoError && (
                   <button
                     type="button"
-                    className="text-sm font-semibold text-cue underline underline-offset-4"
+                    className="text-sm font-semibold text-surface underline underline-offset-4"
                     onClick={() => void refresh()}
                   >
                     {videoError}
@@ -477,8 +491,6 @@ function StudioInner() {
                 }
                 onPreview={timelinePlayer.preview}
               />
-              {ready && activeId && isAuthenticated && <HookVariants jobId={activeId} accountKey={user?.id ?? ""} videoUrl={url} />}
-              {ready && activeId && isAuthenticated && <SpeakerReframe jobId={activeId} accountKey={user?.id ?? ""} duration={duration} />}
               <TranscriptNavigator
                 jobId={activeId ?? ''}
                 accountKey={user?.id ?? ''}
@@ -490,7 +502,7 @@ function StudioInner() {
                 onSeek={timelinePlayer.seek}
                 onPreview={timelinePlayer.preview}
               />
-              {ready && job?.claims && <ClaimsPanel claims={job.claims} />}
+
             </>
           }
           versions={
@@ -503,49 +515,25 @@ function StudioInner() {
                   disabled={busy || rendering}
                 />
               )}
-              <SceneInspector
-                onReplaced={id => navigate(`/studio/${id}`)}
-                jobId={activeId ?? ''}
-                accountKey={user?.id ?? ''}
-                playbackDisabled={!url || !ready}
-                currentTime={currentTime}
-                duration={duration}
-                onSeek={timelinePlayer.seek}
-              />
               {versions && versions.length > 0 && (
-                <section
+                <InspectorSection title="Version history" icon={ClockCounterClockwise} defaultOpen help="Opening a saved version is free. Each edit creates a separate version. The original stays available."><section
                   aria-label="Version history"
                   className={`${panel} w-full p-4`}
                 >
-                  <h2 className="text-base font-semibold">Version history</h2>
-                  <p className="mt-1 text-xs text-muted">
-                    Opening an earlier version is free. Editing it creates a
-                    separate version. The original stays available below. Load
-                    older edits to explore your full history.
-                  </p>
-                  <ul className="mt-3 max-h-48 space-y-2 overflow-y-auto">
+                  <ul className="studio-ledger max-h-80 overflow-y-auto">
                     {versions.map((version) => (
-                      <li
-                        key={version._id}
-                        className={
-                          version.original
-                            ? "sticky top-0 z-10 rounded-md bg-surface"
-                            : undefined
-                        }
-                      >
+                      <li key={version._id}>
                         <Link
                           to={`/studio/${version._id}`}
                           aria-current={
                             activeId === version._id ? "page" : undefined
                           }
-                          className={`block rounded-md border p-2 text-xs ${activeId === version._id ? "border-ink bg-cue" : "border-line bg-surface hover:border-muted"}`}
+                          className="text-ink"
                         >
-                          <span className="font-semibold">
-                            {version.original ? "Original" : version.prompt}
-                          </span>
-                          <span className={`mt-1 block ${activeId === version._id ? "text-ink" : "text-muted"}`}>
-                            {VERSION_STATUS[version.status] ?? version.status} ·{" "}
-                            {new Date(version.createdAt).toLocaleString()}
+                          <VersionThumbnail jobId={version._id} ready={version.status === 'done'} />
+                          <span className="version-copy">
+                            <span>{version.original ? "Original" : version.prompt}</span>
+                            <span>{VERSION_STATUS[version.status] ?? version.status} · <time dateTime={new Date(version.createdAt).toISOString()} title={new Date(version.createdAt).toLocaleString()}>{relativeVersionTime(version.createdAt)}</time></span>
                           </span>
                         </Link>
                       </li>
@@ -554,7 +542,7 @@ function StudioInner() {
                   {versionPages.status === "LoadingFirstPage" && (
                     <p
                       role="status"
-                      className="mt-2 text-xs text-muted"
+                      className="mt-2 text-[13px] text-ink2"
                     >
                       Loading edits…
                     </p>
@@ -573,22 +561,20 @@ function StudioInner() {
                     </button>
                   )}
                   {job?.status === "failed" && (
-                    <p className="mt-2 text-xs text-warn">
+                    <p className="mt-2 text-[13px] text-warn">
                       This edit failed. Open a completed version above to
                       continue editing.
                     </p>
                   )}
-                </section>
+                </section></InspectorSection>
               )}
               {!versions?.length && (
-                <p className="p-4 text-sm text-muted">
-                  Saved versions will appear here.
-                </p>
+                <PanelState loading={versions === undefined}>{versions === undefined ? "Loading versions…" : "Saved versions will appear here."}</PanelState>
               )}
             </>
           }
           inspector={
-            <div className="space-y-4">
+            <div>
               <TransformControls
                 aspect={format.aspect}
                 fit={format.fit}
@@ -626,47 +612,44 @@ function StudioInner() {
                   )
                 }
               />
+              {ready && activeId && isAuthenticated && <HookVariants jobId={activeId} accountKey={user?.id ?? ""} videoUrl={url} />}
+              {ready && activeId && isAuthenticated && <SpeakerReframe jobId={activeId} accountKey={user?.id ?? ""} duration={duration} />}
+              {ready && job?.claims && <ClaimsPanel claims={job.claims} />}
+              <SceneInspector
+                onReplaced={id => navigate(`/studio/${id}`)}
+                jobId={activeId ?? ''}
+                accountKey={user?.id ?? ''}
+                playbackDisabled={!url || !ready}
+                currentTime={currentTime}
+                duration={duration}
+                onSeek={timelinePlayer.seek}
+              />
+
               <MusicPicker
                 value={music}
+                onApply={() => void send("Add selected soundtrack")}
                 onChange={setMusic}
                 disabled={!ready || busy || rendering}
               />
-              {music && (
-                <button
-                  disabled={!ready || busy || rendering}
-                  onClick={() => void send("Add selected soundtrack")}
-                  className={`${button("primary")} w-full`}
-                >
-                  Apply soundtrack · uses 1 generation
-                </button>
-              )}
               {/* Edit console */}
-              <div className={`${panel} flex flex-col p-4`}>
-                <h2 className="text-base font-semibold">
-                  Edit with AI
-                </h2>
-                <p className="mt-1 text-sm text-muted">
-                  Describe a change in plain words. Each edit uses 1 generation.
-                </p>
-
+              <InspectorSection title="Describe an edit" icon={PencilSimple} help="Describe a change in plain words. Each edit creates a new version and uses one generation."><div className={`${panel} flex flex-col p-4`}>
                 {/* Quick edits */}
-                <div className="mt-5 flex flex-wrap gap-2">
+                <div className="mt-3 flex flex-wrap gap-2">
                   {QUICK_EDITS.map((q) => (
-                    <button
-                      key={q.label}
+                    <div key={q.label} className="studio-quick-edit"><button
                       onClick={() => void send(q.label, { transforms: { aspect: format.aspect, fit: format.fit, ...q.transforms } })}
                       disabled={!ready || busy || rendering}
-                      className="rounded-md border border-line bg-surface px-3 py-1.5 text-sm font-medium transition-colors hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
+                      className={button("secondary", "sm")}
                     >
                       {q.label}
-                    </button>
+                    </button><GenerationCost /></div>
                   ))}
                 </div>
 
                 {/* Chat log */}
                 <div className="mt-4 max-h-60 space-y-2.5 overflow-y-auto pr-1">
                   {messages.length === 0 && (
-                    <p className="text-sm text-muted">
+                    <p className="text-sm text-ink2">
                       Try "make it square", "add captions" or "speed it up 1.5x".
                     </p>
                   )}
@@ -680,17 +663,14 @@ function StudioInner() {
                       }
                     >
                       <span
-                        className={`inline-block max-w-[85%] break-words rounded-[10px] px-3.5 py-2 text-sm ${m.role === "user" ? "bg-ink text-surface" : "border border-line bg-paper text-ink"}`}
+                        className={`inline-block max-w-[85%] break-words rounded-control px-3.5 py-2 text-sm ${m.role === "user" ? "bg-ink text-surface" : "border border-line text-ink"}`}
                       >
                         {m.text}
                       </span>
                     </div>
                   ))}
                   {rendering && !!job?.hasSource && (
-                    <div role="status" className="flex items-center gap-2 text-sm text-muted">
-                      <span aria-hidden="true" className="h-3 w-3 animate-spin rounded-full border-2 border-muted/30 border-t-muted" />
-                      Rendering…
-                    </div>
+                    <PanelState loading>Rendering the next version…</PanelState>
                   )}
                 </div>
 
@@ -700,7 +680,7 @@ function StudioInner() {
                     e.preventDefault();
                     void send(instruction);
                   }}
-                  className="mt-4 flex items-center gap-2"
+                  className="mt-4 flex flex-wrap items-center gap-2"
                 >
                   <input
                     aria-label="Describe an edit"
@@ -725,14 +705,15 @@ function StudioInner() {
                   >
                     Edit
                   </button>
+                  <GenerationCost />
                 </form>
                 {edits > 0 && (
-                  <p className="mt-2 text-xs text-muted">
+                  <p className="mt-2 text-[13px] text-ink2">
                     {edits} edit{edits > 1 ? "s" : ""} · each edit uses 1
                     generation
                   </p>
                 )}
-              </div>
+              </div></InspectorSection>
             </div>
           }
           activity=<section
@@ -742,7 +723,7 @@ function StudioInner() {
             <div>
               <RenderProgress key={job?._id} job={job} />
               {job?.parentJobId && rendering && (
-                <p className="mt-1 text-xs text-muted">
+                <p className="mt-1 text-[13px] text-ink2">
                   Your previous version stays available while this edit renders.
                 </p>
               )}

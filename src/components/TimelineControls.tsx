@@ -1,3 +1,5 @@
+import { Scissors } from "@phosphor-icons/react";
+import { GenerationCost, HelpNote } from "./StudioWorkspace";
 import { useState } from "react";
 import type { EditTransforms } from "../lib/editTransforms";
 import { FramePreviews } from "./FramePreviews";
@@ -75,23 +77,21 @@ export function TimelineControls({
       disabled={disabled}
       className={`${fieldsetPanel} min-w-0 w-full disabled:opacity-50`}
     >
-      <legend className={legend}>Trim & speed</legend>
-      <p className="mb-3 text-sm text-muted">
-        Times refer to the current video; decimals allow fine cuts. Export
-        boundaries follow source frames. Preview is free; applying uses 1
-        generation.
-      </p>
+      <legend className={`${legend} !text-sm `}><Scissors size={18} weight="regular" className="mr-2 inline" aria-hidden="true" />Trim & speed</legend>
+      <div className="mb-3"><HelpNote>Select a frame to seek, then use the player to fine-tune. Times refer to the current video. Use decimals for fine cuts. Export boundaries follow source frames. Preview is free. Applying uses one generation.</HelpNote></div>
       {onSeek && videoUrl && (
-        <FramePreviews
+        <div className="timeline-strip film-strip"><FramePreviews
           key={videoUrl}
           url={videoUrl}
           disabled={disabled}
           onSeek={onSeek}
-        />
+        /><div className="timeline-edge edge-print"><span>TAKEONE 5063</span><span>▶ {timestamp(playhead)}</span></div><span className="timeline-playhead" style={{ left: `${limit ? playhead / limit * 100 : 0}%` }} /></div>
       )}
+      <div className="timeline-ticks" aria-hidden="true">{[0, 1, 2, 3, 4].map(tick => <span key={tick}>{limit === undefined ? "--:--" : timestamp(limit * tick / 4)}</span>)}</div>
+      <details className="mt-3 border-t border-line pt-3"><summary className="cursor-pointer text-sm font-medium">Trim controls</summary><div className="mt-3">
       {onSeek && (
-        <div className="mb-4 rounded-md border border-line bg-paper p-3">
-          <div className="mb-2 flex justify-between font-mono text-xs text-muted">
+        <div className="mb-4 rounded-control bg-paper/60 p-3">
+          <div className="mb-2 flex justify-between font-mono text-[13px] text-ink2">
             <span>{timestamp(playhead)}</span>
             <span>
               {limit === undefined ? "Loading duration…" : timestamp(limit)}
@@ -99,11 +99,11 @@ export function TimelineControls({
           </div>
           <div
             aria-hidden="true"
-            className="relative mb-2 h-5 overflow-hidden rounded-[3px] bg-line"
+            className="relative mb-2 h-5 overflow-hidden  bg-line"
           >
             {limit !== undefined && valid && (
               <div
-                className="absolute inset-y-0 bg-cue"
+                className="absolute inset-y-0 bg-ink/15"
                 style={{
                   left: `${(from / limit) * 100}%`,
                   width: `${((to - from) / limit) * 100}%`,
@@ -112,7 +112,7 @@ export function TimelineControls({
             )}
             {limit !== undefined && (
               <div
-                className="absolute inset-y-0 w-0.5 bg-ink"
+                className="absolute inset-y-0 w-0.5 bg-signal"
                 style={{ left: `calc(${(playhead / limit) * 100}% - 1px)` }}
               />
             )}
@@ -226,19 +226,19 @@ export function TimelineControls({
         </select>
       </label>
       {end !== "" && !valid && (
-        <p role="alert" className="mt-2 text-xs text-warn">
+        <p role="alert" className="mt-2 text-[13px] text-warn">
           Use up to three decimal places, with the end after the start, within
           the video (maximum 300 seconds).
         </p>
       )}
       {valid && !withinExportLimit && (
-        <p role="alert" className="mt-2 text-xs text-warn">
+        <p role="alert" className="mt-2 text-[13px] text-warn">
           The edited video would exceed 300 seconds. Shorten the selection or
           increase the speed before applying.
         </p>
       )}
       {valid && (
-        <p className="mt-2 text-xs text-muted">
+        <p className="mt-2 text-[13px] text-ink2">
           Result: approximately {((to - from) / Number(speed)).toFixed(1)}{" "}
           seconds.
         </p>
@@ -252,7 +252,7 @@ export function TimelineControls({
         >
           Preview selection
         </button>
-        <button
+        <div className="studio-cost-action"><button
           type="button"
           disabled={!valid || !withinExportLimit || disabled}
           onClick={() =>
@@ -265,9 +265,10 @@ export function TimelineControls({
           }
           className={button("primary", "sm")}
         >
-          Apply trim & speed · 1 generation
-        </button>
+          Apply edit
+        </button><GenerationCost /></div>
       </div>
+      </div></details>
     </fieldset>
   );
 }

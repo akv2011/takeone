@@ -1,3 +1,5 @@
+import { UserFocus } from "@phosphor-icons/react";
+import { InspectorSection, GenerationCost } from "./StudioWorkspace";
 import { useEffect, useRef, useState } from 'react';
 import { useMutation } from 'convex/react';
 import { Link } from 'react-router-dom';
@@ -17,11 +19,9 @@ function ReframeForm({ jobId, duration }: { jobId: string; duration?: number }) 
   finally { if (alive.current) { lock.current = false; setPending(false); } }
  }
  const tooLong = duration !== undefined && duration > 60;
- return <section aria-label="Follow speaker" className={`${panel} p-4`}>
-  <h2 className="text-base font-semibold">Follow one speaker</h2>
-  <p className="mt-1 text-sm text-muted">Turn a wider talking-head video into portrait. Sampled face positions guide a moving crop. Best for one clearly visible person, up to 60 seconds; cuts, multiple people and obscured faces may fail. Speech stays unchanged. Embedded captions can be cropped.</p>
-  {tooLong && <p className="mt-2 text-xs text-warn">Trim this video to 60 seconds or less first.</p>}
-  {result ? <Link className="mt-3 block text-sm font-semibold underline underline-offset-4" to={`/studio/${result}`}>Open portrait version</Link> : <button type="button" disabled={pending || tooLong} onClick={() => void submit()} className={`${button('primary', 'sm')} mt-3`}>{pending ? 'Creating portrait…' : 'Follow speaker · 1 generation'}</button>}
-  {error && <p role="alert" className="mt-2 text-xs text-warn">Could not start this edit. Check your allowance and retry.</p>}
- </section>;
+ return <InspectorSection title="Follow speaker" icon={UserFocus} help="Turn a wider talking-head video into portrait with a moving crop. Best for one clearly visible person up to 60 seconds. Cuts, multiple people and obscured faces may fail. Speech stays unchanged. Embedded captions can be cropped."><section aria-label="Follow speaker" className={`${panel} p-4`}>
+  {tooLong && <p className="mt-2 text-[13px] text-warn">Trim this video to 60 seconds or less first.</p>}
+  {result ? <Link className="mt-3 block text-sm font-semibold underline underline-offset-4" to={`/studio/${result}`}>Open portrait version</Link> : <div className="studio-cost-action"><button type="button" disabled={pending || tooLong} onClick={() => void submit()} className={`${button('primary', 'sm')} mt-3`}>{pending ? 'Creating portrait…' : 'Follow speaker'}</button><GenerationCost /></div>}
+  {error && <p role="alert" className="mt-2 text-[13px] text-warn">Could not start this edit. Check your allowance and retry.</p>}
+ </section></InspectorSection>;
 }

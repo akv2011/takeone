@@ -1,14 +1,60 @@
-import { cloneElement, isValidElement, useId, type ReactElement, type ReactNode } from 'react';
+import {
+  cloneElement,
+  isValidElement,
+  useEffect,
+  useId,
+  useState,
+  type ReactNode,
+} from "react";
 
-export function Tooltip({ label, children, side = 'top' }: { label: string; children: ReactNode; side?: 'top' | 'bottom' }) {
+export function Tooltip({
+  label,
+  children,
+  side = "top",
+}: {
+  label: string;
+  children: ReactNode;
+  side?: "top" | "bottom";
+}) {
   const id = useId();
-  const trigger = isValidElement<{ className?: string; 'aria-describedby'?: string }>(children)
-    ? cloneElement(children as ReactElement<{ className?: string; 'aria-describedby'?: string }>, { className: `${children.props.className ?? ''} peer`, 'aria-describedby': id })
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const dismiss = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", dismiss);
+    return () => window.removeEventListener("keydown", dismiss);
+  }, [open]);
+  const trigger = isValidElement<{
+    className?: string;
+    "aria-describedby"?: string;
+  }>(children)
+    ? cloneElement(children, { "aria-describedby": id })
     : children;
-  return <span className="relative inline-flex">
-    {trigger}
-    <span id={id} role="tooltip" className={`pointer-events-none absolute left-1/2 z-40 hidden w-max max-w-56 -translate-x-1/2 rounded-md bg-ink px-2.5 py-1.5 text-center text-xs font-medium leading-snug text-surface peer-hover:block peer-focus-visible:block ${side === 'bottom' ? 'top-[calc(100%+0.5rem)]' : 'bottom-[calc(100%+0.5rem)]'}`}>
-      {label}
+  return (
+    <span
+      className="relative inline-flex max-w-full"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onFocus={() => setOpen(true)}
+      onBlur={() => setOpen(false)}
+      onClick={() => setOpen(true)}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          setOpen(false);
+          event.stopPropagation();
+        }
+      }}
+    >
+      {trigger}
+      <span
+        id={id}
+        role="tooltip"
+        className={`before:absolute before:inset-x-0 before:h-2 before:content-[''] absolute left-0 z-40 w-64 max-w-[calc(100vw-4rem)] rounded-card bg-surface px-4 py-3 text-left text-[13px] font-normal normal-case leading-relaxed tracking-normal text-ink shadow-card ${open ? "block" : "hidden"} ${side === "bottom" ? "top-[calc(100%+0.5rem)] before:bottom-full" : "bottom-[calc(100%+0.5rem)] before:top-full"}`}
+      >
+        {label}
+      </span>
     </span>
-  </span>;
+  );
 }

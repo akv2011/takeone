@@ -1,14 +1,18 @@
+import { motion, useReducedMotion } from "framer-motion";
+import { Check } from "@phosphor-icons/react";
 import { reviewTime } from "../lib/reviewTime";
+import "./StudioWorkspace.css";
 export interface ReviewNote { id: string; name: string; text: string; at: number; createdAt: number; resolved: boolean }
 export function ReviewNotes({ notes, onSeek, onResolve, busy }: { notes: ReviewNote[]; onSeek(at: number): void; onResolve?(note: ReviewNote): void; busy?: boolean }) {
+  const reduced = useReducedMotion();
   return <ol aria-label="Timestamped feedback" className="space-y-3">
-    {[...notes].sort((a, b) => a.at - b.at || a.createdAt - b.createdAt).map(note => <li key={note.id} className="rounded-[10px] border border-line bg-surface p-4 text-ink">
-      <div className="flex flex-wrap items-center gap-3 text-xs">
-        <button type="button" onClick={() => onSeek(note.at)} className="rounded-md border border-transparent bg-cue px-2 py-1 font-mono font-bold text-ink hover:border-ink" aria-label={`Seek to ${reviewTime(note.at)}`}>{reviewTime(note.at)}</button>
-        <span className="font-semibold break-words">{note.name}</span><span className={note.resolved ? 'text-go' : 'text-muted'}>{note.resolved ? 'Resolved' : 'Open'}</span>
+    {[...notes].sort((a, b) => a.at - b.at || a.createdAt - b.createdAt).map(note => <motion.li key={note.id} initial={reduced ? false : { opacity: 0, x: 12, y: 0 }} animate={{ opacity: 1, x: 0, y: 0 }} transition={{ duration: reduced ? 0 : 0.4, ease: [0.2, 0.8, 0.2, 1] }} className="review-card">
+      <div className="flex flex-wrap items-center gap-3 text-[13px]">
+        <button type="button" onClick={() => onSeek(note.at)} className="review-note-time hover:bg-paper2" aria-label={`Seek to ${reviewTime(note.at)}`}>{reviewTime(note.at)}</button>
+        <span className="min-w-0 break-words font-medium">{note.name}</span><span className={`ml-auto text-[13px]  ${note.resolved ? 'text-go' : 'text-ink2'}`}>{note.resolved && <Check size={18} weight="regular" className="mr-1 inline" aria-hidden="true" />}{note.resolved ? 'Resolved' : 'Open'}</span>
       </div>
-      <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-relaxed">{note.text}</p>
-      {onResolve && <button type="button" disabled={busy} onClick={() => onResolve(note)} className="mt-3 text-xs font-semibold underline underline-offset-4 disabled:opacity-50">{note.resolved ? 'Reopen note' : 'Mark resolved'}</button>}
-    </li>)}
+      <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-relaxed [overflow-wrap:anywhere]">{note.text}</p>
+      {onResolve && <button type="button" disabled={busy} onClick={() => onResolve(note)} className="mt-3 text-[13px] font-medium underline underline-offset-4 disabled:opacity-50">{note.resolved ? 'Reopen note' : 'Mark resolved'}</button>}
+    </motion.li>)}
   </ol>;
 }
