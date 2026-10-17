@@ -19,11 +19,19 @@ export class PageBoundary extends Component<{ children: ReactNode; retryUrl: str
   static getDerivedStateFromError() { return { failed: true }; }
   componentDidCatch(error: unknown) { reloadOnceForStaleChunk(error, this.props.retryUrl); }
   render() {
-    if (this.state.failed) return <main role="alert" className="min-h-screen bg-paper px-6 py-24 text-center text-ink">
-      <h1 className="font-display text-4xl font-extrabold">This page could not load</h1>
-      <p className="mt-3 text-sm text-muted">Check your connection, then reload the page.</p>
-      <a href={this.props.retryUrl} className={`${button('primary')} mt-6`}>Reload page</a>
+    if (this.state.failed) return <main role="alert" className="grid min-h-screen place-items-center bg-paper px-4 py-24 text-ink">
+      <div className="sheet w-full max-w-xl p-8 text-center shadow-hard sm:p-12">
+        <p className="eyebrow">Error</p>
+        <h1 className="display mt-4 text-5xl sm:text-6xl">This page could not load</h1>
+        <p className="mt-4 text-sm text-ink2">Check your connection, then reload the page.</p>
+        <a href={this.props.retryUrl} className={`${button('primary')} mt-8`}>Reload page</a>
+      </div>
     </main>;
-    return <Suspense fallback={<main role="status" className="min-h-screen bg-paper px-6 py-24 text-center text-ink">Loading TakeOne…</main>}>{this.props.children}</Suspense>;
+    return <Suspense fallback={<main role="status" className="grid min-h-screen place-items-center bg-paper px-4 text-ink">
+      <div className="w-full max-w-md">
+        <div aria-hidden="true" className="sheet-ruled h-40 border border-ink"><div className="pat-dots h-full w-1/3 animate-pulse opacity-15" /></div>
+        <p className="eyebrow mt-4 text-center">Loading TakeOne…</p>
+      </div>
+    </main>}>{this.props.children}</Suspense>;
   }
 }

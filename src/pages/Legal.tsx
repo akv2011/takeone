@@ -1,5 +1,6 @@
-import { Link, useLocation } from "react-router-dom";
-import TakeOneLogo from "../components/TakeOneLogo";
+import { useLocation } from "react-router-dom";
+import Header from "../components/Header";
+import SiteFooter from "../components/SiteFooter";
 import { CONTACT_EMAIL } from "../lib/brand";
 
 type Section = { heading: string; paragraphs?: string[]; items?: string[] };
@@ -63,21 +64,28 @@ const documents: Record<string, Document> = {
 export default function Legal() {
   const { pathname } = useLocation();
   const document = documents[pathname] ?? documents["/terms"];
-  return <div className="min-h-screen bg-paper text-ink">
-    <header className="border-b border-line bg-surface px-6 py-4"><div className="mx-auto flex max-w-4xl items-center justify-between">
-      <Link to="/" className="flex items-center gap-2" aria-label="TakeOne home"><TakeOneLogo className="h-7 w-7" /><span className="font-display text-lg font-bold">TakeOne</span></Link>
-      <Link to="/create" className="text-sm font-semibold underline-offset-4 hover:underline">Dashboard</Link>
-    </div></header>
-    <main className="mx-auto max-w-4xl px-6 py-14 sm:py-20">
-      <p className="text-sm text-muted">Updated {updated}</p>
-      <h1 className="mt-3 text-balance font-display text-4xl font-extrabold sm:text-5xl">{document.title}</h1>
-      <p className="mt-5 max-w-2xl text-base leading-7 text-muted">{document.intro}</p>
-      <div className="mt-12 space-y-10">{document.sections.map(section => <section key={section.heading}>
-        <h2 className="text-lg font-semibold">{section.heading}</h2>
-        {section.paragraphs?.map(paragraph => <p key={paragraph} className="mt-3 max-w-3xl text-sm leading-7 text-muted">{paragraph}</p>)}
-        {section.items && <ul className="mt-3 max-w-3xl list-disc space-y-2 pl-5 text-sm leading-7 text-muted">{section.items.map(item => <li key={item}>{item}</li>)}</ul>}
+  return <div className="flex min-h-screen flex-col bg-paper text-ink">
+    <Header />
+    <main className="mx-auto w-full max-w-[1100px] flex-1 px-4 pb-24 pt-14 sm:px-6 md:pt-20">
+      <header className="rule-top grid gap-6 pt-6 md:grid-cols-12">
+        <div className="md:col-span-8">
+          <p className="eyebrow">Updated {updated}</p>
+          <h1 className="display mt-4 text-[clamp(44px,6.6vw,88px)]">{document.title}</h1>
+        </div>
+        <p className="self-end text-base leading-7 text-ink2 md:col-span-4">{document.intro}</p>
+      </header>
+      <div className="mt-14">{document.sections.map((section, index) => <section key={section.heading} className="grid gap-3 border-t border-line py-8 first:border-ink md:grid-cols-12 md:gap-8">
+        <div className="md:col-span-4">
+          <p className="font-mono text-[11px] text-ink2">{String(index + 1).padStart(2, "0")}</p>
+          <h2 className="mt-2 font-serif text-2xl leading-tight md:text-3xl">{section.heading}</h2>
+        </div>
+        <div className="md:col-span-8">
+          {section.paragraphs?.map(paragraph => <p key={paragraph} className="max-w-[68ch] text-[15px] leading-7 text-ink2 [&+p]:mt-3">{paragraph}</p>)}
+          {section.items && <ul className="max-w-[68ch] space-y-2 text-[15px] leading-7 text-ink2">{section.items.map(item => <li key={item} className="flex gap-3"><span aria-hidden="true" className="mt-[13px] h-px w-3 shrink-0 bg-ink" />{item}</li>)}</ul>}
+        </div>
       </section>)}</div>
-      <p className="mt-14 border-t border-line pt-6 text-sm text-muted">Questions about this policy? Email <a className="font-semibold text-ink underline underline-offset-4" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.</p>
+      <p className="sheet mt-6 p-5 text-sm leading-6 text-ink2 shadow-hard-sm">Questions about this policy? Email <a className="font-medium text-ink underline underline-offset-4" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.</p>
     </main>
+    <SiteFooter />
   </div>;
 }

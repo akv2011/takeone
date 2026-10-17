@@ -61,7 +61,7 @@ test('AI scenes submit explicitly and cannot select square output', async () => 
 test('pricing renders all three packs and five free videos', () => {
  show(React.createElement(Pricing));
  expect(screen.getByText('5 free generations')).toBeTruthy();
- expect(screen.getByText('3', { selector: 'p' }).textContent).toContain('videos');
+ expect(screen.getByText('5', { selector: 'p' }).textContent).toContain('videos');
  for (const amount of ['$9.99', '$25', '$99.99']) expect(screen.getByText(amount)).toBeTruthy();
  expect(screen.queryByText('Priority queue')).toBeNull();
 });

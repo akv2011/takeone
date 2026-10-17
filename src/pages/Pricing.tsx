@@ -5,12 +5,13 @@ import { Link, useSearchParams } from "react-router-dom";
 import { SignedIn, SignedOut, saveWithGoogle, signInErrorMessage, signInWithGoogle, useAuth } from "../lib/auth";
 import { useAction, useQuery, useConvexAuth, usePaginatedQuery } from "convex/react";
 import { api } from "../lib/convexApi";
-import TakeOneLogo from "../components/TakeOneLogo";
+import { TakeOneWordmark } from "../components/TakeOneLogo";
+import SiteFooter from "../components/SiteFooter";
 import TakeOneUserButton from "../components/account/TakeOneUserButton";
 import { useProductCapabilities } from "../hooks/useProductCapabilities";
-import { button, panel } from "../lib/ui";
+import { button } from "../lib/ui";
 
-import { PACKS } from "../../convex/config";
+import { FREE_LIMIT, PACKS } from "../../convex/config";
 
 const PAYMENT_STATUS: Record<string, string> = {
   requires_customer_action: 'Your approval required', requires_payment_method: 'Payment method required', requires_confirmation: 'Awaiting confirmation', requires_merchant_action: 'Merchant review required', requires_capture: 'Awaiting capture', partially_captured: 'Partially captured', partially_captured_and_capturable: 'Partially captured',
@@ -29,7 +30,7 @@ function RefreshPayment({ orderId }: { orderId: string }) {
       catch (error) { const code = (error as { data?: string }).data; setMessage(code === 'REFRESH_TOO_SOON' ? 'Wait a minute, then check again.' : code === 'CHECKOUT_NEEDS_REVIEW' ? 'This checkout needs support review. Keep this order reference: ' + orderId : 'Payment could not be verified yet. Wait a minute and check again. This did not start another checkout.'); }
       finally { lock.current = false; setBusy(false); }
     }}>{busy ? 'Checking payment…' : 'Check payment status'}</button>
-    {message && <p role="status" className="mt-1 max-w-sm text-xs text-muted">{message}</p>}
+    {message && <p role="status" className="mt-1 max-w-sm text-xs text-ink2">{message}</p>}
   </div>;
 }
 function useActivePage() {
@@ -48,7 +49,7 @@ function ResumeCheckout({ orderId }: { orderId: string }) {
     try { const { url } = await resume({ orderId }) as { url: string }; if (active.current) openCheckout(url); }
     catch (error) { if (!active.current) return; setMessage((error as { data?: string }).data === 'REFRESH_TOO_SOON' ? 'Wait a minute after checking, then continue checkout.' : 'This checkout could not be reopened. Check its latest payment status before starting another purchase.'); }
     finally { lock.current = false; if (active.current) setBusy(false); }
-  }}>{busy ? 'Verifying checkout…' : 'Continue checkout'}</button>{message && <p role="status" className="mt-1 max-w-sm text-xs text-muted">{message}</p>}</div>;
+  }}>{busy ? 'Verifying checkout…' : 'Continue checkout'}</button>{message && <p role="status" className="mt-1 max-w-sm text-xs text-ink2">{message}</p>}</div>;
 }
 function PurchaseHistory() {
   const { user } = useAuth();
@@ -56,21 +57,21 @@ function PurchaseHistory() {
   const history = usePaginatedQuery(api.payments.listHistory, isAuthenticated && user?.id ? { accountKey: user.id } : 'skip', { initialNumItems: 20 });
   const orders = history.results as { id: string; canResume?: boolean; packId: string; credits: number; amountUsd: number; paidAmountUsd?: number; refundedAmountUsd?: number; refundedCredits?: number; status: string; disputeReview?: boolean; createdAt: number; environment: string }[] | undefined;
   if (!isAuthenticated) return null;
-  if (history.status === 'LoadingFirstPage') return <p role="status" className="mt-12 text-sm text-muted">Loading purchase history…</p>;
+  if (history.status === 'LoadingFirstPage') return <p role="status" className="pat-dots mt-12 h-24 opacity-20"><span className="sr-only">Loading purchase history…</span></p>;
   if (!orders?.length) return null;
   return <section className="mt-16 text-left" aria-labelledby="purchases-heading">
-    <div className="border-b border-line pb-4">
-      <h2 id="purchases-heading" className="text-xl font-semibold">Purchase history</h2>
-      <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">Credits appear after payment confirmation. A started checkout is not a charge.</p>
+    <div className="border-b border-ink pb-4">
+      <h2 id="purchases-heading" className="display text-4xl">Purchase history</h2>
+      <p className="mt-2 max-w-2xl text-sm leading-6 text-ink2">Credits appear after payment confirmation. A started checkout is not a charge.</p>
     </div>
     <ul className="divide-y divide-line">
       {orders.map(order => <li key={order.id} className="flex flex-wrap items-center justify-between gap-3 py-5 text-sm">
-        <div><span className="font-semibold">{order.credits} video credits · ${(order.paidAmountUsd ?? order.amountUsd).toFixed(2)} {order.paidAmountUsd === undefined ? "pack price" : "paid"}</span>
-          <p className="text-xs text-muted">{new Date(order.createdAt).toLocaleDateString()} · {order.environment === 'test' ? 'Test checkout' : 'Live checkout'}</p></div>
-        <span>{order.disputeReview ? 'Dispute review required' : PAYMENT_STATUS[order.status] ?? 'Awaiting confirmation'}</span>
-        {!order.disputeReview && PAYMENT_ACTION_COPY[order.status] && <p className="w-full text-xs leading-5 text-muted">{PAYMENT_ACTION_COPY[order.status]} Order reference: {order.id}</p>}
-        {order.disputeReview && <p className="w-full text-xs text-muted">A payment dispute was reported. Additional credits from this purchase will not be granted until reviewed. Keep this order reference: {order.id}</p>}
-        {!!order.refundedAmountUsd && <p className="w-full text-xs text-muted">${order.refundedAmountUsd.toFixed(2)} refunded · {order.refundedCredits} credits removed</p>}
+        <div><span className="font-medium">{order.credits} video credits · ${(order.paidAmountUsd ?? order.amountUsd).toFixed(2)} {order.paidAmountUsd === undefined ? "pack price" : "paid"}</span>
+          <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink2">{new Date(order.createdAt).toLocaleDateString()} · {order.environment === 'test' ? 'Test checkout' : 'Live checkout'}</p></div>
+        <span className="border border-ink px-2 py-0.5 font-mono text-[11px] uppercase tracking-[0.08em]">{order.disputeReview ? 'Dispute review required' : PAYMENT_STATUS[order.status] ?? 'Awaiting confirmation'}</span>
+        {!order.disputeReview && PAYMENT_ACTION_COPY[order.status] && <p className="w-full text-xs leading-5 text-ink2">{PAYMENT_ACTION_COPY[order.status]} Order reference: {order.id}</p>}
+        {order.disputeReview && <p className="w-full text-xs text-ink2">A payment dispute was reported. Additional credits from this purchase will not be granted until reviewed. Keep this order reference: {order.id}</p>}
+        {!!order.refundedAmountUsd && <p className="w-full text-xs text-ink2">${order.refundedAmountUsd.toFixed(2)} refunded · {order.refundedCredits} credits removed</p>}
         {<RefreshPayment orderId={order.id} />}
         {order.canResume && <ResumeCheckout orderId={order.id} />}
       </li>)}
@@ -147,37 +148,43 @@ function PricingContent({ auth }: { auth: boolean }) {
     }
   };
 
+  const note = "border-l-2 pl-4 text-sm leading-6";
+  const notes = [
+    ["No subscription", "Buy credits only when you need them."],
+    ["One video, one credit", "A successful finished render uses one."],
+    ["Secure checkout", capabilities?.payments.available ? "Payments are handled by Dodo." : "Checkout opens after provider verification."],
+  ];
+
   return (
-    <div className="min-h-screen bg-paper text-ink">
-      <header className="flex h-16 items-center justify-between border-b border-line bg-surface px-4 sm:px-6 md:px-8">
-        <Link to="/" className="flex items-center gap-2.5" aria-label="TakeOne home">
-          <TakeOneLogo className="h-8 w-8 text-ink" />
-          <span className="font-display text-xl font-bold">TakeOne</span>
-        </Link>
-        <div className="flex items-center gap-4">
+    <div className="flex min-h-screen flex-col bg-paper text-ink">
+      <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-ink bg-paper/90 px-4 backdrop-blur-sm sm:px-6 md:px-12">
+        <Link to="/" aria-label="TakeOne home"><TakeOneWordmark className="text-[28px] text-ink" /></Link>
+        <div className="flex items-center gap-5">
           <WhenSignedIn>
-            {balance && <span className="hidden rounded-md border border-line bg-paper px-2.5 py-1 text-sm font-semibold sm:inline">
+            {balance && <span className="hidden border border-ink px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.08em] sm:inline">
               {(balance.credits ?? 0) > 0 ? `${balance.credits} credits` : `${balance.freeRemaining ?? 0} free left`}
             </span>}
           </WhenSignedIn>
-          <Link to="/create" className="text-sm font-semibold underline-offset-4 hover:underline">Dashboard</Link>
+          <Link to="/create" className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink2 underline-offset-4 hover:text-ink hover:underline">Dashboard</Link>
           <WhenSignedIn><TakeOneUserButton /></WhenSignedIn>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 pb-24 pt-12 sm:px-6 md:px-8 md:pt-20">
-        <div className="max-w-3xl text-left">
-          <p className="text-sm font-semibold text-muted">One-time video credits</p>
-          <h1 className="mt-3 text-balance font-display text-5xl font-extrabold leading-[0.95] md:text-7xl">Buy what you need.<br />Create when you want.</h1>
-          <p className="mt-5 max-w-xl text-base leading-7 text-muted">
-            Every account starts with <strong className="font-semibold text-ink">5 free generations</strong>. Paid credits remove the TakeOne watermark and stay ready for your next video.
+      <main className="mx-auto w-full max-w-[1360px] flex-1 px-4 pb-24 pt-14 sm:px-6 md:px-12 md:pt-20">
+        <div className="rule-top grid gap-6 pt-6 md:grid-cols-12">
+          <div className="md:col-span-8">
+            <p className="eyebrow">One-time video credits</p>
+            <h1 className="display mt-4 text-[clamp(52px,8vw,112px)]">Buy what you need.<br /><em>Create when you want.</em></h1>
+          </div>
+          <p className="self-end text-base leading-7 text-ink2 md:col-span-4">
+            Every account starts with <strong className="font-medium text-ink">{FREE_LIMIT} free generations</strong>. Paid credits remove the TakeOne watermark and stay ready for your next video.
           </p>
         </div>
 
-        {error && <p role="alert" className="mt-8 border-l-4 border-warn pl-4 text-sm text-warn">{error}</p>}
-        {capabilities && !capabilities.payments.available && <p role="status" className="mt-8 border-l-4 border-muted pl-4 text-sm text-muted">{capabilities.payments.reason}{capabilities.rendering.available ? " You can still use your free videos." : ` ${capabilities.rendering.reason ?? "Video rendering is being connected."}`}</p>}
-        {!!balance?.creditAdjustment && <p role="status" className="mt-8 border-l-4 border-warn pl-4 text-sm leading-6">Your account has a {balance.creditAdjustment}-credit adjustment from refunded credits already used. A new pack first covers this adjustment; only the remaining credits become available.</p>}
-        {orderId && <p role="status" className="mt-8 border-l-4 border-ink pl-4 text-sm leading-6">
+        {error && <p role="alert" className={`${note} mt-8 border-warn text-warn`}>{error}</p>}
+        {capabilities && !capabilities.payments.available && <p role="status" className={`${note} mt-8 border-ink2 text-ink2`}>{capabilities.payments.reason}{capabilities.rendering.available ? " You can still use your free videos." : ` ${capabilities.rendering.reason ?? "Video rendering is being connected."}`}</p>}
+        {!!balance?.creditAdjustment && <p role="status" className={`${note} mt-8 border-warn`}>Your account has a {balance.creditAdjustment}-credit adjustment from refunded credits already used. A new pack first covers this adjustment; only the remaining credits become available.</p>}
+        {orderId && <p role="status" className={`${note} mt-8 border-ink`}>
           {order?.disputeReview ? 'This purchase needs dispute review. See the order reference in your purchase history.' : order?.status === 'paid' ? `Payment confirmed. ${order.credits} credits added to your account.` :
             ['refunded', 'partially_refunded'].includes(order?.status ?? '') ? 'Your refund is recorded and your credit balance has been adjusted. See your purchase history below.' :
             PAYMENT_ACTION_COPY[order?.status ?? ''] ? PAYMENT_ACTION_COPY[order!.status] :
@@ -188,14 +195,14 @@ function PricingContent({ auth }: { auth: boolean }) {
             search.get('cancelled') ? 'Checkout closed. Credits are added only when payment is confirmed.' :
             'Waiting for payment confirmation. Your balance will update automatically after verification.'}
         </p>}
-        <div className={`${panel} mt-12 overflow-hidden text-left`}>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4">
-          <div className="flex min-h-[390px] flex-col border-b border-line p-6 md:border-r md:p-7 lg:border-b-0">
-            <div className="text-sm font-semibold text-muted">Free</div>
-            <div className="mt-5 text-4xl font-bold">$0</div>
-            <p className="mt-2 min-h-10 text-sm leading-5 text-muted">See how TakeOne fits your workflow.</p>
-            <p className="mt-8 text-2xl font-bold">3 <span className="text-sm font-normal text-muted">videos</span></p>
-            <ul className="mt-5 space-y-2.5 pb-6 text-sm leading-5 text-muted">
+
+        <div className="mt-14 grid gap-8 md:grid-cols-2 xl:grid-cols-4">
+          <div className="sheet flex min-h-[400px] flex-col p-6 shadow-hard-sm">
+            <p className="eyebrow">Free</p>
+            <p className="display mt-6 text-7xl">$0</p>
+            <p className="mt-2 min-h-10 text-sm leading-5 text-ink2">See how TakeOne fits your workflow.</p>
+            <p className="mt-6 border-t border-ink pt-4 font-mono text-sm">{FREE_LIMIT} <span className="text-ink2">videos</span></p>
+            <ul className="mt-4 space-y-2 pb-6 text-sm leading-5 text-ink2">
               <li>All three creation modes</li>
               <li>HD export with watermark</li>
               <li>Failed jobs restore allowance</li>
@@ -204,16 +211,15 @@ function PricingContent({ auth }: { auth: boolean }) {
           </div>
 
           {packs.map((p, i) => (
-            <div key={p.id} className={`relative flex min-h-[390px] flex-col border-line p-6 md:p-7 ${i === 0 ? 'border-b lg:border-b-0 lg:border-r' : i === 1 ? 'border-b md:border-b-0 md:border-r lg:border-r' : 'border-b md:border-b-0 lg:border-r-0'}`}>
-              {i === 0 && <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-cue" />}
+            <div key={p.id} className={`sheet relative flex min-h-[400px] flex-col p-6 ${i === 0 ? 'shadow-hard-lg' : 'shadow-hard'}`}>
               <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-semibold text-muted">{p.label}</div>
-                {i === 0 && <span className="rounded-md bg-cue px-2 py-0.5 text-xs font-bold text-ink">Start here</span>}
+                <p className="eyebrow">{p.label}</p>
+                {i === 0 && <span className="stamp -rotate-6 px-2 py-1 text-[10px] text-signal">Start here</span>}
               </div>
-              <div className="mt-5 text-4xl font-bold">${p.amountUsd}</div>
-              <p className="mt-2 min-h-10 text-sm leading-5 text-muted">{i === 0 ? 'For your first watermark-free exports.' : i === 1 ? 'For a regular publishing rhythm.' : 'For larger batches and campaigns.'}</p>
-              <p className="mt-8 text-2xl font-bold">{p.credits} <span className="text-sm font-normal text-muted">videos</span></p>
-              <ul className="mt-5 space-y-2.5 pb-6 text-sm leading-5 text-muted">
+              <p className="display mt-6 text-7xl">${p.amountUsd}</p>
+              <p className="mt-2 min-h-10 text-sm leading-5 text-ink2">{i === 0 ? 'For your first watermark-free exports.' : i === 1 ? 'For a regular publishing rhythm.' : 'For larger batches and campaigns.'}</p>
+              <p className="mt-6 border-t border-ink pt-4 font-mono text-sm">{p.credits} <span className="text-ink2">videos</span></p>
+              <ul className="mt-4 space-y-2 pb-6 text-sm leading-5 text-ink2">
                 <li>No added TakeOne watermark</li>
                 <li>One credit per finished video</li>
                 <li>Failed jobs restore the credit</li>
@@ -229,16 +235,18 @@ function PricingContent({ auth }: { auth: boolean }) {
               </WhenSignedOut>
             </div>
           ))}
-          </div>
-          <div className="grid gap-px border-t border-line bg-line sm:grid-cols-3">
-            <div className="bg-paper px-6 py-4 text-sm"><strong className="font-semibold">No subscription</strong><span className="mt-1 block text-xs text-muted">Buy credits only when you need them.</span></div>
-            <div className="bg-paper px-6 py-4 text-sm"><strong className="font-semibold">One video, one credit</strong><span className="mt-1 block text-xs text-muted">A successful finished render uses one.</span></div>
-            <div className="bg-paper px-6 py-4 text-sm"><strong className="font-semibold">Secure checkout</strong><span className="mt-1 block text-xs text-muted">{capabilities?.payments.available ? 'Payments are handled by Dodo.' : 'Checkout opens after provider verification.'}</span></div>
-          </div>
         </div>
+
+        <ul className="mt-14 grid border-t border-ink sm:grid-cols-3">
+          {notes.map(([title, detail]) => <li key={title} className="border-b border-line py-4 sm:border-b-0 sm:pr-6">
+            <p className="font-mono text-[11px] uppercase tracking-[0.08em]">{title}</p>
+            <p className="mt-1 text-sm text-ink2">{detail}</p>
+          </li>)}
+        </ul>
         <WhenSignedIn><PurchaseHistory /></WhenSignedIn>
-        <p className="mt-10 text-sm text-muted">Prices in USD. Applicable tax is shown at checkout.</p>
+        <p className="mt-10 font-mono text-[11px] uppercase tracking-[0.08em] text-ink2">Prices in USD. Applicable tax is shown at checkout.</p>
       </main>
+      <SiteFooter />
     </div>
   );
 }

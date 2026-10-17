@@ -3,7 +3,7 @@ import { guides } from './seo/guides';
 import { useEffect } from "react";
 import Header from "./components/Header";
 import HeroSection from "./components/HeroSection";
-import TakeOneLogo from "./components/TakeOneLogo";
+import SiteFooter, { footLink } from "./components/SiteFooter";
 import PromptPlayground from "./components/PromptPlayground";
 import FinalCTA from "./components/FinalCTA";
 import ProductModes from "./components/ProductModes";
@@ -17,13 +17,6 @@ const capabilities = [
   "12 caption languages", "Claims checked with Google Search", "Veo 3.1 prompt to video",
   "YouTube moments without downloading", "Review links with timed notes",
 ];
-
-const footerColumns = [
-  ["Product", [["/create", "Dashboard"], ["/pricing", "Pricing"], ["/guides", "Guides"], ["#how-it-works", "How it works"]]],
-  ["Policies", [["/privacy", "Privacy"], ["/terms", "Terms"], ["/acceptable-use", "Acceptable use"], ["/copyright", "Copyright"], ["/refund-policy", "Refunds"]]],
-] as const;
-
-const footLink = "font-mono text-[11px] uppercase tracking-[0.08em] text-ink2 underline-offset-4 hover:text-ink hover:underline";
 
 function App() {
   useSmoothScroll();
@@ -67,27 +60,7 @@ function App() {
         <FinalCTA />
       </main>
 
-      <footer className="w-full bg-paper px-4 pt-14 sm:px-6 md:px-12">
-        <div className="mx-auto grid max-w-[1360px] gap-10 md:grid-cols-12">
-          <div className="flex items-center gap-2 md:col-span-6">
-            <TakeOneLogo className="h-6 w-6 text-ink" />
-            <span className={footLink}>© {new Date().getFullYear()} TakeOne</span>
-          </div>
-          <nav aria-label="Footer" className="grid grid-cols-2 gap-8 md:col-span-6">
-            {footerColumns.map(([title, links]) => (
-              <div key={title} className="border-t border-ink pt-3">
-                <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted">{title}</p>
-                <ul className="mt-3 space-y-2">
-                  {links.map(([to, label]) => (
-                    <li key={to}>{to.startsWith("#") ? <a href={to} className={footLink}>{label}</a> : <Link to={to} className={footLink}>{label}</Link>}</li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </nav>
-        </div>
-        <p aria-hidden="true" translate="no" className="display mx-auto mt-16 max-w-[1360px] select-none overflow-hidden whitespace-nowrap text-[clamp(96px,22vw,330px)] leading-[0.78] text-ink">TakeOne</p>
-      </footer>
+      <SiteFooter home />
     </div>
   );
 }

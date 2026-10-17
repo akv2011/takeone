@@ -1,6 +1,6 @@
 import { PageMetadata } from './seo/PageMetadata';
 import { guides } from './seo/guides';
-import { lazy } from 'react';
+import { lazy, type ReactNode } from 'react';
 import { Link, Route, Routes, useLocation } from 'react-router-dom';
 import { PageBoundary } from './components/PageBoundary';
 import { button } from './lib/ui';
@@ -17,13 +17,22 @@ const Guides = lazy(() => import('./pages/Guides'));
 const Guide = lazy(() => import('./pages/Guide'));
 const Legal = lazy(() => import('./pages/Legal'));
 
+function NoticePage({ eyebrow, title, children }: { eyebrow: string; title: string; children: ReactNode }) {
+  return <main className="grid min-h-screen place-items-center bg-paper px-4 py-24 text-ink">
+    <div className="sheet w-full max-w-xl p-8 text-center shadow-hard sm:p-12">
+      <p className="eyebrow">{eyebrow}</p>
+      <h1 className="display mt-4 text-5xl sm:text-6xl">{title}</h1>
+      {children}
+    </div>
+  </main>;
+}
+
 // main.tsx mounts AuthProvider only when the Firebase web config is set; without it the private pages cannot render.
 function SignInUnavailable() {
-  return <main className="min-h-screen bg-paper px-6 py-24 text-center text-ink">
-    <h1 className="font-display text-4xl font-extrabold">Sign-in is not set up</h1>
-    <p className="mx-auto mt-3 max-w-md text-sm text-muted">The dashboard and Studio need a sign-in provider. Set VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_PROJECT_ID and VITE_FIREBASE_APP_ID for this deployment, then build and deploy the site again.</p>
-    <div className="mt-6 flex justify-center gap-3"><Link to="/guides" className={button("secondary")}>Read the guides</Link><Link to="/" className={button("primary")}>Go to the home page</Link></div>
-  </main>;
+  return <NoticePage eyebrow="Setup needed" title="Sign-in is not set up">
+    <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-ink2">The dashboard and Studio need a sign-in provider. Set VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_PROJECT_ID and VITE_FIREBASE_APP_ID for this deployment, then build and deploy the site again.</p>
+    <div className="mt-8 flex flex-wrap justify-center gap-3"><Link to="/guides" className={button("secondary")}>Read the guides</Link><Link to="/" className={button("primary")}>Go to the home page</Link></div>
+  </NoticePage>;
 }
 
 export function AppRoutes() {
@@ -46,7 +55,7 @@ export function AppRoutes() {
       <Route path="/acceptable-use" element={<Legal />} />
       <Route path="/copyright" element={<Legal />} />
       <Route path="/refund-policy" element={<Legal />} />
-      <Route path="*" element={<main className="min-h-screen bg-paper px-6 py-24 text-center text-ink"><h1 className="font-display text-4xl font-extrabold">Page not found</h1><p className="mt-3 text-sm text-muted">This address does not match a TakeOne page. Check the link, or open your dashboard.</p><Link to="/create" className={`${button("primary")} mt-6`}>Go to your dashboard</Link></main>} />
+      <Route path="*" element={<NoticePage eyebrow="404" title="Page not found"><p className="mt-4 text-sm text-ink2">This address does not match a TakeOne page. Check the link, or open your dashboard.</p><Link to="/create" className={`${button("primary")} mt-8`}>Go to your dashboard</Link></NoticePage>} />
     </Routes>
   </PageBoundary>;
 }
