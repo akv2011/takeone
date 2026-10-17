@@ -1,3 +1,5 @@
+import { FrameCorners } from "@phosphor-icons/react";
+import { InspectorSection, GenerationTicket } from "./StudioWorkspace";
 import type { OutputAspect, OutputFit } from "../lib/editTransforms";
 import { button, field, fieldsetPanel, label, legend } from "../lib/ui";
 export function TransformControls({
@@ -14,7 +16,7 @@ export function TransformControls({
   onApply(): void;
 }) {
   return (
-    <fieldset
+    <InspectorSection title="Transform video" icon={FrameCorners} defaultOpen help="Framing preview is free and approximate. Automatic crop may adjust subject focus. Fit adds a blurred background in the export. Existing captions and marks may be cropped."><fieldset
       disabled={disabled}
       className={`${fieldsetPanel} disabled:opacity-50`}
     >
@@ -46,18 +48,13 @@ export function TransformControls({
           <option value="fit">Fit whole video</option>
         </select>
       </label>
-      <p className="mt-3 text-sm text-muted">
-        Framing preview is free and approximate. Automatic crop may adjust
-        subject focus; Fit adds a blurred background in the export. Existing
-        captions and marks in the video may be cropped.
-      </p>
       <button
         type="button"
         onClick={onApply}
         className={`${button("primary", "sm")} mt-3`}
       >
-        Apply framing · 1 generation
+        Apply framing <GenerationTicket />
       </button>
-    </fieldset>
+    </fieldset></InspectorSection>
   );
 }

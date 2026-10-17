@@ -30,11 +30,11 @@ export function PreviousVersionPlayer({ jobId }: { jobId: string }) {
           className="min-h-0 w-full flex-1 object-contain"
         />
       ) : (
-        <p className="px-4 text-center text-sm">
+        <div className="w-full px-4 text-center text-sm text-surface"><div aria-hidden="true" className="studio-skeleton mx-auto w-24" /><p role={previous === undefined ? "status" : undefined}>
           {previous === undefined
             ? "Loading the previous version…"
             : "Previous video preview is unavailable."}
-        </p>
+        </p></div>
       )}
       <Link
         to={`/studio/${jobId}`}
@@ -46,7 +46,7 @@ export function PreviousVersionPlayer({ jobId }: { jobId: string }) {
         <button
           type="button"
           onClick={() => void refresh()}
-          className="px-3 pb-3 text-xs font-semibold text-cue underline underline-offset-4"
+          className="px-3 pb-3 text-xs font-semibold text-surface underline underline-offset-4"
         >
           Reload previous video preview
         </button>

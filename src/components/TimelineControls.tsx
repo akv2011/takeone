@@ -1,3 +1,5 @@
+import { Scissors } from "@phosphor-icons/react";
+import { GenerationTicket, HelpNote } from "./StudioWorkspace";
 import { useState } from "react";
 import type { EditTransforms } from "../lib/editTransforms";
 import { FramePreviews } from "./FramePreviews";
@@ -75,23 +77,21 @@ export function TimelineControls({
       disabled={disabled}
       className={`${fieldsetPanel} min-w-0 w-full disabled:opacity-50`}
     >
-      <legend className={legend}>Trim & speed</legend>
-      <p className="mb-3 text-sm text-muted">
-        Times refer to the current video; decimals allow fine cuts. Export
-        boundaries follow source frames. Preview is free; applying uses 1
-        generation.
-      </p>
+      <legend className={`${legend} !font-mono !text-[11px] uppercase tracking-wider`}><Scissors size={16} className="mr-2 inline" aria-hidden="true" />Trim & speed</legend>
+      <div className="mb-3"><HelpNote>Times refer to the current video. Use decimals for fine cuts. Export boundaries follow source frames. Preview is free. Applying uses one generation.</HelpNote></div>
       {onSeek && videoUrl && (
-        <FramePreviews
+        <div className="timeline-strip"><FramePreviews
           key={videoUrl}
           url={videoUrl}
           disabled={disabled}
           onSeek={onSeek}
-        />
+        /><span className="timeline-playhead" style={{ left: `${limit ? playhead / limit * 100 : 0}%` }} /></div>
       )}
+      <div className="timeline-ticks" aria-hidden="true">{[0, 1, 2, 3, 4].map(tick => <span key={tick}>{limit === undefined ? "--:--" : timestamp(limit * tick / 4)}</span>)}</div>
+      <details className="mt-3 border-t border-line pt-3"><summary className="cursor-pointer font-mono text-[10px] uppercase tracking-wider">Trim controls</summary><div className="mt-3">
       {onSeek && (
-        <div className="mb-4 rounded-md border border-line bg-paper p-3">
-          <div className="mb-2 flex justify-between font-mono text-xs text-muted">
+        <div className="mb-4  border border-line bg-paper p-3">
+          <div className="mb-2 flex justify-between font-mono text-xs text-ink2">
             <span>{timestamp(playhead)}</span>
             <span>
               {limit === undefined ? "Loading duration…" : timestamp(limit)}
@@ -99,11 +99,11 @@ export function TimelineControls({
           </div>
           <div
             aria-hidden="true"
-            className="relative mb-2 h-5 overflow-hidden rounded-[3px] bg-line"
+            className="relative mb-2 h-5 overflow-hidden  bg-line"
           >
             {limit !== undefined && valid && (
               <div
-                className="absolute inset-y-0 bg-cue"
+                className="absolute inset-y-0 bg-ink/15"
                 style={{
                   left: `${(from / limit) * 100}%`,
                   width: `${((to - from) / limit) * 100}%`,
@@ -112,7 +112,7 @@ export function TimelineControls({
             )}
             {limit !== undefined && (
               <div
-                className="absolute inset-y-0 w-0.5 bg-ink"
+                className="absolute inset-y-0 w-0.5 bg-signal"
                 style={{ left: `calc(${(playhead / limit) * 100}% - 1px)` }}
               />
             )}
@@ -238,7 +238,7 @@ export function TimelineControls({
         </p>
       )}
       {valid && (
-        <p className="mt-2 text-xs text-muted">
+        <p className="mt-2 text-xs text-ink2">
           Result: approximately {((to - from) / Number(speed)).toFixed(1)}{" "}
           seconds.
         </p>
@@ -265,9 +265,10 @@ export function TimelineControls({
           }
           className={button("primary", "sm")}
         >
-          Apply trim & speed · 1 generation
+          Apply edit <GenerationTicket />
         </button>
       </div>
+      </div></details>
     </fieldset>
   );
 }

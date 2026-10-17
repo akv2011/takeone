@@ -1,3 +1,4 @@
+import { HelpNote, PanelState } from "./StudioWorkspace";
 import { Component, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useConvexAuth, useMutation, useQuery } from 'convex/react';
 import { api } from '../lib/convexApi';
@@ -80,7 +81,7 @@ class ProjectReadBoundary extends Component<{ children: ReactNode }, { failed: b
     if (!this.state.failed) return this.props.children;
     return (
       <section aria-label="Editable project" className={`${panel} w-full p-4`}>
-        <h2 className="text-base font-semibold">Project timeline</h2>
+        <h2 className="eyebrow">Editable timeline</h2>
         <p role="alert" className="mt-2 text-xs text-warn">Project details could not load. The rest of Studio is still available.</p>
         <button type="button" onClick={() => this.setState({ failed: false })} className={`${button('secondary', 'sm')} mt-3`}>
           Retry project timeline
@@ -166,24 +167,24 @@ function ScopedProjectTimelinePanel({ sourceJobId, accountKey, duration, disable
 
   return (
     <section aria-label="Editable project" className={`${panel} w-full p-4`}>
-      <h2 className="text-base font-semibold">Project timeline</h2>
+      <h2 className="eyebrow">Editable timeline</h2>
       {project ? (
         <div className="mt-3">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h3 className="font-semibold">{project.name}</h3>
-            <span className="text-xs text-muted">Revision {project.revision}</span>
+            <span className="text-xs text-ink2">Revision {project.revision}</span>
           </div>
-          <p className="mt-1 text-xs text-muted">
+          <p className="mt-1 text-xs text-ink2">
             {seconds(project.timeline.durationMs)}s total · {project.timeline.video.length}{' '}
             {project.timeline.video.length === 1 ? 'clip' : 'clips'}
           </p>
           <p className="mt-2 text-xs font-medium text-cueInk">Saved draft · no generation used</p>
         </div>
       ) : result === undefined ? (
-        <p role="status" className="mt-2 text-xs text-muted">Loading editable project…</p>
+        <PanelState loading>Loading editable timeline…</PanelState>
       ) : (
         <div className="mt-3">
-          <p className="text-xs text-muted">Create a saved timeline for this completed video. This is free; no generation is used.</p>
+          <HelpNote>Create a saved timeline for this completed video. This is free; no generation is used.</HelpNote>
           <button
             type="button"
             disabled={disabled || creating || !validDuration}
@@ -193,7 +194,7 @@ function ScopedProjectTimelinePanel({ sourceJobId, accountKey, duration, disable
             {creating ? 'Creating editable project…' : failed ? 'Retry project creation' : 'Create editable project'}
           </button>
           {!validDuration && (
-            <p className="mt-2 text-xs text-muted">Load a video between 0.1 and 300 seconds before creating a project.</p>
+            <p className="mt-2 text-xs text-ink2">Load a video between 0.1 and 300 seconds before creating a project.</p>
           )}
           {failed && (
             <p role="alert" className="mt-2 text-xs text-warn">Could not create the project. Try again; the rest of Studio is still available.</p>

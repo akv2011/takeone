@@ -1,3 +1,5 @@
+import { TextAlignLeft } from "@phosphor-icons/react";
+import { HelpNote, PanelState } from "./StudioWorkspace";
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { button, field, label, panel } from '../lib/ui';
 
@@ -30,9 +32,9 @@ function validatedCues(value: unknown): Cue[] {
 /** Saved captions only. Navigation never transcribes or submits an edit. */
 export function TranscriptNavigator(props: Props) {
   return <section aria-label="Transcript navigation" className={`${panel} min-w-0 p-4`}>
-    <h2 className="text-base font-semibold">Transcript</h2>
-    <p className="mt-1 text-sm text-muted">Find a phrase and jump to it. Searching and playback are free; caption wording stays unchanged.</p>
-    {!props.available ? <p className="mt-3 text-xs text-muted">This version has no saved transcript. Videos with saved captions support transcript navigation.</p>
+    <h2 className="eyebrow flex items-center gap-2"><TextAlignLeft size={16} aria-hidden="true" />Transcript</h2>
+    <div className="mt-2"><HelpNote>Find a phrase and jump to it. Search and playback are free. Caption wording stays unchanged.</HelpNote></div>
+    {!props.available ? <div className="mt-3"><PanelState>This version has no saved transcript.</PanelState></div>
       : <SavedTranscript key={`${props.accountKey}:${props.jobId}`} {...props} />}
   </section>;
 }
@@ -59,19 +61,20 @@ function SavedTranscript({ loadCues, currentTime, duration, playbackDisabled, on
   }
   return <>
     {(!cues || timingInvalid) && <button type="button" disabled={loading} onClick={() => void load()} className={`${button('secondary', 'sm')} mt-3`}>{loading ? 'Loading transcript…' : timingInvalid ? 'Reload transcript · free' : 'Load transcript · free'}</button>}
+    {loading && <PanelState loading>Loading saved transcript…</PanelState>}
     {error && <p role="alert" className="mt-2 text-xs text-warn">Could not load this transcript. Try again. No generation was used.</p>}
     {timingInvalid && <p role="alert" className="mt-2 text-xs text-warn">Saved cue timing does not match this video. Reload the transcript to try again. No generation was used.</p>}
     {cues && !timingInvalid && <>
-      {cues.length === 0 ? <p className="mt-3 text-xs text-muted">There are no saved speech cues in this version.</p> : <>
+      {cues.length === 0 ? <p className="mt-3 text-xs text-ink2">There are no saved speech cues in this version.</p> : <>
         <label className={`mt-3 block ${label}`}>Search transcript<input type="search" maxLength={200} value={query} onChange={event => { setQuery(event.target.value); setPage(0); }} placeholder="Find a word or phrase…" className={`${field} mt-1 block w-full min-w-0`} /></label>
-        <p role="status" className="mt-2 text-xs text-muted">{matches.length} {matches.length === 1 ? 'cue' : 'cues'}{query.trim() ? ' found' : ' saved'}{playbackDisabled ? ' · Video playback is unavailable.' : ''}</p>
+        <p role="status" className="mt-2 text-xs text-ink2">{matches.length} {matches.length === 1 ? 'cue' : 'cues'}{query.trim() ? ' found' : ' saved'}{playbackDisabled ? ' · Video playback is unavailable.' : ''}</p>
         {!matches.length ? <p className="mt-3 text-sm">No matching phrases. Try another search.</p> : <>
           <ol className="mt-2 max-h-64 space-y-1 overflow-y-auto" aria-label="Transcript cues">
-            {matches.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map(({ cue, index }) => <li key={index} className={`flex min-w-0 items-start gap-2 rounded-md border ${active === index ? 'border-ink bg-cue/25' : 'border-transparent'}`}>
-              <button type="button" disabled={playbackDisabled || (duration !== undefined && cue.start >= duration)} aria-current={active === index ? 'true' : undefined} onClick={() => onSeek(cue.start)} className="flex min-w-0 flex-1 items-start gap-3 rounded-md p-2 text-left text-sm hover:bg-paper disabled:opacity-50">
-                <span className="shrink-0 pt-0.5 font-mono text-xs text-muted">{time(cue.start)}</span><span className="min-w-0 break-words [overflow-wrap:anywhere]">{cue.text}</span>
+            {matches.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map(({ cue, index }) => <li key={index} className={`flex min-w-0 items-start gap-2  border ${active === index ? 'border-ink bg-paper2' : 'border-transparent'}`}>
+              <button type="button" disabled={playbackDisabled || (duration !== undefined && cue.start >= duration)} aria-current={active === index ? 'true' : undefined} onClick={() => onSeek(cue.start)} className="flex min-w-0 flex-1 items-start gap-3  p-2 text-left text-sm hover:bg-paper disabled:opacity-50">
+                <span className="shrink-0 pt-0.5 font-mono text-xs text-ink2">{time(cue.start)}</span><span className="min-w-0 break-words [overflow-wrap:anywhere]">{cue.text}</span>
               </button>
-              <button type="button" disabled={playbackDisabled || (duration !== undefined && cue.start >= duration)} aria-label={`Preview cue ${index + 1}`} onClick={() => onPreview(cue.start, Math.min(cue.end, duration ?? cue.end), 1)} className="m-1 shrink-0 rounded-md border border-line px-2 py-1.5 text-xs font-semibold hover:border-ink disabled:opacity-50">Play</button>
+              <button type="button" disabled={playbackDisabled || (duration !== undefined && cue.start >= duration)} aria-label={`Preview cue ${index + 1}`} onClick={() => onPreview(cue.start, Math.min(cue.end, duration ?? cue.end), 1)} className="m-1 shrink-0  border border-line px-2 py-1.5 text-xs font-semibold hover:border-ink disabled:opacity-50">Play</button>
             </li>)}
           </ol>
           {matches.length > PAGE_SIZE && <div className="mt-2 flex items-center justify-between gap-2 text-xs">
