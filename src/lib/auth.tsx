@@ -99,12 +99,12 @@ function useAuthAction() {
 export function SignInChoices({ className = '' }: { className?: string }) {
   const { busy, error, run } = useAuthAction();
   return <div className={className}>
-    <div className="flex flex-wrap justify-center gap-3">
-      <button type="button" disabled={busy} onClick={() => void run(signInWithGoogle)} className={button('primary')}><GoogleLogo aria-hidden="true" size={16} weight="bold" />Continue with Google</button>
-      <button type="button" disabled={busy} onClick={() => void run(continueAsGuest)} className={button('secondary')}><UserCircle aria-hidden="true" size={16} weight="regular" />Continue as guest</button>
+    <div className="mx-auto flex w-full max-w-xs flex-col gap-3">
+      <button type="button" disabled={busy} onClick={() => void run(signInWithGoogle)} className={button('primary', 'lg')}><GoogleLogo aria-hidden="true" size={18} weight="bold" />Continue with Google</button>
+      <button type="button" disabled={busy} onClick={() => void run(continueAsGuest)} className={button('secondary', 'lg')}><UserCircle aria-hidden="true" size={20} />Continue as guest</button>
     </div>
-    <p className="mx-auto mt-4 max-w-sm text-xs text-muted">Guest videos stay in this browser until you save them with Google.</p>
-    {error && <p role="alert" className="mx-auto mt-3 max-w-sm border-l-2 border-signal pl-2 text-left text-sm text-signal">{error}</p>}
+    <p className="mx-auto mt-4 max-w-xs text-[13px] text-muted">Guest videos stay in this browser until you save them with Google.</p>
+    {error && <p role="alert" className="mx-auto mt-3 max-w-xs text-sm text-grease">{error}</p>}
   </div>;
 }
 
@@ -112,13 +112,12 @@ export function GuestNotice({ className = '' }: { className?: string }) {
   const { user } = useAuth();
   const { busy, error, run } = useAuthAction();
   if (!user?.isGuest) return null;
-  return <section aria-label="Guest session" className={`border-y border-ink py-2 ${className}`}>
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-      <span className="stamp -rotate-3 px-2! py-0.5! text-[10px]! text-signal">Guest</span>
-      <p className="min-w-0 flex-1 basis-48 text-sm text-ink2">Your videos stay in this browser until you save them with Google.</p>
-      <button type="button" disabled={busy} onClick={() => void run(saveWithGoogle)} className={button('primary', 'sm')}><GoogleLogo aria-hidden="true" size={14} weight="bold" />Save with Google</button>
-    </div>
-    {error && <p role="alert" className="mt-2 text-sm text-signal">{error}</p>}
+  return <section aria-label="Guest session" className={`text-sm text-ink2 ${className}`}>
+    <p className="flex items-start gap-2">
+      <UserCircle aria-hidden="true" size={18} className="mt-px shrink-0 text-muted" />
+      <span>Guest session. Your videos stay in this browser until you save them with Google. <button type="button" disabled={busy} onClick={() => void run(saveWithGoogle)} className="-my-2.5 rounded-[6px] py-2.5 font-semibold text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink disabled:opacity-50">Save with Google</button></span>
+    </p>
+    {error && <p role="alert" className="mt-1 text-grease">{error}</p>}
   </section>;
 }
 
