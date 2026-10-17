@@ -4,26 +4,20 @@ import Header from '../components/Header';
 import SiteFooter from '../components/SiteFooter';
 
 export default function Guides() {
-  return <div className="flex min-h-screen flex-col bg-paper text-ink">
+  return <div className="flex min-h-screen flex-col text-ink">
     <Header />
-    <main className="mx-auto w-full max-w-[1100px] flex-1 px-4 pb-24 pt-14 sm:px-6 md:pt-20">
-      <div className="rule-top grid gap-6 pt-6 md:grid-cols-12">
-        <div className="md:col-span-8">
-          <p className="eyebrow">Guides · {String(guides.length).padStart(2, '0')}</p>
-          <h1 className="display mt-4 text-[clamp(52px,8vw,104px)]">Video editing <em>guides.</em></h1>
-        </div>
-        <p className="self-end text-base leading-7 text-ink2 md:col-span-4">Start with the change you want to make. Each guide covers the controls, an example and what to check before publishing.</p>
+    <main className="mx-auto w-full max-w-[1280px] flex-1 px-5 pb-24 pt-12 sm:px-8 md:px-12 md:pt-20">
+      <div className="max-w-[640px]">
+        <h1 className="display ml-[-0.04em] text-[40px] md:text-[56px]">Video editing guides</h1>
+        <p className="mt-4 text-[17px] leading-relaxed text-ink2">Pick the change you want to make. Each guide shows the controls, an example and what to check before you publish.</p>
       </div>
-      <ol className="mt-14 border-t border-ink">{guides.map((guide, i) => <li key={guide.path} className="border-b border-line">
-        <article className="grid gap-3 py-8 md:grid-cols-12 md:gap-8">
-          <span className="font-mono text-[11px] text-ink2 md:col-span-1 md:pt-2">{String(i + 1).padStart(2, '0')}</span>
-          <div className="md:col-span-11">
-            <h2 className="font-serif text-3xl leading-tight md:text-4xl"><Link className="underline decoration-ink/20 decoration-1 underline-offset-[6px] transition-colors hover:decoration-ink" to={guide.path}>{guide.title}</Link></h2>
-            <p className="mt-3 max-w-[68ch] leading-7 text-ink2">{guide.intro}</p>
-          </div>
+      <ul className="mt-12 grid gap-5 md:grid-cols-2">{guides.map(guide => <li key={guide.path}>
+        <article className="sheet group relative h-full p-6 transition-[transform,box-shadow] duration-150 ease-paper hover:-translate-y-0.5 hover:shadow-lift">
+          <h2 className="text-[19px] font-semibold leading-snug tracking-[-0.015em]"><Link className="after:absolute after:inset-0 after:rounded-card" to={guide.path}>{guide.title}</Link></h2>
+          <p className="mt-2 line-clamp-2 text-[15px] leading-relaxed text-ink2">{guide.intro}</p>
         </article>
-      </li>)}</ol>
-      <p className="mt-10 max-w-[68ch] font-mono text-[11px] uppercase leading-5 tracking-[0.08em] text-ink2">Rendering availability is shown in the workspace. Reading guides and reviewing settings does not submit a video job.</p>
+      </li>)}</ul>
+      <p className="mt-10 max-w-[68ch] text-[13px] text-muted">Reading guides and reviewing settings does not submit a video job.</p>
     </main>
     <SiteFooter />
   </div>;

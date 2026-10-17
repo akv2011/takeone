@@ -5,50 +5,49 @@ import Header from '../components/Header';
 import SiteFooter from '../components/SiteFooter';
 import { button } from '../lib/ui';
 
-const crumb = 'font-mono text-[11px] uppercase tracking-[0.08em] text-ink2 underline-offset-4 hover:text-ink hover:underline';
+const crumb = 'text-[13px] font-medium text-ink2 transition-colors hover:text-ink';
 
 export default function Guide() {
   const { pathname } = useLocation();
   const guide = guides.find(g => g.path === pathname.replace(/\/+$/, ''));
   if (!guide) return null;
-  return <div className="flex min-h-screen flex-col bg-paper text-ink">
+  return <div className="flex min-h-screen flex-col text-ink">
     <Header />
-    <main className="mx-auto w-full max-w-[1100px] flex-1 px-4 pb-24 pt-12 sm:px-6 md:pt-16">
+    <main className="mx-auto w-full max-w-[1280px] flex-1 px-5 pb-24 pt-10 sm:px-8 md:px-12 md:pt-16">
       <article>
-        <nav aria-label="Breadcrumb" className="flex gap-2"><Link to="/" className={crumb}>Home</Link><span aria-hidden="true" className="font-mono text-[11px] text-ink2">/</span><Link to="/guides" className={crumb}>Video editing guides</Link></nav>
-        <header className="rule-top mt-6 pt-8">
-          <h1 className="display max-w-[16ch] text-[clamp(44px,6.6vw,88px)]">{guide.title}</h1>
-          <p className="mt-6 max-w-[68ch] text-lg leading-8 text-ink2">{guide.intro}</p>
-          <p className="eyebrow mt-6">By TakeOne</p>
+        <nav aria-label="Breadcrumb" className="flex gap-2"><Link to="/" className={crumb}>Home</Link><span aria-hidden="true" className="text-[13px] text-muted">/</span><Link to="/guides" className={crumb}>Video editing guides</Link></nav>
+        <header className="mt-6 max-w-[68ch]">
+          <h1 className="display ml-[-0.04em] text-[36px] md:text-[52px]">{guide.title}</h1>
+          <p className="mt-5 text-[18px] leading-relaxed text-ink2">{guide.intro}</p>
+          <p className="mt-4 text-[13px] text-muted">By TakeOne</p>
         </header>
-        <div className="mt-12 grid gap-12 lg:grid-cols-12">
+        <div className="mt-12 grid gap-10 lg:grid-cols-12">
           <nav aria-label="On this page" className="lg:col-span-3">
-            <div className="border-t border-ink pt-3 lg:sticky lg:top-24">
-              <p className="eyebrow">On this page</p>
-              <ol className="mt-3 space-y-2 text-sm">{guide.sections.map((section, index) => <li key={section.heading} className="flex gap-2"><span className="font-mono text-[11px] leading-5 text-ink2">0{index + 1}</span><a className="leading-5 underline-offset-4 hover:underline" href={`#section-${index + 1}`}>{section.heading}</a></li>)}<li className="flex gap-2"><span className="font-mono text-[11px] leading-5 text-ink2">Q</span><a className="leading-5 underline-offset-4 hover:underline" href="#questions">Common questions</a></li></ol>
+            <div className="lg:sticky lg:top-24">
+              <p className="text-[13px] font-semibold text-ink">On this page</p>
+              <ol className="mt-3 space-y-2.5 text-[14px]">{guide.sections.map((section, index) => <li key={section.heading}><a className="text-ink2 transition-colors hover:text-ink" href={`#section-${index + 1}`}>{section.heading}</a></li>)}<li><a className="text-ink2 transition-colors hover:text-ink" href="#questions">Common questions</a></li></ol>
             </div>
           </nav>
           <div className="min-w-0 lg:col-span-9">
-            {guide.sections.map((section, index) => <section id={`section-${index + 1}`} key={section.heading} className="scroll-mt-24 border-t border-line pb-10 pt-6 first:border-ink">
-              <p className="font-mono text-[11px] text-ink2">0{index + 1}</p>
-              <h2 className="mt-2 font-serif text-3xl leading-tight md:text-4xl">{section.heading}</h2>
-              <p className="mt-4 max-w-[68ch] text-[17px] leading-8 text-ink2">{section.text}</p>
+            {guide.sections.map((section, index) => <section id={`section-${index + 1}`} key={section.heading} className="max-w-[68ch] scroll-mt-24 pb-10">
+              <h2 className="text-[22px] font-semibold leading-snug tracking-[-0.02em]">{section.heading}</h2>
+              <p className="mt-3 text-[17px] leading-[1.7] text-ink2">{section.text}</p>
             </section>)}
-            <section id="questions" className="scroll-mt-24 border-t border-ink pt-6">
-              <h2 className="font-serif text-3xl leading-tight md:text-4xl">Common questions</h2>
-              {guideAnswers[guide.path]?.map(item => <div key={item.question} className="mt-6 max-w-[68ch] border-b border-line pb-6">
-                <h3 className="font-medium">{item.question}</h3>
-                <p className="mt-2 leading-7 text-ink2">{item.answer}</p>
+            <section id="questions" className="sheet max-w-[68ch] scroll-mt-24 p-6 md:p-8">
+              <h2 className="text-[22px] font-semibold leading-snug tracking-[-0.02em]">Common questions</h2>
+              {guideAnswers[guide.path]?.map(item => <div key={item.question} className="mt-5 border-t border-line pt-5">
+                <h3 className="text-[16px] font-semibold">{item.question}</h3>
+                <p className="mt-2 text-[15px] leading-relaxed text-ink2">{item.answer}</p>
               </div>)}
             </section>
           </div>
         </div>
       </article>
-      <aside className="mt-16 grid gap-8 border-t border-ink pt-6 lg:grid-cols-12">
-        <h2 className="display text-4xl lg:col-span-3">More editing guides</h2>
-        <div className="lg:col-span-9">
-          <ul className="border-t border-line">{guides.filter(g => g.path !== guide.path).map(g => <li key={g.path} className="border-b border-line"><Link className="block py-4 font-serif text-2xl leading-tight underline-offset-[6px] hover:underline" to={g.path}>{g.title}</Link></li>)}</ul>
-          <Link to="/create" className={`${button('primary')} mt-8`}>Explore the TakeOne workspace</Link>
+      <aside className="mt-16 border-t border-line pt-10 lg:grid lg:grid-cols-12 lg:gap-10">
+        <h2 className="display text-[26px] lg:col-span-3">More editing guides</h2>
+        <div className="mt-6 lg:col-span-9 lg:mt-0">
+          <ul className="grid gap-3 sm:grid-cols-2">{guides.filter(g => g.path !== guide.path).map(g => <li key={g.path}><Link className="sheet block h-full p-4 text-[15px] font-medium leading-snug transition-[transform,box-shadow] duration-150 ease-paper hover:-translate-y-0.5 hover:shadow-lift" to={g.path}>{g.title}</Link></li>)}</ul>
+          <Link to="/create" className={`${button('primary', 'lg')} mt-8`}>Explore the TakeOne workspace</Link>
         </div>
       </aside>
     </main>

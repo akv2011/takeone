@@ -64,27 +64,20 @@ const documents: Record<string, Document> = {
 export default function Legal() {
   const { pathname } = useLocation();
   const document = documents[pathname] ?? documents["/terms"];
-  return <div className="flex min-h-screen flex-col bg-paper text-ink">
+  return <div className="flex min-h-screen flex-col text-ink">
     <Header />
-    <main className="mx-auto w-full max-w-[1100px] flex-1 px-4 pb-24 pt-14 sm:px-6 md:pt-20">
-      <header className="rule-top grid gap-6 pt-6 md:grid-cols-12">
-        <div className="md:col-span-8">
-          <p className="eyebrow">Updated {updated}</p>
-          <h1 className="display mt-4 text-[clamp(44px,6.6vw,88px)]">{document.title}</h1>
-        </div>
-        <p className="self-end text-base leading-7 text-ink2 md:col-span-4">{document.intro}</p>
+    <main className="mx-auto w-full max-w-[1280px] flex-1 px-5 pb-24 pt-12 sm:px-8 md:px-12 md:pt-20">
+      <header className="max-w-[68ch]">
+        <p className="text-[13px] text-muted">Updated {updated}</p>
+        <h1 className="display ml-[-0.04em] mt-3 text-[40px] md:text-[52px]">{document.title}</h1>
+        <p className="mt-4 text-[17px] leading-relaxed text-ink2">{document.intro}</p>
       </header>
-      <div className="mt-14">{document.sections.map((section, index) => <section key={section.heading} className="grid gap-3 border-t border-line py-8 first:border-ink md:grid-cols-12 md:gap-8">
-        <div className="md:col-span-4">
-          <p className="font-mono text-[11px] text-ink2">{String(index + 1).padStart(2, "0")}</p>
-          <h2 className="mt-2 font-serif text-2xl leading-tight md:text-3xl">{section.heading}</h2>
-        </div>
-        <div className="md:col-span-8">
-          {section.paragraphs?.map(paragraph => <p key={paragraph} className="max-w-[68ch] text-[15px] leading-7 text-ink2 [&+p]:mt-3">{paragraph}</p>)}
-          {section.items && <ul className="max-w-[68ch] space-y-2 text-[15px] leading-7 text-ink2">{section.items.map(item => <li key={item} className="flex gap-3"><span aria-hidden="true" className="mt-[13px] h-px w-3 shrink-0 bg-ink" />{item}</li>)}</ul>}
-        </div>
+      <div className="mt-12 max-w-[68ch] space-y-10">{document.sections.map(section => <section key={section.heading}>
+        <h2 className="text-[19px] font-semibold tracking-[-0.015em]">{section.heading}</h2>
+        {section.paragraphs?.map(paragraph => <p key={paragraph} className="mt-3 text-[16px] leading-[1.7] text-ink2">{paragraph}</p>)}
+        {section.items && <ul className="mt-3 list-disc space-y-2 pl-5 text-[16px] leading-[1.7] text-ink2 marker:text-muted">{section.items.map(item => <li key={item}>{item}</li>)}</ul>}
       </section>)}</div>
-      <p className="sheet mt-6 p-5 text-sm leading-6 text-ink2 shadow-hard-sm">Questions about this policy? Email <a className="font-medium text-ink underline underline-offset-4" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.</p>
+      <p className="sheet mt-12 max-w-[68ch] p-5 text-[15px] text-ink2">Questions about this policy? Email <a className="font-medium text-ink underline decoration-ink/25 underline-offset-4 hover:decoration-ink" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.</p>
     </main>
     <SiteFooter />
   </div>;

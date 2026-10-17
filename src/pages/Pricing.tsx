@@ -5,9 +5,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import { SignedIn, SignedOut, saveWithGoogle, signInErrorMessage, signInWithGoogle, useAuth } from "../lib/auth";
 import { useAction, useQuery, useConvexAuth, usePaginatedQuery } from "convex/react";
 import { api } from "../lib/convexApi";
-import { TakeOneWordmark } from "../components/TakeOneLogo";
+import Header from "../components/Header";
 import SiteFooter from "../components/SiteFooter";
-import TakeOneUserButton from "../components/account/TakeOneUserButton";
 import { useProductCapabilities } from "../hooks/useProductCapabilities";
 import { button } from "../lib/ui";
 
@@ -57,18 +56,18 @@ function PurchaseHistory() {
   const history = usePaginatedQuery(api.payments.listHistory, isAuthenticated && user?.id ? { accountKey: user.id } : 'skip', { initialNumItems: 20 });
   const orders = history.results as { id: string; canResume?: boolean; packId: string; credits: number; amountUsd: number; paidAmountUsd?: number; refundedAmountUsd?: number; refundedCredits?: number; status: string; disputeReview?: boolean; createdAt: number; environment: string }[] | undefined;
   if (!isAuthenticated) return null;
-  if (history.status === 'LoadingFirstPage') return <p role="status" className="pat-dots mt-12 h-24 opacity-20"><span className="sr-only">Loading purchase history…</span></p>;
+  if (history.status === 'LoadingFirstPage') return <p role="status" className="mt-12 h-24 animate-pulse rounded-card bg-surface/60 shadow-card"><span className="sr-only">Loading purchase history…</span></p>;
   if (!orders?.length) return null;
   return <section className="mt-16 text-left" aria-labelledby="purchases-heading">
-    <div className="border-b border-ink pb-4">
-      <h2 id="purchases-heading" className="display text-4xl">Purchase history</h2>
+    <div className="border-b border-line pb-4">
+      <h2 id="purchases-heading" className="display text-[28px]">Purchase history</h2>
       <p className="mt-2 max-w-2xl text-sm leading-6 text-ink2">Credits appear after payment confirmation. A started checkout is not a charge.</p>
     </div>
     <ul className="divide-y divide-line">
       {orders.map(order => <li key={order.id} className="flex flex-wrap items-center justify-between gap-3 py-5 text-sm">
         <div><span className="font-medium">{order.credits} video credits · ${(order.paidAmountUsd ?? order.amountUsd).toFixed(2)} {order.paidAmountUsd === undefined ? "pack price" : "paid"}</span>
-          <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink2">{new Date(order.createdAt).toLocaleDateString()} · {order.environment === 'test' ? 'Test checkout' : 'Live checkout'}</p></div>
-        <span className="border border-ink px-2 py-0.5 font-mono text-[11px] uppercase tracking-[0.08em]">{order.disputeReview ? 'Dispute review required' : PAYMENT_STATUS[order.status] ?? 'Awaiting confirmation'}</span>
+          <p className="text-[13px] text-ink2">{new Date(order.createdAt).toLocaleDateString()} · {order.environment === 'test' ? 'Test checkout' : 'Live checkout'}</p></div>
+        <span className="text-[14px] font-medium text-ink">{order.disputeReview ? 'Dispute review required' : PAYMENT_STATUS[order.status] ?? 'Awaiting confirmation'}</span>
         {!order.disputeReview && PAYMENT_ACTION_COPY[order.status] && <p className="w-full text-xs leading-5 text-ink2">{PAYMENT_ACTION_COPY[order.status]} Order reference: {order.id}</p>}
         {order.disputeReview && <p className="w-full text-xs text-ink2">A payment dispute was reported. Additional credits from this purchase will not be granted until reviewed. Keep this order reference: {order.id}</p>}
         {!!order.refundedAmountUsd && <p className="w-full text-xs text-ink2">${order.refundedAmountUsd.toFixed(2)} refunded · {order.refundedCredits} credits removed</p>}
@@ -148,43 +147,34 @@ function PricingContent({ auth }: { auth: boolean }) {
     }
   };
 
-  const note = "border-l-2 pl-4 text-sm leading-6";
+  const note = "rounded-control px-4 py-3 text-sm leading-6";
   const notes = [
     ["No subscription", "Buy credits only when you need them."],
-    ["One video, one credit", "A successful finished render uses one."],
+    ["One video, one credit", "A finished render uses one."],
     ["Secure checkout", capabilities?.payments.available ? "Payments are handled by Dodo." : "Checkout opens after provider verification."],
   ];
+  const buyButton = (i: number) => `${button(i === 0 ? "primary" : "secondary", "lg")} mt-auto w-full`;
 
   return (
-    <div className="flex min-h-screen flex-col bg-paper text-ink">
-      <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-ink bg-paper/90 px-4 backdrop-blur-sm sm:px-6 md:px-12">
-        <Link to="/" aria-label="TakeOne home"><TakeOneWordmark className="text-[28px] text-ink" /></Link>
-        <div className="flex items-center gap-5">
-          <WhenSignedIn>
-            {balance && <span className="hidden border border-ink px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.08em] sm:inline">
-              {(balance.credits ?? 0) > 0 ? `${balance.credits} credits` : `${balance.freeRemaining ?? 0} free left`}
-            </span>}
-          </WhenSignedIn>
-          <Link to="/create" className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink2 underline-offset-4 hover:text-ink hover:underline">Dashboard</Link>
-          <WhenSignedIn><TakeOneUserButton /></WhenSignedIn>
-        </div>
-      </header>
-
-      <main className="mx-auto w-full max-w-[1360px] flex-1 px-4 pb-24 pt-14 sm:px-6 md:px-12 md:pt-20">
-        <div className="rule-top grid gap-6 pt-6 md:grid-cols-12">
-          <div className="md:col-span-8">
-            <p className="eyebrow">One-time video credits</p>
-            <h1 className="display mt-4 text-[clamp(48px,6.4vw,96px)]">Buy what you need.<br /><em>Create when you want.</em></h1>
+    <div className="flex min-h-screen flex-col text-ink">
+      <Header />
+      <main className="mx-auto w-full max-w-[1280px] flex-1 px-5 pb-24 pt-12 sm:px-8 md:px-12 md:pt-20">
+        <div className="flex flex-wrap items-end justify-between gap-6">
+          <div className="max-w-[640px]">
+            <h1 className="display ml-[-0.04em] text-[40px] md:text-[56px]">Pay per short. No subscription.</h1>
+            <p className="mt-4 text-[17px] leading-relaxed text-ink2">Every account starts with <strong className="font-semibold text-ink">{FREE_LIMIT} free generations</strong>. Paid credits remove the TakeOne watermark.</p>
           </div>
-          <p className="self-end text-base leading-7 text-ink2 md:col-span-4">
-            Every account starts with <strong className="font-medium text-ink">{FREE_LIMIT} free generations</strong>. Paid credits remove the TakeOne watermark and stay ready for your next video.
-          </p>
+          <WhenSignedIn>
+            {balance && <p className="glass rounded-control px-4 py-2.5 text-[15px] text-ink2">
+              You have <strong className="font-semibold tabular-nums text-ink">{(balance.credits ?? 0) > 0 ? `${balance.credits} credits` : `${balance.freeRemaining ?? 0} free left`}</strong>
+            </p>}
+          </WhenSignedIn>
         </div>
 
-        {error && <p role="alert" className={`${note} mt-8 border-warn text-warn`}>{error}</p>}
-        {capabilities && !capabilities.payments.available && <p role="status" className={`${note} mt-8 border-ink2 text-ink2`}>{capabilities.payments.reason}{capabilities.rendering.available ? " You can still use your free videos." : ` ${capabilities.rendering.reason ?? "Video rendering is being connected."}`}</p>}
-        {!!balance?.creditAdjustment && <p role="status" className={`${note} mt-8 border-warn`}>Your account has a {balance.creditAdjustment}-credit adjustment from refunded credits already used. A new pack first covers this adjustment; only the remaining credits become available.</p>}
-        {orderId && <p role="status" className={`${note} mt-8 border-ink`}>
+        {error && <p role="alert" className={`${note} mt-8 bg-warnBg text-cueInk`}>{error}</p>}
+        {capabilities && !capabilities.payments.available && <p role="status" className={`${note} mt-8 bg-surface/80 text-ink2 shadow-card`}>{capabilities.payments.reason}{capabilities.rendering.available ? " You can still use your free videos." : ` ${capabilities.rendering.reason ?? "Video rendering is being connected."}`}</p>}
+        {!!balance?.creditAdjustment && <p role="status" className={`${note} mt-8 bg-warnBg text-ink`}>Your account has a {balance.creditAdjustment}-credit adjustment from refunded credits already used. A new pack first covers this adjustment; only the remaining credits become available.</p>}
+        {orderId && <p role="status" className={`${note} mt-8 bg-surface/80 text-ink shadow-card`}>
           {order?.disputeReview ? 'This purchase needs dispute review. See the order reference in your purchase history.' : order?.status === 'paid' ? `Payment confirmed. ${order.credits} credits added to your account.` :
             ['refunded', 'partially_refunded'].includes(order?.status ?? '') ? 'Your refund is recorded and your credit balance has been adjusted. See your purchase history below.' :
             PAYMENT_ACTION_COPY[order?.status ?? ''] ? PAYMENT_ACTION_COPY[order!.status] :
@@ -196,55 +186,53 @@ function PricingContent({ auth }: { auth: boolean }) {
             'Waiting for payment confirmation. Your balance will update automatically after verification.'}
         </p>}
 
-        <div className="mt-14 grid gap-8 md:grid-cols-2 xl:grid-cols-4">
-          <div className="sheet flex min-h-[400px] flex-col p-6 shadow-hard-sm">
-            <p className="eyebrow">Free</p>
-            <p className="display mt-6 text-7xl">$0</p>
-            <p className="mt-2 min-h-10 text-sm leading-5 text-ink2">See how TakeOne fits your workflow.</p>
-            <p className="mt-6 border-t border-ink pt-4 font-mono text-sm">{FREE_LIMIT} <span className="text-ink2">videos</span></p>
-            <ul className="mt-4 space-y-2 pb-6 text-sm leading-5 text-ink2">
-              <li>All three creation modes</li>
+        <div className="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          <div className="sheet flex min-h-[380px] flex-col p-6">
+            <p className="text-[15px] font-semibold text-ink">Free</p>
+            <p className="display mt-5 text-[44px] tabular-nums">$0</p>
+            <p className="mt-1 text-[15px] text-ink">{FREE_LIMIT} <span className="text-ink2">videos</span></p>
+            <ul className="mt-6 space-y-2.5 border-t border-line pb-6 pt-5 text-[14px] text-ink2">
+              <li>All three ways to start</li>
               <li>HD export with watermark</li>
               <li>Failed jobs restore allowance</li>
             </ul>
-            <Link to="/create" className={`${button("secondary")} mt-auto w-full`}>Start free</Link>
+            <Link to="/create" className={`${button("secondary", "lg")} mt-auto w-full`}>Start free</Link>
           </div>
 
           {packs.map((p, i) => (
-            <div key={p.id} className={`sheet relative flex min-h-[400px] flex-col p-6 ${i === 0 ? 'shadow-hard-lg' : 'shadow-hard'}`}>
-              <div className="flex items-center justify-between gap-3">
-                <p className="eyebrow">{p.label}</p>
-                {i === 0 && <span className="stamp -rotate-6 px-2 py-1 text-[10px] text-signal">Start here</span>}
+            <div key={p.id} className={`relative flex min-h-[380px] flex-col rounded-card p-6 ${i === 0 ? "bg-surface shadow-lift ring-[1.5px] ring-ink" : "sheet"}`}>
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="text-[15px] font-semibold text-ink">{p.label}</p>
+                {i === 0 && <span className="text-[13px] font-semibold text-grease">Start here</span>}
               </div>
-              <p className="display mt-6 text-7xl">${p.amountUsd}</p>
-              <p className="mt-2 min-h-10 text-sm leading-5 text-ink2">{i === 0 ? 'For your first watermark-free exports.' : i === 1 ? 'For a regular publishing rhythm.' : 'For larger batches and campaigns.'}</p>
-              <p className="mt-6 border-t border-ink pt-4 font-mono text-sm">{p.credits} <span className="text-ink2">videos</span></p>
-              <ul className="mt-4 space-y-2 pb-6 text-sm leading-5 text-ink2">
-                <li>No added TakeOne watermark</li>
+              <p className="display mt-5 text-[44px] tabular-nums">${p.amountUsd}</p>
+              <p className="mt-1 text-[15px] text-ink">{p.credits} <span className="text-ink2">videos · ${(p.amountUsd / p.credits).toFixed(2)} each</span></p>
+              <ul className="mt-6 space-y-2.5 border-t border-line pb-6 pt-5 text-[14px] text-ink2">
+                <li>No TakeOne watermark</li>
                 <li>One credit per finished video</li>
                 <li>Failed jobs restore the credit</li>
               </ul>
               <WhenSignedIn>
                 {/* Paid credits on a guest account are lost with the browser data, so a guest saves with Google first. */}
-                {user?.isGuest ? <button disabled={!capabilities?.payments.available} onClick={() => void authenticate(saveWithGoogle)} className={`${button(i === 0 ? "primary" : "secondary")} mt-auto w-full`}>{capabilities?.payments.available ? 'Save with Google to buy' : 'Checkout opening soon'}</button>
-                  : <button disabled={busy || !capabilities?.payments.available} onClick={() => buy(p.id)} className={`${button(i === 0 ? "primary" : "secondary")} mt-auto w-full`}>{!capabilities?.payments.available ? 'Checkout opening soon' : busy ? 'Opening checkout…' : `Buy ${p.credits} credits`}</button>}
+                {user?.isGuest ? <button disabled={!capabilities?.payments.available} onClick={() => void authenticate(saveWithGoogle)} className={buyButton(i)}>{capabilities?.payments.available ? 'Save with Google to buy' : 'Checkout opening soon'}</button>
+                  : <button disabled={busy || !capabilities?.payments.available} onClick={() => buy(p.id)} className={buyButton(i)}>{!capabilities?.payments.available ? 'Checkout opening soon' : busy ? 'Opening checkout…' : `Buy ${p.credits} credits`}</button>}
               </WhenSignedIn>
               <WhenSignedOut>
-                {auth ? <button disabled={!capabilities?.payments.available} onClick={() => void authenticate(signInWithGoogle)} className={`${button(i === 0 ? "primary" : "secondary")} mt-auto w-full`}>{capabilities?.payments.available ? 'Sign in to buy' : 'Checkout opening soon'}</button>
-                  : <button disabled className={`${button(i === 0 ? "primary" : "secondary")} mt-auto w-full`}>Checkout opening soon</button>}
+                {auth ? <button disabled={!capabilities?.payments.available} onClick={() => void authenticate(signInWithGoogle)} className={buyButton(i)}>{capabilities?.payments.available ? 'Sign in to buy' : 'Checkout opening soon'}</button>
+                  : <button disabled className={buyButton(i)}>Checkout opening soon</button>}
               </WhenSignedOut>
             </div>
           ))}
         </div>
 
-        <ul className="mt-14 grid border-t border-ink sm:grid-cols-3">
-          {notes.map(([title, detail]) => <li key={title} className="border-b border-line py-4 sm:border-b-0 sm:pr-6">
-            <p className="font-mono text-[11px] uppercase tracking-[0.08em]">{title}</p>
-            <p className="mt-1 text-sm text-ink2">{detail}</p>
+        <ul className="mt-12 grid gap-6 border-t border-line pt-8 sm:grid-cols-3">
+          {notes.map(([title, detail]) => <li key={title}>
+            <p className="text-[15px] font-semibold text-ink">{title}</p>
+            <p className="mt-1 text-[14px] text-ink2">{detail}</p>
           </li>)}
         </ul>
         <WhenSignedIn><PurchaseHistory /></WhenSignedIn>
-        <p className="mt-10 font-mono text-[11px] uppercase tracking-[0.08em] text-ink2">Prices in USD. Applicable tax is shown at checkout.</p>
+        <p className="mt-10 text-[13px] text-muted">Prices in USD. Applicable tax is shown at checkout.</p>
       </main>
       <SiteFooter />
     </div>
