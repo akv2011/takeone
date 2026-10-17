@@ -3,48 +3,47 @@
 
 @layer base {
   :root {
-    --paper: #f3f1ec;
-    --paper-2: #ebe8e1;
-    --sheet: #fbfaf7;
-    --ink: #0e0e0d;
-    --ink-2: #3a3a37;
-    --muted: #76746e;
-    --faint: #a9a69e;
-    --line: rgba(14, 14, 13, .14);
-    --signal: #d8341f;
-    --cue: var(--signal);
-    --ease: cubic-bezier(.22, 1, .36, 1);
+    --paper: #f3f0e9;
+    --sheet: #fbfaf6;
+    --ink: #141311;
+    --ink-2: #3a3833;
+    --ink-3: #6b675e;
+    --line: rgba(20, 19, 17, .12);
+    --grease: #c4321f;
+    --cue: var(--grease);
+    --ease: cubic-bezier(.2, .8, .2, 1);
     color-scheme: light;
   }
 
   html { background: var(--paper); }
 
+  /* Transparent so the fixed sky layer behind the app shows through. */
   body {
-    background-color: var(--paper);
+    background: transparent;
     color: var(--ink);
-    font: 400 15px/1.5 "Inter Tight", "Helvetica Neue", Arial, sans-serif;
+    font: 420 15px/1.5 "Mona Sans", system-ui, sans-serif;
+    font-optical-sizing: auto;
     font-variant-numeric: tabular-nums;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     overflow-x: hidden;
   }
 
-  /* Paper grain over everything; pointer-events off so it never blocks input. */
   body::after {
     content: "";
     position: fixed;
     inset: 0;
     z-index: 60;
     pointer-events: none;
-    opacity: .5;
+    opacity: .35;
     mix-blend-mode: multiply;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .05 0 0 0 0 .05 0 0 0 0 .04 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .08 0 0 0 0 .07 0 0 0 0 .05 0 0 0 .08 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
   }
 
   h1, h2, h3 { text-wrap: balance; }
+  p { text-wrap: pretty; }
 
-  /* Instrument Serif ships one weight; stop browsers faking bold from font-bold classes. */
-  .font-display, .font-serif, .display { font-synthesis-weight: none; font-weight: 400 !important; }
+  .font-display { letter-spacing: -.03em; }
 
   ::selection {
     background-color: var(--ink);
@@ -52,14 +51,14 @@
   }
 
   :focus-visible {
-    outline: 1.5px solid var(--ink);
-    outline-offset: 3px;
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+    border-radius: 6px;
   }
 
-  ::-webkit-scrollbar { width: 8px; }
-  ::-webkit-scrollbar-track { background: var(--paper); }
-  ::-webkit-scrollbar-thumb { background: var(--faint); }
-  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+  ::-webkit-scrollbar { width: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(20,19,17,.18); border-radius: 999px; border: 3px solid transparent; background-clip: padding-box; }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
@@ -72,79 +71,84 @@
 }
 
 @layer components {
-  /* Small uppercase mono label used above headings and on controls. */
-  .eyebrow {
-    font-family: "Geist Mono", ui-monospace, monospace;
-    font-size: 11px;
-    letter-spacing: .08em;
-    text-transform: uppercase;
-    color: var(--ink-2);
-  }
-
-  /* Condensed serif display, as on the reference. */
+  /* Display headline: Host Grotesk, tight, near-black. */
   .display {
-    font-family: "Instrument Serif", Georgia, serif;
-    font-weight: 400;
-    line-height: .95;
-    letter-spacing: -.02em;
+    font-family: "Host Grotesk", "Mona Sans", sans-serif;
+    font-weight: 600;
+    line-height: 1.02;
+    letter-spacing: -.04em;
   }
 
-  .rule-top { border-top: 1px solid var(--ink); }
-  .rule-bottom { border-bottom: 1px solid var(--ink); }
+  /* Small section label: sentence case, not uppercase mono. */
+  .eyebrow {
+    font-size: 13px;
+    font-weight: 560;
+    color: var(--ink-2);
+    letter-spacing: -.005em;
+  }
 
   .sheet {
-    background: var(--sheet);
-    border: 1px solid var(--ink);
+    background: rgba(251, 250, 246, .9);
+    border-radius: 16px;
+    box-shadow: 0 0 0 1px rgba(20,19,17,.10), 0 1px 2px rgba(20,19,17,.04), 0 8px 24px -12px rgba(20,19,17,.18);
   }
 
-  .sheet-ruled {
-    background-color: var(--sheet);
-    background-image: repeating-linear-gradient(0deg, transparent 0 22px, rgba(14, 14, 13, .04) 22px 23px);
+  /* Frosted sheet for controls that sit on the sky. */
+  .glass {
+    background: rgba(251, 250, 246, .78);
+    -webkit-backdrop-filter: blur(14px) saturate(1.1);
+    backdrop-filter: blur(14px) saturate(1.1);
+    box-shadow: 0 0 0 1px rgba(20,19,17,.10), 0 8px 24px -12px rgba(20,19,17,.18);
   }
 
-  .pat-hatch { background: repeating-linear-gradient(-45deg, var(--ink) 0 1.5px, transparent 1.5px 6px); }
-  .pat-dots { background-image: radial-gradient(var(--ink) 1px, transparent 1.2px); background-size: 6px 6px; }
+  .hairline-top { border-top: 1px solid var(--line); }
+  .hairline-bottom { border-bottom: 1px solid var(--line); }
 
-  /* Halftone disc that fades out at the edge. */
-  .halftone {
-    background-image: radial-gradient(rgba(14, 14, 13, .55) 1px, transparent 1.4px);
-    background-size: 5px 5px;
-    -webkit-mask-image: radial-gradient(circle at center, #000 30%, transparent 70%);
-    mask-image: radial-gradient(circle at center, #000 30%, transparent 70%);
+  /* 35mm strip: dark base with sprocket holes top and bottom. */
+  .film-strip {
+    position: relative;
+    background: #1b1814;
+    padding: 22px 14px;
+    border-radius: 3px;
   }
+  .film-strip::before, .film-strip::after {
+    content: "";
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    height: 10px;
+    background: repeating-linear-gradient(90deg, #efebe3 0 10px, transparent 10px 22px);
+    opacity: .9;
+    border-radius: 1px;
+  }
+  .film-strip::before { top: 6px; }
+  .film-strip::after { bottom: 6px; }
 
-  /* Rubber stamp: double border with a speckled mask. */
-  .stamp {
-    display: inline-grid;
-    justify-items: center;
-    padding: 8px 14px 6px;
-    border: 2.5px solid currentColor;
-    outline: 1.25px solid currentColor;
-    outline-offset: 3px;
-    font-family: "Geist Mono", ui-monospace, monospace;
+  /* Kodak-style edge printing. */
+  .edge-print {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-weight: 500;
     font-size: 11px;
-    letter-spacing: .12em;
-    text-transform: uppercase;
-    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -9 6.6'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -9 6.6'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    letter-spacing: .14em;
+    color: #e3a33a;
   }
 
   .ink-wobble { filter: url(#ink-wobble); }
 }
 
-/* Kept for existing screens; restyled to the paper sheet. */
+/* Kept for existing screens. */
 .glass-panel {
-  background: var(--sheet);
-  border: 1px solid var(--ink);
+  background: rgba(251, 250, 246, .9);
+  border-radius: 16px;
+  box-shadow: 0 0 0 1px rgba(20,19,17,.10), 0 8px 24px -12px rgba(20,19,17,.18);
 }
 
 .glass-panel-dark {
-  background: var(--ink);
-  border: 1px solid var(--ink);
+  background: #1b1814;
+  border-radius: 16px;
   color: var(--sheet);
 }
 
-/* Landing hero: the active caption word pops in as it is spoken. */
 @keyframes cue-pop {
   from { transform: scale(0.88); }
   to { transform: scale(1); }

@@ -50,7 +50,7 @@ export function SplitWords({ text, className }: { text: string; className?: stri
 type MarkType = "underline" | "circle" | "box" | "highlight" | "strike-through" | "bracket";
 
 // Hand-drawn mark around inline text once it scrolls into view.
-export function InkMark({ children, type = "underline", color = "#d8341f", delay = 0, className }: { children: ReactNode; type?: MarkType; color?: string; delay?: number; className?: string }) {
+export function InkMark({ children, type = "underline", color = "#c4321f", delay = 0, className }: { children: ReactNode; type?: MarkType; color?: string; delay?: number; className?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true, margin: "-15% 0px" });
   const reduced = useReducedMotion();
@@ -72,7 +72,7 @@ export function Marquee({ items, className = "" }: { items: string[]; className?
   ));
   return (
     <div className={`overflow-hidden bg-ink py-3 text-surface ${className}`} aria-label={items.join(", ")}>
-      <div className="flex w-max animate-marquee font-display text-2xl" aria-hidden="true">{row}{row}</div>
+      <div className="flex w-max animate-marquee font-display text-xl font-medium tracking-[-0.02em]" aria-hidden="true">{row}{row}</div>
     </div>
   );
 }
