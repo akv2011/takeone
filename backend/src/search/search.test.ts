@@ -1,19 +1,25 @@
 import { describe, it, expect } from 'vitest';
-import { search, parseLinkup } from './index.js';
+import { searchFacts, parseFacts } from './index.js';
 
-describe('search (Linkup)', () => {
-  it('parseLinkup extracts facts + sources from a sourcedAnswer', () => {
-    const r = parseLinkup({
-      answer: 'UPI processed 14 billion transactions in a month. It overtook cards years ago. Growth continues.',
-      sources: [{ name: 'NPCI', url: 'https://npci.org.in' }, { name: 'RBI', url: 'https://rbi.org.in' }],
-    });
-    expect(r.facts.length).toBeGreaterThan(0);
-    expect(r.sources[0]).toMatchObject({ title: 'NPCI', url: 'https://npci.org.in' });
+describe('searchFacts', () => {
+  it('reads one fact per line and drops list markers, fragments and extra lines', () => {
+    const answer = [
+      '1. UPI processed 14 billion transactions in a single month.',
+      '- It overtook card payments in India several years ago.',
+      'Short.',
+      '',
+      ...Array.from({ length: 6 }, (_, i) => `* Extra fact number ${i} about digital payments.`),
+    ].join('\n');
+    const facts = parseFacts(answer);
+    expect(facts).toHaveLength(6);
+    expect(facts.slice(0, 2)).toEqual([
+      'UPI processed 14 billion transactions in a single month.',
+      'It overtook card payments in India several years ago.',
+    ]);
   });
-  it('degrades to empty (no key) so generate still works offline', async () => {
-    const prev = process.env.LINKUP_API_KEY; delete process.env.LINKUP_API_KEY;
-    const r = await search('anything');
-    expect(r.facts).toEqual([]); expect(r.sources).toEqual([]);
-    if (prev) process.env.LINKUP_API_KEY = prev;
+  it('returns no facts without Gemini configured, so generate still works offline', async () => {
+    const prev = process.env.GEMINI_MODEL; delete process.env.GEMINI_MODEL;
+    try { expect(await searchFacts('anything')).toEqual([]); }
+    finally { if (prev) process.env.GEMINI_MODEL = prev; }
   });
 });

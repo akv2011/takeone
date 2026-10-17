@@ -15,7 +15,7 @@ import { content } from './content/index.js';
 import { planStockScenes } from './content/scenes.js';
 import { scenePlanAtOutput } from './content/sceneProjection.js';
 import { renderStockScenes } from './media/scenes.js';
-import { search } from './search/index.js';
+import { searchFacts } from './search/index.js';
 import { data } from './data/index.js';
 import { translateCues } from './google/translate.js';
 import { CAPTION_LANGUAGES, sameLanguage } from './languages.js';
@@ -27,12 +27,12 @@ export async function prepare(job: JobSpec, ctx: JobCtx): Promise<{ inputPath?: 
   if (job.mode === 'generate') {
     await ctx.onRenderStage?.('script');
     const topic = job.source.topic ?? '';
-    const research = await search(topic);                 // Linkup: live facts to ground the reel
+    const facts = await searchFacts(topic, ctx.signal);
     ctx.signal?.throwIfAborted();
     const contentOptions = { strict: ctx.strictMedia, signal: ctx.signal, language: ctx.captionLanguage };
-    const angles = await content.brainstorm(topic, research.facts, contentOptions);
+    const angles = await content.brainstorm(topic, facts, contentOptions);
     ctx.signal?.throwIfAborted();
-    const { script } = await content.script(angles[0], research.facts, contentOptions);
+    const { script } = await content.script(angles[0], facts, contentOptions);
     ctx.signal?.throwIfAborted();
     await ctx.onRenderStage?.('narration');
     const voice = await mediaCore.runOp('', { op: 'voiceover', script }, ctx);
