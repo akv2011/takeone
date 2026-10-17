@@ -7,26 +7,30 @@ import TakeOneUserButton from "./account/TakeOneUserButton";
 import { authEnabled } from "../lib/convexApi";
 import { button } from "../lib/ui";
 
-const navLink = "font-mono text-[11px] uppercase tracking-[0.08em] text-ink2 underline-offset-4 hover:text-ink hover:underline";
+const navLink = "text-sm font-medium text-ink2 transition-colors hover:text-ink";
 
 export default function Header() {
   const showAuth = authEnabled && !import.meta.env.SSR;
   const { scrollY } = useScroll();
   const [scrolled, setScrolled] = useState(false);
-  useMotionValueEvent(scrollY, "change", y => setScrolled(y > 24));
-  const start = <Link to="/create" className={button("primary", "sm")}>Start a video</Link>;
+  useMotionValueEvent(scrollY, "change", y => setScrolled(y > 12));
+  const start = <Link to="/create" className={button("primary", "sm")}>Start free</Link>;
   return (
     <motion.header
-      className="sticky top-0 z-40 h-16 w-full bg-paper/90 px-4 backdrop-blur-sm sm:px-6 md:px-12"
-      animate={{ borderBottomColor: scrolled ? "rgba(14,14,13,1)" : "rgba(14,14,13,0)" }}
-      style={{ borderBottomWidth: 1, borderBottomStyle: "solid" }}
+      className="sticky top-0 z-40 h-16 w-full px-5 sm:px-8 md:px-12"
+      animate={{
+        backgroundColor: scrolled ? "rgba(243,240,233,0.82)" : "rgba(243,240,233,0)",
+        boxShadow: scrolled ? "0 1px 0 rgba(20,19,17,0.08)" : "0 1px 0 rgba(20,19,17,0)",
+      }}
+      transition={{ duration: 0.25 }}
+      style={{ backdropFilter: scrolled ? "blur(14px)" : "none", WebkitBackdropFilter: scrolled ? "blur(14px)" : "none" }}
     >
-      <div className="mx-auto flex h-full max-w-[1360px] items-center justify-between">
-        <Link to="/" aria-label="TakeOne home">
-          <TakeOneWordmark className="text-[28px] text-ink" />
+      <div className="mx-auto flex h-full max-w-[1280px] items-center justify-between">
+        <Link to="/" aria-label="TakeOne home" className="rounded-md">
+          <TakeOneWordmark className="text-[20px] text-ink" />
         </Link>
 
-        <nav aria-label="Primary" className="flex items-center gap-6">
+        <nav aria-label="Primary" className="flex items-center gap-7">
           <Link to="/guides" className={`hidden md:inline ${navLink}`}>Guides</Link>
           <Link to="/pricing" className={`hidden sm:inline ${navLink}`}>Pricing</Link>
           {!showAuth && start}

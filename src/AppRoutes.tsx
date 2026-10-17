@@ -3,6 +3,7 @@ import { guides } from './seo/guides';
 import { lazy } from 'react';
 import { Link, Route, Routes, useLocation } from 'react-router-dom';
 import { PageBoundary } from './components/PageBoundary';
+import SkyBackdrop from './components/SkyBackdrop';
 import { button } from './lib/ui';
 import { authEnabled } from './lib/convexApi';
 
@@ -30,6 +31,7 @@ export function AppRoutes() {
   const location = useLocation();
   const url = location.pathname + location.search + location.hash;
   return <PageBoundary key={location.key} retryUrl={window.location.origin + url}>
+    <SkyBackdrop calm={location.pathname !== '/'} />
     <PageMetadata />
     <Routes>
       <Route path="/guides" element={<Guides />} />
