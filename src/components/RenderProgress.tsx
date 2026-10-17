@@ -51,14 +51,13 @@ function litBars(status: string | undefined, stage?: keyof typeof labels) {
 }
 // One film frame per lit step; the next frame develops while a stage runs.
 export function FilmFrames({ lit, running, stopped, className = '' }: { lit: number; running?: boolean; stopped?: boolean; className?: string }) {
-  return <div aria-hidden="true" data-lit={lit} className={`relative flex gap-[3px] bg-ink px-[3px] py-[7px] ${stopped ? 'opacity-40' : ''} ${className}`}>
-    <span className="absolute inset-x-0 top-[2px] h-[3px] bg-[repeating-linear-gradient(90deg,var(--paper)_0_3px,transparent_3px_7px)]" />
-    <span className="absolute inset-x-0 bottom-[2px] h-[3px] bg-[repeating-linear-gradient(90deg,var(--paper)_0_3px,transparent_3px_7px)]" />
+  return <div aria-hidden="true" data-lit={lit} className={`relative flex gap-[3px] rounded-[3px] bg-film px-[4px] py-[8px] ${stopped ? 'opacity-50' : ''} ${className}`}>
+    <span className="absolute inset-x-[4px] top-[2.5px] h-[3px] bg-[repeating-linear-gradient(90deg,#efebe3_0_4px,transparent_4px_9px)] opacity-80" />
+    <span className="absolute inset-x-[4px] bottom-[2.5px] h-[3px] bg-[repeating-linear-gradient(90deg,#efebe3_0_4px,transparent_4px_9px)] opacity-80" />
     {Array.from({ length: FRAMES }, (_, index) => <span key={index}
-      className={`h-full min-h-3 flex-1 transition-colors duration-500 ease-paper ${index < lit ? 'bg-surface' : running && index === lit ? 'bg-surface/40 motion-safe:animate-pulse' : 'bg-ink2'}`} />)}
+      className={`h-full min-h-3 flex-1 rounded-[1.5px] transition-colors duration-700 ease-paper ${index < lit ? 'bg-[#efe9dc]' : running && index === lit ? 'bg-[#8a8273] motion-safe:animate-pulse' : 'bg-[#3a352d]'}`} />)}
   </div>;
 }
-
 function useRenderState(job: Props['job']) {
   const [now, setNow] = useState(Date.now);
   const running = job?.status === 'processing';
@@ -80,9 +79,9 @@ function useRenderState(job: Props['job']) {
 export function RenderStrip({ job }: Props) {
   const { running, queued, current, lit, stopped } = useRenderState(job);
   const stage = queued ? (job?.status === 'queued' ? 'Waiting for a slot' : 'Starting') : running ? (current ? labels[current.stage] : 'Preparing') : stopped ? 'Stopped' : 'Finishing';
-  return <div className="w-full">
-    <FilmFrames lit={lit} running={running} stopped={stopped} className="h-7" />
-    <p className="mt-2 font-mono text-[10px] uppercase leading-tight tracking-[0.08em] text-surface">{stage}</p>
+  return <div className="w-full rounded-[10px] bg-film/85 p-2 backdrop-blur-sm">
+    <FilmFrames lit={lit} running={running} stopped={stopped} className="h-6" />
+    <p className="mt-1.5 text-[12px] font-medium leading-tight text-[#efe9dc]">{stage}</p>
   </div>;
 }
 
@@ -97,22 +96,22 @@ export function RenderProgress({ job }: Props) {
               : 'This render failed. Open a completed version to continue editing.';
   const end = progress?.finishedAt ?? job?.finishedAt ?? now;
   return <div>
-    <h2 className="eyebrow">Render activity</h2>
+    <h2 className="text-[13px] font-medium text-ink2">Render activity</h2>
     <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
-      <FilmFrames lit={lit} running={running} stopped={stopped} className="h-8 w-48 shrink-0 sm:w-60" />
-      <p role="status" className="font-display text-xl leading-tight">{message}</p>
+      <FilmFrames lit={lit} running={running} stopped={stopped} className="h-9 w-48 shrink-0 sm:w-60" />
+      <p role="status" aria-live="polite" className="text-[15px] font-semibold text-ink">{message}</p>
     </div>
-    {job?.status === 'failed' && job.refunded && <p className="mt-1 text-sm text-muted">Your allowance was restored.</p>}
-    {queued && job?.createdAt !== undefined && <p className="mt-2 font-mono text-xs text-muted">{seconds(job.createdAt, now)} since submitted{progress ? ' · Waiting to retry' : ''}</p>}
+    {job?.status === 'failed' && job.refunded && <p className="mt-1.5 text-sm text-ink2">Your allowance was restored.</p>}
+    {queued && job?.createdAt !== undefined && <p className="mt-2 text-[13px] tabular-nums text-muted">{seconds(job.createdAt, now)} since submitted{progress ? ' · Waiting to retry' : ''}</p>}
     {progress && !queued && <>
-      <p className="mt-2 font-mono text-xs text-muted">Attempt {progress.attempt} · {seconds(progress.startedAt, end)} elapsed</p>
-      <ol aria-label="Recorded render stages" className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs">
+      <p className="mt-2 text-[13px] tabular-nums text-muted">Attempt {progress.attempt} · {seconds(progress.startedAt, end)} elapsed</p>
+      <ol aria-label="Recorded render stages" className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-[13px]">
         {progress.stages.map((entry, index) => {
           const next = progress.stages[index + 1];
           const complete = !!next || job?.status === 'done';
-          return <li key={entry.stage} aria-current={running && !next ? 'step' : undefined} className={`border-l pl-2 ${complete ? 'border-line text-muted' : 'border-ink font-medium text-ink'}`}>
-            <span><span aria-hidden="true" className={complete ? 'text-go' : running ? 'text-signal' : ''}>{complete ? '✓ ' : running ? '● ' : '○ '}</span>{labels[entry.stage]}</span>
-            <span className="ml-2 font-mono text-muted">{seconds(entry.startedAt, next?.startedAt ?? end)}{complete ? ' · Completed' : running ? ' · In progress' : ' · Stopped'}</span>
+          return <li key={entry.stage} aria-current={running && !next ? 'step' : undefined} className={complete ? 'text-ink2' : 'font-semibold text-ink'}>
+            <span><span aria-hidden="true" className={complete ? 'text-go' : running ? 'text-grease' : 'text-muted'}>{complete ? '✓ ' : running ? '● ' : '○ '}</span>{labels[entry.stage]}</span>
+            <span className="ml-2 font-normal tabular-nums text-muted">{seconds(entry.startedAt, next?.startedAt ?? end)}{complete ? ' · Completed' : running ? ' · In progress' : ' · Stopped'}</span>
           </li>;
         })}
       </ol>
