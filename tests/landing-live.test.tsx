@@ -1,55 +1,62 @@
 // @vitest-environment jsdom
 import React from 'react';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
-
-vi.mock('convex/react', () => ({ useQuery: () => ({ rendering: { available: true }, stockVideo: { available: true }, youtubeClips: { available: true }, aiVideo: { available: true }, telegram: { available: true, username: 'Takeone_test_bot' }, payments: { available: true }, music: { available: true } }) }));
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 import HeroSection from '../src/components/HeroSection';
-import FinalCTA from '../src/components/FinalCTA';
 
-const stubReducedMotion = (matches: boolean) => { window.matchMedia = vi.fn(() => ({ matches, addEventListener: () => {}, removeEventListener: () => {} })) as unknown as typeof window.matchMedia; };
-// jsdom has no IntersectionObserver; InkMark on the final call to action waits for one.
+// jsdom has no IntersectionObserver or matchMedia listeners; framer-motion and InkMark expect both.
 class NoIntersection { observe() {} unobserve() {} disconnect() {} takeRecords() { return []; } }
-beforeEach(() => { stubReducedMotion(true); vi.stubGlobal('IntersectionObserver', NoIntersection); });
-afterEach(cleanup);
+beforeEach(() => {
+  window.matchMedia = vi.fn(() => ({ matches: true, addEventListener: () => {}, removeEventListener: () => {} })) as unknown as typeof window.matchMedia;
+  vi.stubGlobal('IntersectionObserver', NoIntersection);
+});
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
-test('the live landing page sends people directly into the product without a waitlist form', () => {
-  render(React.createElement(MemoryRouter, {}, React.createElement(React.Fragment, {}, React.createElement(HeroSection), React.createElement(FinalCTA))));
+function CreateProbe() {
+  const { pathname, search } = useLocation();
+  return <p data-testid="create">{pathname + search}</p>;
+}
 
-  expect(screen.queryByRole('textbox')).toBeNull();
-  expect(screen.queryByText(/waitlist|early access/i)).toBeNull();
-  expect(screen.getAllByRole('link', { name: 'Make a short' })).toHaveLength(2);
-  for (const link of screen.getAllByRole('link', { name: 'Make a short' })) expect(link.getAttribute('href')).toBe('/create');
-  expect(screen.getByRole('link', { name: 'See how' }).getAttribute('href')).toBe('#how-it-works');
-  expect(screen.queryByRole('link', { name: /telegram/i })).toBeNull();
-  expect(screen.getByText('5 videos free. No card needed.')).toBeTruthy();
+const renderHero = () => render(
+  <MemoryRouter>
+    <Routes>
+      <Route path="/" element={<HeroSection />} />
+      <Route path="/create" element={<CreateProbe />} />
+    </Routes>
+  </MemoryRouter>,
+);
+const target = () => new URL(screen.getByTestId('create').textContent!, 'https://x');
+
+test('the hero composer hands a pasted link to the Create page', () => {
+  renderHero();
+  expect(screen.queryByText(/waitlist|early access|hackathon|builder cup/i)).toBeNull();
+  expect(screen.getByText('free shorts').textContent).toContain('5');
+  fireEvent.change(screen.getByRole('textbox', { name: 'Link to a long video' }), { target: { value: 'https://www.youtube.com/watch?v=iG9CE55wbtY' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Make a short' }));
+  expect(target().pathname).toBe('/create');
+  expect(Object.fromEntries(target().searchParams)).toEqual({ mode: 'link', url: 'https://www.youtube.com/watch?v=iG9CE55wbtY' });
 });
 
-const timecode = () => screen.getByText(/^\d{2}:\d{2}:\d{2}:\d{2}$/).textContent;
-const renderHero = (reducedMotion: boolean) => {
-  stubReducedMotion(reducedMotion);
-  render(React.createElement(MemoryRouter, {}, React.createElement(HeroSection)));
-};
+test('prompt and upload modes send their own params', () => {
+  renderHero();
+  fireEvent.click(screen.getByRole('radio', { name: 'Prompt' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Describe the video' }), { target: { value: 'An orange paper rocket' } });
+  fireEvent.submit(screen.getByRole('textbox', { name: 'Describe the video' }).closest('form')!);
+  expect(Object.fromEntries(target().searchParams)).toEqual({ mode: 'prompt', q: 'An orange paper rocket' });
+  cleanup();
 
-test('the hero caption preview runs, pauses on request, and starts paused for reduced motion', () => {
-  vi.useFakeTimers();
-  try {
-    renderHero(false);
-    const start = timecode();
-    act(() => { vi.advanceTimersByTime(1000); });
-    expect(timecode()).not.toBe(start);
-    fireEvent.click(screen.getByRole('button', { name: 'Pause caption preview' }));
-    const paused = timecode();
-    act(() => { vi.advanceTimersByTime(1000); });
-    expect(timecode()).toBe(paused);
-    cleanup();
+  renderHero();
+  fireEvent.click(screen.getByRole('radio', { name: 'Upload' }));
+  expect(screen.queryByRole('textbox')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Make a short' }));
+  expect(Object.fromEntries(target().searchParams)).toEqual({ mode: 'upload' });
+});
 
-    renderHero(true);
-    expect(screen.getByRole('button', { name: 'Play caption preview' })).toBeTruthy();
-    const still = timecode();
-    act(() => { vi.advanceTimersByTime(1000); });
-    expect(timecode()).toBe(still);
-  } finally { vi.useRealTimers(); }
+test('a link pasted into prompt mode switches the picker to Link', () => {
+  renderHero();
+  fireEvent.click(screen.getByRole('radio', { name: 'Prompt' }));
+  fireEvent.paste(screen.getByRole('textbox', { name: 'Describe the video' }), { clipboardData: { getData: () => 'youtube.com/watch?v=iG9CE55wbtY' } });
+  expect(screen.getByRole('radio', { name: 'Link' }).getAttribute('aria-checked')).toBe('true');
 });

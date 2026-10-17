@@ -1,176 +1,136 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useInView, useReducedMotion } from "framer-motion";
-import { ease } from "../../lib/motion";
+import { SectionHead, shell } from "./Section";
+import nasaSource from "../../assets/landing/nasa-source.jpg";
+import nasa63 from "../../assets/landing/nasa-63.jpg";
+import nasa66 from "../../assets/landing/nasa-66.jpg";
+import nasa69 from "../../assets/landing/nasa-69.jpg";
+import nasa71 from "../../assets/landing/nasa-71.jpg";
+import nasa74 from "../../assets/landing/nasa-74.jpg";
 
-type Step = { label: string; line: string; tilt: number; card: ReactNode; shadow: string; dark?: boolean };
+const ease = [0.2, 0.8, 0.2, 1] as const;
+const mono = "font-mono text-[12px] tabular-nums";
 
-const mono = "font-mono text-[11px] uppercase tracking-[0.08em]";
-
-function CardHead({ left, right }: { left: string; right: string }) {
+function WatchLoupe() {
   return (
-    <div className={`flex items-center justify-between border-b border-current/20 pb-3 ${mono}`}>
-      <span>{left}</span>
-      <span>{right}</span>
+    <figure>
+      <img src={nasaSource} alt="The 16:9 NASA source video" width={318} height={180} className="aspect-video w-full rounded-[10px] object-cover" />
+      <div className="mt-4 h-1 rounded-full bg-ink/10"><div className="h-full w-full origin-left rounded-full bg-ink/70" /></div>
+      <figcaption className={`mt-2 flex justify-between text-ink2 ${mono}`}><span>00:00</span><span>01:38</span></figcaption>
+    </figure>
+  );
+}
+
+function PickLoupe() {
+  const at = (42 / 98) * 100;
+  return (
+    <div>
+      <div className="relative mt-6 h-14 rounded-[10px] bg-film">
+        <div className="absolute inset-y-2 rounded-[6px] bg-grease/90" style={{ left: `${at - 8}%`, width: "16%" }} />
+        <span className="absolute -top-6 font-hand text-[19px] text-grease" style={{ left: `${at - 4}%` }}>0:42</span>
+      </div>
+      <div className={`mt-2 flex justify-between text-ink2 ${mono}`}><span>00:00</span><span>01:38</span></div>
+      <p className="mt-6 text-[15px] text-ink">The moment, the hook and the reason it works.</p>
     </div>
   );
 }
 
-const FRAMES = ["M8 30H40M14 22H34", "M24 10V38M10 24H38", "M10 34L22 18L30 28L38 20", "M12 14H36V34H12Z", "M24 12A12 12 0 1 1 23.9 12", "M10 20H38M10 28H30"];
-
-function WatchCard() {
-  const reduced = useReducedMotion();
+function CaptionLoupe() {
   return (
-    <>
-      <CardHead left="Gemini on Vertex AI" right="Watching" />
-      <div className="relative mt-6 grid grid-cols-6 gap-1 border-y-[6px] border-ink bg-ink p-1">
-        {FRAMES.map((d) => (
-          <svg key={d} viewBox="0 0 48 48" className="aspect-[4/5] w-full bg-ink2">
-            <path d={d} fill="none" stroke="#a9a69e" strokeWidth="1.5" />
-          </svg>
-        ))}
-        <motion.span
-          className="absolute -bottom-3 -top-3 w-0.5 bg-signal"
-          initial={{ left: "8%" }}
-          animate={reduced ? { left: "62%" } : { left: ["8%", "92%"] }}
-          transition={reduced ? { duration: 0 } : { duration: 4, ease: "linear", repeat: Infinity }}
-        />
-      </div>
-      <ul className={`mt-6 grid grid-cols-3 gap-2 text-center ${mono}`}>
-        {["Frames", "Audio", "Speech"].map((item) => (
-          <li key={item} className="border border-ink/30 py-2">{item}</li>
-        ))}
+    <div className="flex items-center gap-6">
+      <img src={nasa66} alt="A captioned frame from the NASA short" width={180} height={322} className="aspect-[9/16] w-[132px] rounded-[10px] object-cover" />
+      <ul className="space-y-2 text-[15px]">
+        {["Clean", "Bold pop", "Pop in"].map((style, i) => <li key={style} className={`whitespace-nowrap rounded-[9px] px-3 py-2 ${i === 0 ? "bg-ink text-surface" : "text-ink2 shadow-[inset_0_0_0_1px_rgba(20,19,17,.12)]"}`}>{style}</li>)}
       </ul>
-    </>
+    </div>
   );
 }
 
-const BARS = [4, 7, 5, 9, 6, 3, 8, 10, 6, 4, 7, 11, 13, 12, 9, 14, 12, 8, 5, 6, 9, 7, 4, 6, 8, 5, 3, 6, 7, 4];
-
-function PickCard() {
+function TranslateLoupe() {
   return (
-    <>
-      <CardHead left="Best moment" right="1 of 3" />
-      <div className="relative mt-6">
-        <div className="flex h-16 items-center gap-[3px]">
-          {BARS.map((h, i) => (
-            <span key={i} className={`flex-1 ${i >= 11 && i <= 18 ? "bg-ink" : "bg-ink/25"}`} style={{ height: `${h * 7}%` }} />
-          ))}
-        </div>
-        <div className="pat-hatch absolute inset-y-0 left-[36%] w-[27%] opacity-15" />
-        <div className="absolute inset-y-[-6px] left-[36%] w-[27%] border-x-2 border-signal" />
-        <div className={`mt-3 flex justify-between ${mono} text-ink2`}>
-          <span>0:00</span><span className="text-cueInk">12:04 to 12:41</span><span>18:20</span>
-        </div>
-      </div>
-      <p className="mt-6 font-serif text-2xl italic leading-tight">“Rest the dough for ten minutes.”</p>
-      <p className={`mt-3 ${mono} text-ink2`}>Hook · a complete tip in 37 s</p>
-    </>
-  );
-}
-
-function CaptionCard() {
-  return (
-    <>
-      <CardHead left="Captions" right="Word timed" />
-      <div className="mt-6 flex items-end gap-6">
-        <div className="relative aspect-[9/16] w-28 shrink-0 border border-surface/40 bg-ink2">
-          <p className="absolute inset-x-2 bottom-[22%] text-[11px] font-bold leading-tight">
-            Rest the <span className="bg-signal px-0.5">dough</span> <span className="text-surface/45">for ten</span>
-          </p>
-        </div>
-        <ul className={`grid flex-1 gap-2 ${mono}`}>
-          {["Clean", "Bold pop", "Pop in"].map((style, i) => (
-            <li key={style} className={`border px-3 py-2 ${i === 1 ? "border-surface bg-surface text-ink" : "border-surface/30"}`}>{style}</li>
-          ))}
-        </ul>
-      </div>
-      <p className={`mt-6 ${mono} text-surface/75`}>Speech-to-Text Chirp 3 · fix any word in Studio</p>
-    </>
-  );
-}
-
-const TRANSLATIONS = [
-  ["EN", "Rest the dough for ten minutes"],
-  ["HI", "आटे को दस मिनट आराम दें"],
-  ["JA", "生地を10分休ませる"],
-  ["TA", "மாவை பத்து நிமிடம் ஊற விடுங்கள்"],
-];
-
-function TranslateCard() {
-  return (
-    <>
-      <CardHead left="Translate" right="12 languages" />
-      <ul className="mt-4">
-        {TRANSLATIONS.map(([code, text]) => (
-          <li key={code} className="flex items-baseline gap-4 border-b border-ink/15 py-3 last:border-0">
-            <span className={`${mono} w-6 text-ink2`}>{code}</span>
-            <span lang={code.toLowerCase()} className="text-lg leading-snug">{text}</span>
-          </li>
-        ))}
-      </ul>
-      <p className={`mt-4 ${mono} text-ink2`}>Cloud Translation · Noto fonts for each script</p>
-    </>
+    <ul className="divide-y divide-line">
+      {[["English", "en", "A rocket moves"], ["Hindi", "hi", "एक रॉकेट चलता है"]].map(([name, lang, line]) => (
+        <li key={lang} className="flex items-baseline justify-between gap-4 py-4 first:pt-0">
+          <span lang={lang} className="text-[22px] font-medium tracking-[-0.01em] text-ink">{line}</span>
+          <span className="text-[13px] text-ink2">{name}</span>
+        </li>
+      ))}
+      <li className="pt-4 text-[13px] text-ink2">Plus Tamil, Telugu, Bengali, Marathi, Japanese, Korean, Chinese, Thai, Indonesian and Vietnamese.</li>
+    </ul>
   );
 }
 
 const NOTES = [
-  ["0:03", "Open on the dough, not the bowl", "fix"],
-  ["0:11", "Caption covers her hands", "fix"],
-  ["0:19", "Great ending, keep it", "good"],
+  ["0:03", "The rocket explanation is clear and the captions are easy to read."],
+  ["0:08", "This section feels slow. A tighter cut would keep my attention."],
+  ["0:14", "The satellite section follows the rocket section. Please check the transition."],
 ];
 
-function ReviewCard() {
+function ReviewLoupe() {
   return (
-    <>
-      <CardHead left="Review link" right="3 notes" />
-      <ul className="mt-4">
-        {NOTES.map(([time, note, kind]) => (
-          <li key={time} className="flex items-baseline gap-4 border-b border-ink/15 py-3 last:border-0">
-            <span className="font-mono text-xs text-cueInk">{time}</span>
-            <span className="flex-1">{note}</span>
-            <span className={`${mono} border px-1.5 ${kind === "good" ? "border-go text-go" : "border-ink/40 text-ink2"}`}>{kind}</span>
+    <div>
+      <ul className="space-y-3">
+        {NOTES.map(([time, note]) => (
+          <li key={time} className="flex gap-3 text-[15px] text-ink">
+            <span className={`mt-0.5 flex-none text-grease ${mono}`}>{time}</span>
+            {note}
           </li>
         ))}
       </ul>
-      <div className="mt-5 flex items-center justify-between border-t border-ink pt-4">
-        <span className={mono}>Summary</span>
-        <span className="font-serif text-xl italic">Mostly positive, 2 fixes</span>
-      </div>
-    </>
-  );
-}
-
-const STEPS: Step[] = [
-  { label: "Watch.", line: "Gemini watches the frames and hears the audio.", tilt: -2, shadow: "shadow-hard", card: <WatchCard /> },
-  { label: "Pick the moment.", line: "The strongest moments, each with a hook and a reason.", tilt: 1.5, shadow: "shadow-hard-lg", card: <PickCard /> },
-  { label: "Caption.", line: "Words timed to the voice, styled your way.", tilt: -1, shadow: "shadow-[10px_10px_0_0_#d8341f]", dark: true, card: <CaptionCard /> },
-  { label: "Translate.", line: "The same short for every audience.", tilt: 2, shadow: "shadow-hard", card: <TranslateCard /> },
-  { label: "Review.", line: "Share a link. Get notes pinned to the second.", tilt: -1.5, shadow: "shadow-hard-lg", card: <ReviewCard /> },
-];
-
-function StepCard({ step, index }: { step: Step; index: number }) {
-  return (
-    <div className={`w-full max-w-[500px] border border-ink p-6 sm:p-7 ${step.shadow} ${step.dark ? "bg-ink text-surface" : "bg-surface text-ink"}`}>
-      {step.card}
-      <p className={`mt-6 text-right ${mono} ${step.dark ? "text-surface/60" : "text-ink2"}`}>Nº 0{index + 1}</p>
+      <p className="mt-5 border-t border-line pt-4 text-[15px] text-ink2"><b className="font-semibold text-ink">Mixed overall.</b> Clear explanations, slow pacing.</p>
     </div>
   );
 }
 
-function StepBlock({ step, index, onActive }: { step: Step; index: number; onActive(i: number): void }) {
+const STEPS: { title: string; line: string; frame: string; loupe: ReactNode }[] = [
+  { title: "Watch", line: "Gemini reads every frame and listens to the audio.", frame: nasa63, loupe: <WatchLoupe /> },
+  { title: "Pick the moment", line: "It marks the strongest part and says why.", frame: nasa69, loupe: <PickLoupe /> },
+  { title: "Caption", line: "Words land on the beat of the voice.", frame: nasa66, loupe: <CaptionLoupe /> },
+  { title: "Translate", line: "The same cut, captioned for another audience.", frame: nasa71, loupe: <TranslateLoupe /> },
+  { title: "Review", line: "Share a link. Notes land on the timeline.", frame: nasa74, loupe: <ReviewLoupe /> },
+];
+
+function Strip({ active }: { active: number }) {
+  const reduced = useReducedMotion();
+  return (
+    <div className="film-strip shadow-film">
+      <div className="overflow-hidden">
+      <motion.div className="grid grid-cols-5 gap-[7px]" animate={{ x: reduced ? 0 : `${(2 - active) * 1.5}%` }} transition={{ duration: 0.6, ease }}>
+        {STEPS.map((step, i) => (
+          <div key={step.title} className="relative">
+            <img src={step.frame} alt="" className={`block aspect-[9/16] w-full object-cover transition-opacity duration-500 ease-paper ${i === active ? "opacity-100" : "opacity-45"}`} />
+            {i === active && (
+              <motion.svg layoutId="grease-ring" aria-hidden="true" viewBox="0 0 96 200" preserveAspectRatio="none" className="pointer-events-none absolute -left-[22%] -top-[8%] z-10 h-[116%] w-[144%] overflow-visible" transition={{ duration: reduced ? 0 : 0.5, ease }}>
+                <path d="M50 6 C 12 4, 4 60, 8 110 C 12 168, 30 196, 54 192 C 86 186, 92 120, 88 70 C 84 22, 66 6, 40 12" fill="none" stroke="#c4321f" strokeWidth={3.2} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+              </motion.svg>
+            )}
+          </div>
+        ))}
+      </motion.div>
+      </div>
+      <div aria-hidden="true" className="edge-print flex justify-between px-1 pt-[7px]">
+        {STEPS.map((step, i) => <span key={step.title} className={i === active ? "" : "opacity-50"}>▶ {i + 1}{i === 0 ? "  TAKEONE 5063" : ""}</span>)}
+      </div>
+    </div>
+  );
+}
+
+function Loupe({ step }: { step: (typeof STEPS)[number] }) {
+  return <div className="sheet p-6">{step.loupe}</div>;
+}
+
+function StepBlock({ index, onActive }: { index: number; onActive(i: number): void }) {
   const ref = useRef<HTMLLIElement>(null);
   const inView = useInView(ref, { margin: "-45% 0px -45% 0px" });
   useEffect(() => { if (inView) onActive(index); }, [inView, index, onActive]);
+  const step = STEPS[index];
   return (
-    <li ref={ref} className="flex flex-col justify-center py-10 lg:min-h-[72vh] lg:py-0">
-      <div className="rule-top pt-5">
-        <p className={`${mono} text-ink2`}>Step 0{index + 1} / 05</p>
-        <h3 className="display mt-4 text-[clamp(48px,6.4vw,96px)] text-ink">{step.label}</h3>
-        <p className="mt-4 max-w-sm text-lg leading-7 text-ink2">{step.line}</p>
-      </div>
-      <div className="rule-bottom mt-8 lg:hidden" />
-      <div className="mt-10 flex justify-center lg:hidden">
-        <StepCard step={step} index={index} />
+    <li ref={ref} className="py-8 lg:flex lg:min-h-[62vh] lg:flex-col lg:justify-center lg:py-0">
+      <p className={`text-grease ${mono}`}>0{index + 1}</p>
+      <h3 className="display mt-2 text-[30px] text-ink md:text-[38px]">{step.title}</h3>
+      <p className="mt-3 max-w-[34ch] text-[17px] leading-relaxed text-ink2">{step.line}</p>
+      <div className="mt-6 lg:hidden">
+        <Loupe step={step} />
       </div>
     </li>
   );
@@ -179,42 +139,21 @@ function StepBlock({ step, index, onActive }: { step: Step; index: number; onAct
 export default function HowItWorks() {
   const [active, setActive] = useState(0);
   const reduced = useReducedMotion();
-  const step = STEPS[active];
   return (
-    <section id="how-it-works" aria-labelledby="how-heading" className="scroll-mt-16 px-4 py-24 sm:px-6 md:px-12 md:py-32">
-      <div className="mx-auto max-w-[1360px]">
-        <div className="rule-top grid gap-6 pt-6 md:grid-cols-12">
-          <h2 id="how-heading" className="display text-[clamp(44px,6vw,80px)] text-ink md:col-span-8">
-            How one take becomes <em>many.</em>
-          </h2>
-          <p className="eyebrow self-end md:col-span-4 md:text-right">Five steps · one pass</p>
-        </div>
-        <div className="mt-6 grid lg:grid-cols-12 lg:gap-10">
-          <ol className="lg:col-span-5">
-            {STEPS.map((s, i) => <StepBlock key={s.label} step={s} index={i} onActive={setActive} />)}
-          </ol>
-          <div aria-hidden="true" className="hidden lg:col-span-7 lg:block">
-            <div className="sticky top-[14vh] flex h-[72vh] flex-col items-center justify-center">
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.div
-                  key={active}
-                  className="flex w-full justify-center"
-                  initial={reduced ? { opacity: 0 } : { opacity: 0, y: 28, rotate: step.tilt + 3 }}
-                  animate={{ opacity: 1, y: 0, rotate: reduced ? 0 : step.tilt }}
-                  exit={reduced ? { opacity: 0 } : { opacity: 0, y: -18, rotate: step.tilt - 2 }}
-                  transition={{ duration: reduced ? 0.01 : 0.35, ease }}
-                >
-                  <StepCard step={step} index={active} />
-                </motion.div>
-              </AnimatePresence>
-              <div className="mt-12 flex w-full max-w-[500px] gap-1.5">
-                {STEPS.map((s, i) => (
-                  <span key={s.label} className="h-1 flex-1 bg-ink/15">
-                    <motion.span className="block h-full origin-left bg-ink" initial={false} animate={{ scaleX: i <= active ? 1 : 0 }} transition={{ duration: reduced ? 0 : 0.4, ease }} />
-                  </span>
-                ))}
-              </div>
-            </div>
+    <section id="how-it-works" aria-labelledby="how-heading" className={`${shell} scroll-mt-16 py-24 md:py-32`}>
+      <SectionHead id="how-heading" title="One long video, one pass." sub="Five steps from upload to a short you can share." />
+      <div className="mt-8 lg:grid lg:grid-cols-12 lg:gap-12">
+        <ol className="lg:col-span-5">
+          {STEPS.map((step, i) => <StepBlock key={step.title} index={i} onActive={setActive} />)}
+        </ol>
+        <div aria-hidden="true" className="hidden lg:col-span-7 lg:block">
+          <div className="sticky top-[16vh] space-y-8 py-8">
+            <Strip active={active} />
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div key={active} initial={reduced ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={reduced ? undefined : { opacity: 0, y: -8 }} transition={{ duration: 0.4, ease }}>
+                <Loupe step={STEPS[active]} />
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
       </div>
