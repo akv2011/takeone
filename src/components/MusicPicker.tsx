@@ -1,5 +1,5 @@
 import { MusicNotes } from "@phosphor-icons/react";
-import { InspectorSection, GenerationTicket, PanelState } from "./StudioWorkspace";
+import { InspectorSection, GenerationCost, PanelState } from "./StudioWorkspace";
 import { useAction, useQuery } from 'convex/react';
 import { useRef, useState } from 'react';
 import { AudioUpload, RemoveAudio } from './AudioUpload';
@@ -19,8 +19,8 @@ function TrackPreview({ trackId }: { trackId: string }) {
       finally { pending.current = false; setBusy(false); }
     }}>{busy ? 'Loading preview…' : url ? 'Refresh preview' : 'Preview soundtrack · free'}</button>
     {url && <audio aria-label="Soundtrack preview" src={url} controls className="mt-2 w-full" onError={() => { setUrl(''); setError('Preview expired or unavailable. Load it again.'); }} />}
-    {url && <p className="mt-1 text-xs text-ink2">Original track preview. Your music level and speech ducking are applied when rendering.</p>}
-    {error && <p role="status" className="mt-1 text-xs text-warn">{error}</p>}
+    {url && <p className="mt-1 text-[13px] text-ink2">Original track preview. Your music level and speech ducking are applied when rendering.</p>}
+    {error && <p role="status" className="mt-1 text-[13px] text-warn">{error}</p>}
   </div>;
 }
 export function MusicPicker({ value, onChange, disabled, onApply }: { value?: MusicSelection; onChange: (value?: MusicSelection) => void; disabled?: boolean; onApply?(): void }) {
@@ -35,7 +35,7 @@ export function MusicPicker({ value, onChange, disabled, onApply }: { value?: Mu
         {tracks?.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
       </select>
     </label>
-    {tracks?.length === 0 && <p className="text-ink2">Choose your own audio below, or use the music library when it is connected.</p>}
+    {tracks?.length === 0 && <PanelState>The music library is empty. Upload your own audio below.</PanelState>}
     <AudioUpload onReady={trackId => onChange({ trackId, volume: value?.volume ?? 0.18, duck: value?.duck ?? true, replaceSourceAudio: value?.replaceSourceAudio ?? false })} />
     {value && <>
       {value.trackId.startsWith('upload:') && <RemoveAudio key={value.trackId} trackId={value.trackId} onRemoved={() => onChange(undefined)} />}
@@ -45,9 +45,9 @@ export function MusicPicker({ value, onChange, disabled, onApply }: { value?: Mu
       </label>
       <label className="flex items-center gap-2"><input type="checkbox" className="size-4 shrink-0 accent-ink" disabled={value.replaceSourceAudio} checked={value.duck && !value.replaceSourceAudio} onChange={e => onChange({ ...value, duck: e.target.checked })} />Lower music while someone speaks</label>
       <label className="flex items-center gap-2"><input type="checkbox" className="size-4 shrink-0 accent-ink" checked={value.replaceSourceAudio ?? false} onChange={e => onChange({ ...value, replaceSourceAudio: e.target.checked })} />Remove all original audio, including speech</label>
-      {chosen && <p className="text-xs text-ink2">{chosen.attribution}</p>}
-      <p className="text-xs text-ink2">{value.replaceSourceAudio ? 'Only the selected soundtrack will remain. Speech, original music and sound effects will be removed from the new version.' : 'Adds a soundtrack to this version. Existing music remains in the source audio.'}</p>
+      {chosen && <p className="text-[13px] text-ink2">{chosen.attribution}</p>}
+      <p className="text-[13px] text-ink2">{value.replaceSourceAudio ? 'Only the selected soundtrack will remain. Speech, original music and sound effects will be removed from the new version.' : 'Adds a soundtrack to this version. Existing music remains in the source audio.'}</p>
     </>}
-    {value && onApply && <button type="button" onClick={onApply} className={button("primary", "sm")}>Apply soundtrack <GenerationTicket /></button>}
+    {value && onApply && <div className="studio-cost-action"><button type="button" onClick={onApply} className={button("primary", "sm")}>Apply soundtrack</button><GenerationCost /></div>}
   </fieldset></InspectorSection>;
 }

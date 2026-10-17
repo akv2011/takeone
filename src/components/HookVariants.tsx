@@ -1,5 +1,5 @@
 import { TextT } from "@phosphor-icons/react";
-import { InspectorSection, GenerationTicket } from "./StudioWorkspace";
+import { InspectorSection, GenerationCost } from "./StudioWorkspace";
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation } from 'convex/react';
@@ -37,10 +37,10 @@ function HookForm({ jobId, videoUrl }: { jobId: string; videoUrl?: string }) {
     {preview !== undefined && videoUrl && <div className="relative mt-3 overflow-hidden  bg-ink">
       <video ref={player} src={videoUrl} controls playsInline onTimeUpdate={e => setTime(e.currentTarget.currentTime)} onLoadedMetadata={e => setDuration(e.currentTarget.duration)} className="max-h-72 w-full focus-visible:outline-cue focus-visible:-outline-offset-2" aria-label="Opening title preview" />
       {time < titleEnd && <div className="pointer-events-none absolute left-[8%] right-[8%] top-[10%] break-words text-center text-lg font-extrabold text-surface [text-shadow:1px_1px_2px_black]">{titles[preview]}</div>}
-      <p className="p-2 text-xs text-surface/80">Approximate title layout. Press play to preview.</p>
+      <p className="p-2 text-[13px] text-surface/80">Approximate title layout. Press play to preview.</p>
     </div>}
-    {!jobs.length && <button type="button" disabled={!valid || pending} onClick={() => void submit()} className={`${button('primary', 'sm')} mt-4`}>{pending ? 'Creating versions…' : <>Create 3 versions <GenerationTicket count={3} /></>}</button>}
-    {error && <p role="alert" className="mt-2 text-xs text-warn">{error}</p>}
+    {!jobs.length && <div className="studio-cost-action"><button type="button" disabled={!valid || pending} onClick={() => void submit()} className={`${button('primary', 'sm')} mt-4`}>{pending ? 'Creating versions…' : 'Create 3 versions'}</button><GenerationCost count={3} /></div>}
+    {error && <p role="alert" className="mt-2 text-[13px] text-warn">{error}</p>}
     {!!jobs.length && <ul className="mt-3 space-y-2 text-sm">{jobs.map((id, i) => <li key={id}><Link className="font-semibold underline underline-offset-4" to={`/studio/${id}`}>Open hook {i + 1}</Link></li>)}</ul>}
   </section></InspectorSection>;
 }

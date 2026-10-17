@@ -1,5 +1,5 @@
 import { ShareNetwork } from "@phosphor-icons/react";
-import { PanelState } from "./StudioWorkspace";
+import { HelpNote, PanelState } from "./StudioWorkspace";
 import { useAction, useMutation, useQuery } from 'convex/react';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/convexApi';
@@ -34,14 +34,14 @@ export function ShareReview({ jobId, duration, onSeek }: { jobId: string; durati
     setUrl(`${window.location.origin}/review#${result.token}`); setSelected(result.id);
   });
   return <section aria-label="Share video for review" className={`${open ? `${panel} p-4` : ''} mb-4 text-ink ph-no-capture`}>
-    <button type="button" aria-expanded={open} onClick={() => setOpen(value => !value)} className={button('secondary', 'sm')}><ShareNetwork size={16} aria-hidden="true" />{open ? 'Close review desk' : 'Share for review'}</button>
-    {open && <div className="mt-4 space-y-4">
-      <p className="text-sm text-ink2">Anyone with the link can watch and leave notes. A new link revokes the previous live link for this version.</p>
+    <button type="button" aria-expanded={open} onClick={() => setOpen(value => !value)} className={button('secondary', 'sm')}><ShareNetwork size={18} weight="regular" aria-hidden="true" />{open ? 'Close review desk' : 'Share for review'}</button>
+    {open && <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,.75fr)_minmax(0,1.25fr)]"><div className="min-w-0 space-y-4">
+      <p className="text-sm text-ink2">Anyone with the link can watch and leave notes.</p>
       <div className="flex flex-wrap items-end gap-3"><label className={label}>Link expires<select value={days} onChange={e => setDays(Number(e.target.value) as 1 | 7)} className={`${field} ml-2`}><option value={1}>In 1 day</option><option value={7}>In 7 days</option></select></label><button type="button" disabled={busy || !duration || !Number.isFinite(duration)} onClick={() => void createLink()} className={button('primary', 'sm')}>Create review link</button></div>
-      {!duration && <p className="text-xs text-ink2">Load the video before creating a review link.</p>}
-      {url && <div className="space-y-2"><label className={`block ${label}`}>Save this link now. It is shown only here.<input readOnly value={url} onFocus={e => e.currentTarget.select()} className="mt-1 block w-full  border border-line bg-surface px-3 py-2 font-mono text-xs font-normal text-ink" /></label><button type="button" onClick={() => void navigator.clipboard.writeText(url).then(() => setNotice('Link copied.')).catch(() => setNotice('Select the link above and copy it.'))} className="text-sm font-semibold underline underline-offset-4">Copy review link</button></div>}
+      {!duration && <p className="text-[13px] text-ink2">Load the video before creating a review link.</p>}
+      {url && <div className="space-y-2"><label className={`block ${label}`}>Save this link now. It is shown only here.<input readOnly value={url} onFocus={e => e.currentTarget.select()} className="mt-1 block w-full  border border-line bg-surface rounded-control px-3 py-2 text-[13px] font-normal text-ink" /></label><button type="button" onClick={() => void navigator.clipboard.writeText(url).then(() => setNotice('Link copied.')).catch(() => setNotice('Select the link above and copy it.'))} className="text-sm font-semibold underline underline-offset-4">Copy review link</button></div>}
       {notice && <p role="status" className="text-sm text-go">{notice}</p>}{error && <p role="alert" className="text-sm text-warn">{error}</p>}
-      <p className="text-xs leading-relaxed text-ink2">Revocation or expiry stops new access and notes. Previously opened playback links can remain usable for up to two minutes; saved copies cannot be recalled.</p>
+      <HelpNote>A new link revokes the previous live link for this version. Revocation or expiry stops new access and notes. Previously opened playback links can remain usable for up to two minutes; saved copies cannot be recalled.</HelpNote>
       {links === undefined && <PanelState loading>Loading review links…</PanelState>}
       {links?.length ? <><label className={`block ${label}`}>Review history<select value={active} onChange={e => { setSelected(e.target.value); setUrl(''); }} className={`${field} mt-1 block max-w-full`}>{links.map(link => <option value={link.id} key={link.id}>{new Date(link.createdAt).toLocaleString()} · {link.revokedAt !== undefined ? 'Revoked' : link.expiresAt <= Date.now() ? 'Expired' : 'Active'} · {link.commentCount} notes</option>)}</select></label>
         <div className="flex flex-wrap gap-4">{(() => {
@@ -49,9 +49,10 @@ export function ShareReview({ jobId, duration, onSeek }: { jobId: string; durati
           if (!link) return null;
           return link.revokedAt === undefined && link.expiresAt > Date.now() ? <button type="button" disabled={busy} onClick={() => void run(async () => { await revoke({ reviewId: active }); setUrl(''); })} className="text-sm font-semibold underline underline-offset-4">Revoke review link</button> : <button type="button" disabled={busy} onClick={() => { if (window.confirm('Delete this inactive review and all its feedback?')) void run(async () => { await remove({ reviewId: active }); setUrl(''); setSelected(undefined); }); }} className="text-sm font-semibold text-warn underline underline-offset-4">Delete this review and feedback</button>;
         })()}</div>
-        {notes?.length ? <ReviewNotes notes={notes} onSeek={onSeek} busy={busy} onResolve={note => void run(() => resolve({ commentId: note.id, resolved: !note.resolved }))} /> : <PanelState loading={notes === undefined}>{notes === undefined ? "Loading review notes…" : "No feedback for this link yet."}</PanelState>}
-        <FeedbackInsights jobId={jobId} noteCount={links.reduce((sum, link) => sum + link.commentCount, 0)} duration={duration} onSeek={onSeek} />
       </> : links !== undefined && <PanelState>No review links for this version.</PanelState>}
-    </div>}
+    </div><div className="min-w-0 space-y-4">{links?.length ? <>
+      {notes?.length ? <ReviewNotes notes={notes} onSeek={onSeek} busy={busy} onResolve={note => void run(() => resolve({ commentId: note.id, resolved: !note.resolved }))} /> : <PanelState loading={notes === undefined}>{notes === undefined ? "Loading review notes…" : "No feedback for this link yet."}</PanelState>}
+      <FeedbackInsights jobId={jobId} noteCount={links.reduce((sum, link) => sum + link.commentCount, 0)} duration={duration} onSeek={onSeek} />
+    </> : null}</div></div>}
   </section>;
 }

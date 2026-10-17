@@ -82,7 +82,7 @@ class ProjectReadBoundary extends Component<{ children: ReactNode }, { failed: b
     return (
       <section aria-label="Editable project" className={`${panel} w-full p-4`}>
         <h2 className="eyebrow">Editable timeline</h2>
-        <p role="alert" className="mt-2 text-xs text-warn">Project details could not load. The rest of Studio is still available.</p>
+        <p role="alert" className="mt-2 text-[13px] text-warn">Project details could not load. The rest of Studio is still available.</p>
         <button type="button" onClick={() => this.setState({ failed: false })} className={`${button('secondary', 'sm')} mt-3`}>
           Retry project timeline
         </button>
@@ -172,13 +172,13 @@ function ScopedProjectTimelinePanel({ sourceJobId, accountKey, duration, disable
         <div className="mt-3">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h3 className="font-semibold">{project.name}</h3>
-            <span className="text-xs text-ink2">Revision {project.revision}</span>
+            <span className="text-[13px] text-ink2">Revision {project.revision}</span>
           </div>
-          <p className="mt-1 text-xs text-ink2">
+          <p className="mt-1 text-[13px] text-ink2">
             {seconds(project.timeline.durationMs)}s total · {project.timeline.video.length}{' '}
             {project.timeline.video.length === 1 ? 'clip' : 'clips'}
           </p>
-          <p className="mt-2 text-xs font-medium text-cueInk">Saved draft · no generation used</p>
+          <p className="mt-2 text-[13px] text-ink2">Saved draft</p>
         </div>
       ) : result === undefined ? (
         <PanelState loading>Loading editable timeline…</PanelState>
@@ -194,10 +194,10 @@ function ScopedProjectTimelinePanel({ sourceJobId, accountKey, duration, disable
             {creating ? 'Creating editable project…' : failed ? 'Retry project creation' : 'Create editable project'}
           </button>
           {!validDuration && (
-            <p className="mt-2 text-xs text-ink2">Load a video between 0.1 and 300 seconds before creating a project.</p>
+            <p className="mt-2 text-[13px] text-ink2">Load a video between 0.1 and 300 seconds before creating a project.</p>
           )}
           {failed && (
-            <p role="alert" className="mt-2 text-xs text-warn">Could not create the project. Try again; the rest of Studio is still available.</p>
+            <p role="alert" className="mt-2 text-[13px] text-warn">Could not create the project. Try again; the rest of Studio is still available.</p>
           )}
         </div>
       )}

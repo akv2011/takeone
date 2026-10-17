@@ -35,7 +35,7 @@ class SceneReadBoundary extends Component<{ children: ReactNode }, { failed: boo
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
   render() {
-    return this.state.failed ? <div className="mt-2 text-xs">
+    return this.state.failed ? <div className="mt-2 text-[13px]">
       <p role="alert">Scene details could not load. You can continue using the rest of Studio.</p>
       <button type="button" onClick={() => this.setState({ failed: false })} className={`${button('secondary', 'sm')} mt-2`}>Retry scene details</button>
     </div> : this.props.children;
@@ -44,21 +44,21 @@ class SceneReadBoundary extends Component<{ children: ReactNode }, { failed: boo
 function ScopedScenes({ onReplaced, jobId, accountKey, playbackDisabled, currentTime, duration, onSeek }: Props) {
   const { isAuthenticated } = useConvexAuth();
   const result = useQuery(api.scenePlans.get, isAuthenticated && accountKey && jobId ? { jobId, accountKey } : 'skip') as unknown;
-  if (!isAuthenticated || !accountKey) return <p className="mt-2 text-xs text-ink2">Connect your sign-in to view saved scenes.</p>;
+  if (!isAuthenticated || !accountKey) return <p className="mt-2 text-[13px] text-ink2">Connect your sign-in to view saved scenes.</p>;
   if (result === undefined) return <PanelState loading>Loading saved scenes…</PanelState>;
-  if (!validPlan(result)) return <p className="mt-2 text-xs text-ink2">This version has no saved scene plan. You can still navigate its video and saved captions.</p>;
+  if (!validPlan(result)) return <PanelState>No saved scene plan. Use the player or transcript to navigate this version.</PanelState>;
   const plan = result;
   const canSeek = plan.state === 'completed' && !playbackDisabled && duration !== undefined && Number.isFinite(duration) && duration > 0 && plan.durationSec <= duration + 0.1;
   return <>
-    <p className="mt-2 text-xs text-ink2">{messages[plan.state]}</p>
-    <p className="mt-1 text-xs text-ink2">Attempt {plan.attempt} · {plan.scenes.length} scenes · Free to inspect</p>
+    <p className="mt-2 text-[13px] text-ink2">{messages[plan.state]}</p>
+    <p className="mt-1 text-[13px] text-ink2">Attempt {plan.attempt} · {plan.scenes.length} scenes · Free to inspect</p>
     <ol className="mt-3 max-h-80 space-y-2 overflow-y-auto" aria-label="Saved scenes">
       {plan.scenes.map((scene, index) => <li key={index}>
-        <button type="button" disabled={!canSeek || scene.startSec >= (duration ?? 0)} onClick={() => onSeek(scene.startSec)} aria-current={canSeek && currentTime >= scene.startSec && currentTime < scene.endSec ? 'true' : undefined} className="block w-full min-w-0  border border-line p-3 text-left hover:border-muted aria-[current=true]:border-ink aria-[current=true]:bg-paper2 disabled:cursor-default disabled:hover:border-line">
-          <span className="flex justify-between gap-2 text-xs text-ink2"><span className="font-semibold">Scene {index + 1}</span><span className="font-mono">{scene.startSec.toFixed(2)} to {scene.endSec.toFixed(2)}s</span></span>
+        <button type="button" disabled={!canSeek || scene.startSec >= (duration ?? 0)} onClick={() => onSeek(scene.startSec)} aria-current={canSeek && currentTime >= scene.startSec && currentTime < scene.endSec ? 'true' : undefined} className="block w-full min-w-0 rounded-control border border-line p-3 text-left hover:border-muted aria-[current=true]:border-transparent aria-[current=true]:bg-surface aria-[current=true]:shadow-[inset_2px_0_var(--grease)] disabled:cursor-default disabled:hover:border-line">
+          <span className="flex justify-between gap-2 text-[13px] text-ink2"><span className="font-semibold">Scene {index + 1}</span><span className="font-mono">{scene.startSec.toFixed(2)} to {scene.endSec.toFixed(2)}s</span></span>
           <span className="mt-1 block break-words text-sm font-medium [overflow-wrap:anywhere]">{scene.purpose}</span>
-          <span className="mt-1 block break-words text-xs text-ink2 [overflow-wrap:anywhere]">{scene.shotType} · {scene.motion}</span>
-          <span className="mt-2 block break-words text-xs [overflow-wrap:anywhere]">{scene.searchTerms.join(' · ')}</span>
+          <span className="mt-1 block break-words text-[13px] text-ink2 [overflow-wrap:anywhere]">{scene.shotType} · {scene.motion}</span>
+          <span className="mt-2 block break-words text-[13px] [overflow-wrap:anywhere]">{scene.searchTerms.join(' · ')}</span>
         </button>
       </li>)}
     </ol>

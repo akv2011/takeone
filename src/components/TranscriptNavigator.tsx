@@ -62,22 +62,22 @@ function SavedTranscript({ loadCues, currentTime, duration, playbackDisabled, on
   return <>
     {(!cues || timingInvalid) && <button type="button" disabled={loading} onClick={() => void load()} className={`${button('secondary', 'sm')} mt-3`}>{loading ? 'Loading transcript…' : timingInvalid ? 'Reload transcript · free' : 'Load transcript · free'}</button>}
     {loading && <PanelState loading>Loading saved transcript…</PanelState>}
-    {error && <p role="alert" className="mt-2 text-xs text-warn">Could not load this transcript. Try again. No generation was used.</p>}
-    {timingInvalid && <p role="alert" className="mt-2 text-xs text-warn">Saved cue timing does not match this video. Reload the transcript to try again. No generation was used.</p>}
+    {error && <p role="alert" className="mt-2 text-[13px] text-warn">Could not load this transcript. Try again. No generation was used.</p>}
+    {timingInvalid && <p role="alert" className="mt-2 text-[13px] text-warn">Saved cue timing does not match this video. Reload the transcript to try again. No generation was used.</p>}
     {cues && !timingInvalid && <>
-      {cues.length === 0 ? <p className="mt-3 text-xs text-ink2">There are no saved speech cues in this version.</p> : <>
+      {cues.length === 0 ? <p className="mt-3 text-[13px] text-ink2">There are no saved speech cues in this version.</p> : <>
         <label className={`mt-3 block ${label}`}>Search transcript<input type="search" maxLength={200} value={query} onChange={event => { setQuery(event.target.value); setPage(0); }} placeholder="Find a word or phrase…" className={`${field} mt-1 block w-full min-w-0`} /></label>
-        <p role="status" className="mt-2 text-xs text-ink2">{matches.length} {matches.length === 1 ? 'cue' : 'cues'}{query.trim() ? ' found' : ' saved'}{playbackDisabled ? ' · Video playback is unavailable.' : ''}</p>
+        <p role="status" className="mt-2 text-[13px] text-ink2">{matches.length} {matches.length === 1 ? 'cue' : 'cues'}{query.trim() ? ' found' : ' saved'}{playbackDisabled ? ' · Video playback is unavailable.' : ''}</p>
         {!matches.length ? <p className="mt-3 text-sm">No matching phrases. Try another search.</p> : <>
           <ol className="mt-2 max-h-64 space-y-1 overflow-y-auto" aria-label="Transcript cues">
-            {matches.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map(({ cue, index }) => <li key={index} className={`flex min-w-0 items-start gap-2  border ${active === index ? 'border-ink bg-paper2' : 'border-transparent'}`}>
+            {matches.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map(({ cue, index }) => <li key={index} className={`flex min-w-0 items-start gap-2 rounded-control border ${active === index ? 'border-transparent bg-surface shadow-[inset_2px_0_var(--grease)]' : 'border-transparent'}`}>
               <button type="button" disabled={playbackDisabled || (duration !== undefined && cue.start >= duration)} aria-current={active === index ? 'true' : undefined} onClick={() => onSeek(cue.start)} className="flex min-w-0 flex-1 items-start gap-3  p-2 text-left text-sm hover:bg-paper disabled:opacity-50">
-                <span className="shrink-0 pt-0.5 font-mono text-xs text-ink2">{time(cue.start)}</span><span className="min-w-0 break-words [overflow-wrap:anywhere]">{cue.text}</span>
+                <span className="shrink-0 pt-0.5 font-mono text-[13px] text-ink2">{time(cue.start)}</span><span className="min-w-0 break-words [overflow-wrap:anywhere]">{cue.text}</span>
               </button>
-              <button type="button" disabled={playbackDisabled || (duration !== undefined && cue.start >= duration)} aria-label={`Preview cue ${index + 1}`} onClick={() => onPreview(cue.start, Math.min(cue.end, duration ?? cue.end), 1)} className="m-1 shrink-0  border border-line px-2 py-1.5 text-xs font-semibold hover:border-ink disabled:opacity-50">Play</button>
+              <button type="button" disabled={playbackDisabled || (duration !== undefined && cue.start >= duration)} aria-label={`Preview cue ${index + 1}`} onClick={() => onPreview(cue.start, Math.min(cue.end, duration ?? cue.end), 1)} className={`${button("secondary", "sm")} m-1 shrink-0`}>Play</button>
             </li>)}
           </ol>
-          {matches.length > PAGE_SIZE && <div className="mt-2 flex items-center justify-between gap-2 text-xs">
+          {matches.length > PAGE_SIZE && <div className="mt-2 flex items-center justify-between gap-2 text-[13px]">
             <button type="button" disabled={page === 0} onClick={() => setPage(value => value - 1)} className={button('secondary', 'sm')}>Previous cues</button>
             <span>Page {page + 1} of {Math.ceil(matches.length / PAGE_SIZE)}</span>
             <button type="button" disabled={(page + 1) * PAGE_SIZE >= matches.length} onClick={() => setPage(value => value + 1)} className={button('secondary', 'sm')}>Next cues</button>

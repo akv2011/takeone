@@ -9,7 +9,7 @@ import { ReviewNotes, type ReviewNote } from '../components/ReviewNotes';
 import { button, field, label } from '../lib/ui';
 
 interface ReviewData { expiresAt: number; durationSec: number; comments: ReviewNote[] }
-function Unavailable() { return <main className="review-shell flex items-center justify-center px-6 py-20"><div className="sheet max-w-lg p-8 shadow-hard"><p className="eyebrow mb-8">TakeOne / Review room</p><FilmStrip size={40} weight="light" aria-hidden="true" /><h1 className="mt-5 font-display text-5xl">Review unavailable</h1><p className="mt-4 text-sm text-ink2">This link is invalid, expired or was revoked. Ask the creator for a new link.</p><a href="/" className={`${button('secondary')} mt-8`}><ArrowLeft size={16} aria-hidden="true" />Back to TakeOne</a></div></main>; }
+function Unavailable() { return <main className="review-shell flex items-center justify-center px-6 py-20"><div className="sheet max-w-lg p-8 shadow-card"><p className="eyebrow mb-8">TakeOne / Review room</p><FilmStrip size={40} weight="regular" aria-hidden="true" /><h1 className="mt-5 font-display font-semibold text-5xl">Review unavailable</h1><p className="mt-4 text-sm text-ink2">This link is invalid, expired or was revoked. Ask the creator for a new link.</p><a href="/" className={`${button('secondary')} mt-8`}><ArrowLeft size={18} aria-hidden="true" />Back to TakeOne</a></div></main>; }
 export default function Review() {
   const { hash } = useLocation();
   const token = hash.slice(1);
@@ -39,7 +39,7 @@ export function ReviewContent({ token }: { token: string }) {
         if (video.current && Number.isFinite(video.current.duration)) resume.current = { at: video.current.currentTime, playing: !video.current.paused };
         setMedia(result); setMediaError('');
       }
-    } catch { if (view === epoch.current && attempt === signing.current) setMediaError('Playback is unavailable. The link may have expired, or too many viewers requested playback. Try again in a minute.'); }
+    } catch { if (view === epoch.current && attempt === signing.current) setMediaError('Playback link unavailable. Try refreshing in a minute.'); }
   }, [sign, token]);
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -75,14 +75,14 @@ export function ReviewContent({ token }: { token: string }) {
       }
     } finally { if (view === epoch.current) setSending(false); }
   };
-  if (data === undefined) return <main className="review-shell px-6 py-20"><div className="mx-auto max-w-6xl"><p className="eyebrow mb-5">TakeOne / Review room</p><h1 className="mb-8 font-display text-5xl">Watch. Leave a note.</h1><PanelState loading>Loading review…</PanelState></div></main>;
+  if (data === undefined) return <main className="review-shell px-6 py-20"><div className="mx-auto max-w-6xl"><p className="eyebrow mb-5">TakeOne / Review room</p><h1 className="mb-8 font-display font-semibold text-5xl">Watch. Leave a note.</h1><PanelState loading>Loading review…</PanelState></div></main>;
   if (!live) return <Unavailable />;
   return <main className="review-shell px-4 py-8 sm:px-8 ph-no-capture">
-    <header className="review-header mx-auto max-w-6xl"><div><p className="eyebrow">TakeOne / Review room</p><h1 className="mt-3 font-display text-5xl sm:text-6xl">Watch. Leave a note.</h1></div><p className="font-mono text-[10px] text-ink2">Link expires<br />{new Date(data.expiresAt).toLocaleString()}</p></header>
+    <header className="review-header mx-auto max-w-6xl"><div><p className="eyebrow">TakeOne / Review room</p><h1 className="mt-3 font-display font-semibold text-5xl sm:text-6xl">Watch. Leave a note.</h1></div><p className="text-[13px] text-ink2">Link expires<br />{new Date(data.expiresAt).toLocaleString()}</p></header>
     <div className="mx-auto grid max-w-6xl gap-7 lg:grid-cols-[minmax(0,1.5fr)_minmax(320px,1fr)]">
       <section aria-label="Review video" className="min-w-0">
         <div className="review-light-table">
-          <div className="studio-canvas-label"><span><FilmStrip size={16} aria-hidden="true" />Review cut</span><span>Private link</span></div>
+          <div className="studio-canvas-label"><span><FilmStrip size={18} aria-hidden="true" />Review cut</span><span>Private link</span></div>
           {media && media.expiresAt > now ? <video ref={video} src={media.url} controls playsInline preload="metadata" className="max-h-[70vh] w-full focus-visible:outline-cue" onTimeUpdate={e => setCurrent(e.currentTarget.currentTime)} onSeeked={e => setCurrent(e.currentTarget.currentTime)} onLoadedMetadata={e => {
             setDuration(e.currentTarget.duration);
             const previous = resume.current; resume.current = undefined;
@@ -90,19 +90,19 @@ export function ReviewContent({ token }: { token: string }) {
               e.currentTarget.currentTime = Math.min(previous.at, e.currentTarget.duration);
               if (previous.playing) void e.currentTarget.play().catch(() => {});
             }
-          }} onError={() => setMediaError('The video could not be loaded. Refresh playback to try again.')} /> : <div className="flex min-h-80 items-center justify-center p-8 text-sm text-surface" role="status"><div className="text-center"><FilmStrip size={40} weight="light" className="mx-auto mb-4" aria-hidden="true" />{mediaError || 'Preparing playback…'}</div></div>}
+          }} onError={() => setMediaError('The video could not be loaded. Refresh playback to try again.')} /> : <div className="flex min-h-80 items-center justify-center p-8 text-sm text-surface" role="status"><div className="text-center"><FilmStrip size={40} weight="regular" className="mx-auto mb-4" aria-hidden="true" />{mediaError ? 'Playback unavailable.' : 'Preparing playback…'}</div></div>}
         </div>
         {mediaError && <p role="alert" className="mt-3 text-sm text-warn">{mediaError}</p>}
-        <div className="mt-3 flex items-center justify-between gap-3"><span className="font-mono text-sm">Playhead {reviewTime(current)}</span><button type="button" onClick={() => void refresh()} className="text-sm font-semibold underline underline-offset-4">Refresh playback</button></div>
+        <div className="mt-3 flex items-center justify-between gap-3"><span className="text-sm">Playhead <span className="font-mono">{reviewTime(current)}</span></span><button type="button" onClick={() => void refresh()} className="text-sm font-semibold underline underline-offset-4">Refresh playback</button></div>
         <div className="review-marker-strip" role="group" aria-label="Notes along the video">{data.comments.map(note => <button key={note.id} type="button" aria-label={`Note at ${reviewTime(note.at)}`} title={`${reviewTime(note.at)} · ${note.name}`} onClick={() => seek(note.at)} style={{ left: `${Math.min(98, Math.max(2, note.at / data.durationSec * 100))}%` }} />)}</div>
-        <p className="mt-4 text-xs leading-relaxed text-ink2">This link opens one video version. Notes and guest names are visible to everyone with the link. Guest names are not verified.</p>
+        <p className="mt-4 text-[13px] leading-relaxed text-ink2">This link opens one video version. Notes and guest names are visible to everyone with the link. Guest names are not verified.</p>
       </section>
       <section aria-label="Review feedback" className="min-w-0">
-        <div className="mb-4 flex items-center justify-between border-b border-ink pb-3"><h2 className="eyebrow flex items-center gap-2"><NotePencil size={17} aria-hidden="true" />Notes on this cut</h2><span className="font-mono text-[10px]">{data.comments.length} / 200</span></div>
+        <div className="mb-4 flex items-center justify-between border-b border-line pb-3"><h2 className="eyebrow flex items-center gap-2"><NotePencil size={18} aria-hidden="true" />Notes on this cut</h2><span className="text-[13px]">{data.comments.length} / 200</span></div>
         <form onSubmit={submit} className="review-compose mb-6 space-y-3 p-4">
           <label className={`block ${label}`}>Your name<input required maxLength={60} value={name} onChange={e => setName(e.target.value)} className={`${field} mt-1 block w-full`} autoComplete="off" /></label>
           <div className="flex flex-wrap items-end gap-3"><label className={`min-w-0 flex-1 ${label}`}>Timestamp (seconds)<input required type="number" min={0} max={Math.min(data.durationSec, duration || data.durationSec)} step="0.001" value={at} onChange={e => setAt(e.target.value)} className={`${field} mt-1 block w-full`} /></label><button type="button" onClick={() => { const value = video.current?.currentTime ?? 0; seek(value); setAt(value.toFixed(3)); }} className={button('secondary', 'sm')}>Use playhead</button></div>
-          <label className={`block ${label}`}>Your note<textarea required maxLength={1000} value={text} onChange={e => setText(e.target.value)} rows={3} className={`${field} mt-1 block w-full resize-y`} /></label>
+          <label className={`block ${label}`}>Your note<textarea required maxLength={1000} value={text} onChange={e => setText(e.target.value)} rows={3} className={`${field} mt-1 block h-auto min-h-24 w-full resize-y py-3`} /></label>
           {feedbackError && <p role="alert" className="text-sm text-warn">{feedbackError}</p>}
           <button type="submit" disabled={sending || data.comments.length >= 200} className={`${button('primary')} w-full`}>{sending ? 'Saving note…' : 'Add note'}</button>
         </form>

@@ -1,5 +1,5 @@
 import { FrameCorners } from "@phosphor-icons/react";
-import { InspectorSection, GenerationTicket } from "./StudioWorkspace";
+import { InspectorSection, GenerationCost } from "./StudioWorkspace";
 import type { OutputAspect, OutputFit } from "../lib/editTransforms";
 import { button, field, fieldsetPanel, label, legend } from "../lib/ui";
 export function TransformControls({
@@ -48,13 +48,13 @@ export function TransformControls({
           <option value="fit">Fit whole video</option>
         </select>
       </label>
-      <button
+      <div className="studio-cost-action"><button
         type="button"
         onClick={onApply}
         className={`${button("primary", "sm")} mt-3`}
       >
-        Apply framing <GenerationTicket />
-      </button>
+        Apply framing
+      </button><GenerationCost /></div>
     </fieldset></InspectorSection>
   );
 }
