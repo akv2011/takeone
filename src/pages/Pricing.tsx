@@ -174,7 +174,7 @@ function PricingContent({ auth }: { auth: boolean }) {
         <div className="rule-top grid gap-6 pt-6 md:grid-cols-12">
           <div className="md:col-span-8">
             <p className="eyebrow">One-time video credits</p>
-            <h1 className="display mt-4 text-[clamp(52px,8vw,112px)]">Buy what you need.<br /><em>Create when you want.</em></h1>
+            <h1 className="display mt-4 text-[clamp(48px,6.4vw,96px)]">Buy what you need.<br /><em>Create when you want.</em></h1>
           </div>
           <p className="self-end text-base leading-7 text-ink2 md:col-span-4">
             Every account starts with <strong className="font-medium text-ink">{FREE_LIMIT} free generations</strong>. Paid credits remove the TakeOne watermark and stay ready for your next video.
