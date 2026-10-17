@@ -30,7 +30,7 @@ const MODES = [
 ] as const;
 // Landing hands off with /create?mode=link&url=…, ?mode=prompt&q=… or ?mode=upload.
 const ENTRY_MODES: Record<string, string> = { link: "clip", upload: "edit", prompt: "generate" };
-const JOB_KIND: Record<string, string> = { generate: "From a prompt", edit: "Edited upload", clip: "YouTube clip" };
+const JOB_KIND: Record<string, string> = { generate: "From a prompt", edit: "Edited upload", clip: "Best moment of an upload" };
 const ASPECTS = [{ id: "9:16", label: "9:16" }, { id: "1:1", label: "1:1" }, { id: "16:9", label: "16:9" }] as const;
 
 export default function Dashboard() {
@@ -466,13 +466,13 @@ export function ReelTile({ job, frame, marked = false, onRetry }: { job: Job; fr
   const cancelled = job.status === "cancelled";
   const waiting = ['queued', 'dispatched'].includes(job.status);
   const strip = (content: ReactNode) => (
-    <div className={`relative bg-film px-[5px] pb-[34px] pt-[22px] ${sprockets}`}>
+    <div className={`relative bg-film px-[5px] pb-[34px] pt-[22px] ${sprockets} ${marked ? "z-10" : ""}`}>
       <div className="relative aspect-[9/16] overflow-hidden rounded-[2px] bg-[#28241e]">{content}</div>
       <div aria-hidden="true" className="edge-print absolute inset-x-[7px] bottom-[17px] flex justify-between text-[10px] leading-none tracking-[0.12em]">
         <span>{job.createdAt !== undefined ? shotDate(job.createdAt) : "TAKEONE"}</span>
         <span>▶ {String(frame ?? 1).padStart(2, "0")}</span>
       </div>
-      {marked && <svg aria-hidden="true" viewBox="0 0 96 200" preserveAspectRatio="none" className="pointer-events-none absolute -inset-x-[14%] -top-[6%] z-10 h-[108%] w-[128%] overflow-visible">
+      {marked && <svg aria-hidden="true" viewBox="0 0 96 200" preserveAspectRatio="none" className="pointer-events-none absolute -left-[4%] top-[2%] z-10 h-[90%] w-[108%] overflow-visible">
         <motion.path d="M50 6 C 12 4, 4 60, 8 110 C 12 168, 30 196, 54 192 C 86 186, 92 120, 88 70 C 84 22, 66 6, 40 12" fill="none" stroke="#c4321f" strokeWidth="3.4" strokeLinecap="round" vectorEffect="non-scaling-stroke"
           strokeDasharray={900} initial={reduced ? false : { strokeDashoffset: 900 }} animate={{ strokeDashoffset: 0 }} transition={{ duration: 1, delay: 0.6, ease }} />
       </svg>}
