@@ -181,7 +181,7 @@ export default function HeroSection() {
         <div className="grid items-center gap-x-10 pb-10 pt-6 lg:min-h-[calc(100svh-64px-64px)] lg:grid-cols-12 lg:pb-10 lg:pt-6">
           <h1 id="hero-heading" className="display ml-[-0.04em] text-[clamp(40px,10.4vw,62px)] leading-[1.02] text-ink lg:col-span-6 lg:row-start-1 lg:self-end lg:text-[clamp(40px,4.3vw,62px)]">
             <motion.span className="block" {...rise(0, reduced)}>Hand it the long cut.</motion.span>
-            <motion.span className="block" {...rise(0.08, reduced)}>
+            <motion.span className="block pb-[0.1em]" {...rise(0.08, reduced)}>
               Keep the <InkMark type="underline" delay={0.9}>take</InkMark>
             </motion.span>
             <motion.span className="block" {...rise(0.16, reduced)}>that lands.</motion.span>
@@ -198,9 +198,9 @@ export default function HeroSection() {
             <motion.div {...rise(0.35, reduced)}>
               <Composer />
             </motion.div>
-            <motion.ul className="mt-9 flex max-w-[520px] flex-wrap gap-x-[22px] gap-y-2 border-t border-line pt-5" {...rise(0.55, reduced)}>
+            <motion.ul className="mt-9 flex max-w-[520px] flex-wrap gap-x-4 gap-y-2 border-t sm:gap-x-[22px] border-line pt-5" {...rise(0.55, reduced)}>
               {[[String(FREE_LIMIT), "free shorts"], [String(CAPTION_LANGUAGES.length), "caption languages"], ["~2 min", "to render"]].map(([value, label]) => (
-                <li key={label} className="flex items-baseline gap-1.5 text-[13.5px] text-ink2">
+                <li key={label} className="flex items-baseline gap-1.5 whitespace-nowrap text-[13px] text-ink2 sm:text-[13.5px]">
                   <strong className="text-[15px] font-semibold tabular-nums text-ink">{value}</strong> {label}
                 </li>
               ))}

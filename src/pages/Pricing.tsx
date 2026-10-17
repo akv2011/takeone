@@ -206,7 +206,7 @@ function PricingContent({ auth }: { auth: boolean }) {
                 {i === 0 && <span className="text-[13px] font-semibold text-grease">Start here</span>}
               </div>
               <p className="display mt-5 text-[44px] tabular-nums">${p.amountUsd}</p>
-              <p className="mt-1 text-[15px] text-ink">{p.credits} <span className="text-ink2">videos · ${(p.amountUsd / p.credits).toFixed(2)} each</span></p>
+              <p className="mt-1 text-[15px] text-ink [font-variant-numeric:normal]">{p.credits} <span className="text-ink2">videos · ${(p.amountUsd / p.credits).toFixed(2)} each</span></p>
               <ul className="mt-6 space-y-2.5 border-t border-line pb-6 pt-5 text-[14px] text-ink2">
                 <li>No TakeOne watermark</li>
                 <li>One credit per finished video</li>
