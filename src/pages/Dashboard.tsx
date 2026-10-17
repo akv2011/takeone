@@ -266,7 +266,7 @@ function DashboardInner() {
                   </button>
                 </Tooltip>
                 <span className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-muted">
-                  <span>{free > 0 ? "Uses 1 free video" : "Uses 1 credit"}</span>
+                  {me && <span>{free > 0 ? "Uses 1 free video" : "Uses 1 credit"}</span>}
                   {preferences.showShortcutHints && <span className="hidden items-center gap-1 sm:inline-flex" aria-label="Command plus Enter to run">
                     <span aria-hidden="true">·</span>
                     <kbd aria-hidden="true" className="inline-flex size-5 items-center justify-center border border-ink/30 bg-surface text-xs leading-none">⌘</kbd>
