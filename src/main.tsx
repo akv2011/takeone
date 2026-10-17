@@ -7,6 +7,7 @@ import { AppRoutes } from './AppRoutes'
 import { ConvexProvider, ConvexProviderWithAuth, ConvexReactClient } from 'convex/react'
 import { authEnabled } from './lib/convexApi'
 import { AuthProvider, useFirebaseConvexAuth } from './lib/auth'
+import InkFilters from './components/InkFilters'
 
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 
@@ -35,6 +36,7 @@ function Root() {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
+    <InkFilters />
     <Root />
   </StrictMode>,
 )

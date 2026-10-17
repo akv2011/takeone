@@ -13,16 +13,19 @@
     "seo:check-deployment": "node scripts/check-seo-deployment.mjs"
   },
   "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
     "canvas-confetti": "^1.9.4",
     "convex": "^1.42.1",
     "firebase": "^13.0.0",
     "framer-motion": "^12.42.2",
     "gsap": "^3.15.0",
+    "lenis": "^1.3.27",
     "lucide-react": "^1.24.0",
     "posthog-js": "^1.399.2",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-router-dom": "^7.18.1",
+    "rough-notation": "^0.5.1",
     "standardwebhooks": "^1.1.1"
   },
   "devDependencies": {
