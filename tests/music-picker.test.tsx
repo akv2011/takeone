@@ -13,6 +13,7 @@ function Harness() {
 test('picker selects approved music and updates level, ducking and removal', () => {
   query.mockReturnValue([{ id: 'upbeat', label: 'Upbeat', attribution: 'Test artist' }]);
   render(<Harness />);
+  fireEvent.click(screen.getByRole('button', { name: 'Background music' }));
   fireEvent.change(screen.getByLabelText('Soundtrack'), { target: { value: 'upbeat' } });
   expect(screen.getByTestId('selection').textContent).toContain('"volume":0.18');
   expect(screen.getByText('Test artist')).toBeTruthy();
@@ -26,6 +27,7 @@ test('picker selects approved music and updates level, ducking and removal', () 
 test('removing original audio is opt-in and disables speech ducking with an explicit warning', () => {
   query.mockReturnValue([{ id: 'upbeat', label: 'Upbeat', attribution: 'Test artist' }]);
   render(<Harness />);
+  fireEvent.click(screen.getByRole('button', { name: 'Background music' }));
   fireEvent.change(screen.getByLabelText('Soundtrack'), { target: { value: 'upbeat' } });
   const replacement = screen.getByLabelText('Remove all original audio, including speech') as HTMLInputElement;
   const ducking = screen.getByLabelText('Lower music while someone speaks') as HTMLInputElement;
@@ -43,6 +45,7 @@ test('preview retries failures and refreshes an expired audio URL without changi
   query.mockReturnValue([{ id: 'upbeat', label: 'Upbeat', attribution: 'Test artist' }]);
   preview.mockRejectedValueOnce(new Error('unavailable')).mockResolvedValueOnce({ url: 'https://media.example/first' }).mockResolvedValueOnce({ url: 'https://media.example/renewed' });
   render(<Harness />);
+  fireEvent.click(screen.getByRole('button', { name: 'Background music' }));
   fireEvent.change(screen.getByLabelText('Soundtrack'), { target: { value: 'upbeat' } });
   const selected = screen.getByTestId('selection').textContent;
   fireEvent.click(screen.getByRole('button', { name: 'Preview soundtrack · free' }));
@@ -61,6 +64,7 @@ test('preview retries failures and refreshes an expired audio URL without changi
 });
 test('unconfigured library explains why no tracks are available', () => {
   query.mockReturnValue([]); render(<Harness />);
-  expect(screen.getByText('Choose your own audio below, or use the music library when it is connected.')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Background music' }));
+  expect(screen.getByText('The music library is empty. Upload your own audio below.')).toBeTruthy();
   expect(screen.getAllByRole('option')).toHaveLength(1);
 });

@@ -177,6 +177,7 @@ test('studio signs its video and edits by source ID rather than trusting a URL',
  mocks.queries.set('generate:getJob', { _id: 'source-job', status: 'done', mode: 'generate', prompt: 'Space video', hasOutput: true });
  render(React.createElement(MemoryRouter, { initialEntries: ['/studio/source-job'] }, React.createElement(Routes, {}, React.createElement(Route, { path: '/studio/:id', element: React.createElement(Studio) }))));
  await waitFor(() => expect(mocks.action).toHaveBeenCalledWith({ jobId: 'source-job' }));
+ fireEvent.click(screen.getByRole('button', { name: 'Describe an edit', exact: true }));
  fireEvent.click(screen.getByRole('button', { name: 'Make it square (1:1)' }));
  await waitFor(() => expect(mocks.mutations.get('generate:requestEdit')).toHaveBeenCalledWith(expect.objectContaining({ sourceJobId: 'source-job', transforms: {aspect:'1:1',fit:'crop'}, requestId: expect.any(String) })));
  expect(mocks.mutations.get('generate:requestEdit')!.mock.calls[0][0]).not.toHaveProperty('sourceUrl');
@@ -191,9 +192,10 @@ test('an edit completing after navigation cannot pull the user back into Studio'
   React.createElement(Route, { path: '/studio/:id', element: React.createElement(Studio) }),
   React.createElement(Route, { path: '/create', element: React.createElement('h1', {}, 'Your dashboard') }),
  )));
+ fireEvent.click(screen.getByRole('button', { name: 'Describe an edit', exact: true }));
  fireEvent.click(screen.getByRole('button', { name: 'Make it square (1:1)' }));
  expect(submit).toHaveBeenCalledTimes(1);
- fireEvent.click(screen.getByRole('link', { name: 'Back to your videos' }));
+ fireEvent.click(screen.getByRole('link', { name: 'Your videos' }));
  expect(screen.getByRole('heading', { name: 'Your dashboard' })).toBeTruthy();
  await act(async () => { resolve({ jobId: 'new-job' }); });
  expect(screen.getByRole('heading', { name: 'Your dashboard' })).toBeTruthy();
@@ -338,6 +340,7 @@ test('studio previews only the selection, restores speed and submits the edit', 
   const video = view.container.querySelector('video')!;
   Object.defineProperty(video, 'duration', { value: 20, configurable: true });
   fireEvent.loadedMetadata(video);
+  fireEvent.click(screen.getByText('Trim controls'));
   fireEvent.change(screen.getByLabelText('Start (seconds)'), { target: { value: '2' } });
   fireEvent.change(screen.getByLabelText('End (seconds)'), { target: { value: '6' } });
   fireEvent.change(screen.getByLabelText('Playback speed'), { target: { value: '2' } });
@@ -346,7 +349,7 @@ test('studio previews only the selection, restores speed and submits the edit', 
   expect(mocks.mutations.get('generate:requestEdit')).not.toHaveBeenCalled();
   video.currentTime = 6; fireEvent.timeUpdate(video);
   expect(pause).toHaveBeenCalled(); expect(video.playbackRate).toBe(1);
-  fireEvent.click(screen.getByText('Apply trim & speed · 1 generation'));
+  fireEvent.click(screen.getByText('Apply edit'));
   await waitFor(() => expect(mocks.mutations.get('generate:requestEdit')).toHaveBeenCalledWith(expect.objectContaining({ sourceJobId: 'source-job', transforms: { trim: { start: 2, end: 6 }, speed: 2, aspect: '9:16', fit: 'crop' } })));
  } finally { play.mockRestore(); pause.mockRestore(); }
 });
@@ -398,13 +401,14 @@ test('soundtrack replacement requires an explicit choice and warns about speech 
  mocks.queries.set('generate:getJob', { _id: 'source-job', status: 'done', mode: 'generate', prompt: 'Space video', hasOutput: true });
  mocks.queries.set('music:listTracks', [{ id: 'upbeat', label: 'Upbeat', attribution: 'Licensed test track' }]);
  render(React.createElement(MemoryRouter, { initialEntries: ['/studio/source-job'] }, React.createElement(Routes, {}, React.createElement(Route, { path: '/studio/:id', element: React.createElement(Studio) }))));
+ fireEvent.click(screen.getByRole('button', { name: 'Background music', exact: true }));
  fireEvent.change(screen.getByLabelText('Soundtrack'), { target: { value: 'upbeat' } });
  const replacement = screen.getByLabelText('Remove all original audio, including speech') as HTMLInputElement;
  expect(replacement.checked).toBe(false);
  fireEvent.click(replacement);
  expect(screen.getByText(/Speech, original music and sound effects will be removed/)).toBeTruthy();
  expect((screen.getByLabelText('Lower music while someone speaks') as HTMLInputElement).disabled).toBe(true);
- fireEvent.click(screen.getByText('Apply soundtrack · uses 1 generation'));
+ fireEvent.click(screen.getByText('Apply soundtrack'));
  await waitFor(() => expect(mocks.mutations.get('generate:requestEdit')).toHaveBeenCalledWith(expect.objectContaining({ music: expect.objectContaining({ trackId: 'upbeat', replaceSourceAudio: true }) })));
 });
 
@@ -412,6 +416,7 @@ test('soundtrack preview loads audio without submitting a render', async () => {
  mocks.queries.set('generate:getJob', { _id: 'source-job', status: 'done', mode: 'generate', prompt: 'Space video', hasOutput: true });
  mocks.queries.set('music:listTracks', [{ id: 'upbeat', label: 'Upbeat', attribution: 'Licensed test track' }]);
  const view = render(React.createElement(MemoryRouter, { initialEntries: ['/studio/source-job'] }, React.createElement(Routes, {}, React.createElement(Route, { path: '/studio/:id', element: React.createElement(Studio) }))));
+ fireEvent.click(screen.getByRole('button', { name: 'Background music', exact: true }));
  fireEvent.change(screen.getByLabelText('Soundtrack'), { target: { value: 'upbeat' } });
  fireEvent.click(screen.getByText('Preview soundtrack · free'));
  await waitFor(() => expect(view.container.querySelector('audio')).not.toBeNull());
@@ -454,15 +459,17 @@ test('Studio submits a caption-only version and preserves soundtrack attribution
  mocks.queries.set('generate:getJob', { _id: 'source-job', status: 'done', mode: 'generate', prompt: 'A video', hasOutput: true, hasCaptionArchive: true, soundtrack: { label: 'Licensed track', attribution: 'Credit the artist' } });
  render(React.createElement(MemoryRouter, { initialEntries: ['/studio/source-job'] }, React.createElement(Routes, {}, React.createElement(Route, { path: '/studio/:id', element: React.createElement(Studio) }))));
  expect(screen.getByText(/Licensed track.*Credit the artist/)).toBeTruthy();
+ fireEvent.click(screen.getByRole('button', { name: 'Caption style', exact: true }));
  fireEvent.change(screen.getByLabelText('New caption style'), { target: { value: 'none' } });
- fireEvent.click(screen.getByRole('button', { name: 'Apply caption style · 1 generation' }));
+ fireEvent.click(screen.getByRole('button', { name: 'Apply style' }));
  await waitFor(() => expect(mocks.mutations.get('generate:requestCaptionEdit')).toHaveBeenCalledWith(expect.objectContaining({ sourceJobId: 'source-job', captionStyle: 'none', requestId: expect.any(String) })));
  expect(mocks.mutations.get('generate:requestEdit')).not.toHaveBeenCalled();
 });
 test('Studio does not offer caption replacement without a retained layer', () => {
  mocks.queries.set('generate:getJob', { _id: 'source-job', status: 'done', mode: 'generate', prompt: 'A video', hasOutput: true });
  render(React.createElement(MemoryRouter, { initialEntries: ['/studio/source-job'] }, React.createElement(Routes, {}, React.createElement(Route, { path: '/studio/:id', element: React.createElement(Studio) }))));
- expect(screen.queryByRole('button', { name: 'Apply caption style · 1 generation' })).toBeNull();
+ fireEvent.click(screen.getByRole('button', { name: 'Caption style', exact: true }));
+ expect(screen.queryByRole('button', { name: 'Apply style' })).toBeNull();
  expect(screen.getByText(/This version has no editable caption layer/)).toBeTruthy();
 });
 
@@ -511,15 +518,16 @@ test('Studio loads caption wording for free and submits corrections with saved t
  mocks.queries.set('generate:getJob', { _id: 'source-job', status: 'done', mode: 'generate', prompt: 'Space video', hasOutput: true, hasCaptionArchive: true });
  mocks.action.mockImplementation(async args => args.jobId === 'source-job' ? [{ start: 0, end: 1, text: 'Misspelled word' }] : { url: 'https://storage.test/video.mp4' });
  render(React.createElement(MemoryRouter, { initialEntries: ['/studio/source-job'] }, React.createElement(Routes, {}, React.createElement(Route, { path: '/studio/:id', element: React.createElement(Studio) }))));
+ fireEvent.click(screen.getByRole('button', { name: 'Caption style', exact: true }));
  fireEvent.click(screen.getByText('Edit caption wording · free to load'));
  const field = await screen.findByLabelText(/Caption 1 · 0.00 to 1.00s/);
  expect(mocks.mutations.get('generate:requestCaptionEdit')).not.toHaveBeenCalled();
  fireEvent.change(field, { target: { value: '' } });
- expect((screen.getByText('Apply caption style · 1 generation') as HTMLButtonElement).disabled).toBe(true);
+ expect((screen.getByText('Apply style') as HTMLButtonElement).disabled).toBe(true);
  fireEvent.change(field, { target: { value: 'Corrected word' } });
  fireEvent.change(screen.getByLabelText('Caption position'), { target: { value: 'top' } });
  fireEvent.change(screen.getByLabelText('Caption font'), { target: { value: 'serif' } });
- fireEvent.click(screen.getByText('Apply caption style · 1 generation'));
+ fireEvent.click(screen.getByText('Apply style'));
  await waitFor(() => expect(mocks.mutations.get('generate:requestCaptionEdit')).toHaveBeenCalledWith({ sourceJobId: 'source-job', captionStyle: 'clean', captionTexts: ['Corrected word'], captionPosition: 'top', captionFont: 'serif', requestId: expect.any(String) }));
 });
 
@@ -578,6 +586,7 @@ test('studio seeks out of a speed preview and marks exact player time without ch
   const video = view.container.querySelector('video')!;
   Object.defineProperty(video, 'duration', { value: 20, configurable: true });
   fireEvent.loadedMetadata(video);
+  fireEvent.click(screen.getByText('Trim controls'));
   fireEvent.change(screen.getByLabelText('Start (seconds)'), { target: { value: '2' } });
   fireEvent.change(screen.getByLabelText('End (seconds)'), { target: { value: '6' } });
   fireEvent.change(screen.getByLabelText('Playback speed'), { target: { value: '2' } });
@@ -592,7 +601,7 @@ test('studio seeks out of a speed preview and marks exact player time without ch
   video.currentTime = 12.125;
   fireEvent.click(screen.getByText('Set end here'));
   expect(mocks.mutations.get('generate:requestEdit')).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByText('Apply trim & speed · 1 generation'));
+  fireEvent.click(screen.getByText('Apply edit'));
   await waitFor(() => expect(mocks.mutations.get('generate:requestEdit')).toHaveBeenCalledWith(expect.objectContaining({ transforms: { trim: { start: 9.375, end: 12.125 }, speed: 2, aspect: '9:16', fit: 'crop' } })));
  } finally { play.mockRestore(); pause.mockRestore(); }
 });
@@ -683,6 +692,7 @@ test.each([
  mocks.queries.set('generate:getJob', { _id: 'source-job', status: 'done', mode: 'generate', prompt: 'A video', hasOutput: true });
  render(React.createElement(MemoryRouter, { initialEntries: ['/studio/source-job'] }, React.createElement(Routes, {}, React.createElement(Route, { path: '/studio/:id', element: React.createElement(Studio) }))));
  mocks.mutations.get('generate:requestEdit')!.mockRejectedValue({ data: code });
+ fireEvent.click(screen.getByRole('button', { name: 'Describe an edit', exact: true }));
  fireEvent.change(screen.getByPlaceholderText('Describe an edit…'), { target: { value: 'make captions bold' } });
  fireEvent.click(screen.getByRole('button', { name: 'Edit', exact: true }));
  await screen.findByText(new RegExp(message));
@@ -696,6 +706,7 @@ test.each(['queued', 'processing', 'failed'])('Studio keeps the owned parent pla
  render(React.createElement(MemoryRouter, { initialEntries: ['/studio/pending'] }, React.createElement(Routes, {}, React.createElement(Route, { path: '/studio/:id', element: React.createElement(Studio) }))));
  expect(await screen.findByLabelText('Previous completed version')).toBeTruthy();
  expect(screen.getByRole('link', { name: 'Open previous version' }).getAttribute('href')).toBe('/studio/parent');
+ fireEvent.click(screen.getByRole('button', { name: 'Describe an edit', exact: true }));
  expect((screen.getByRole('button', { name: 'Edit', exact: true }) as HTMLButtonElement).disabled).toBe(true);
  expect((screen.getByLabelText('Describe an edit') as HTMLInputElement).disabled).toBe(true);
  expect(mocks.mutations.get('generate:requestEdit')).not.toHaveBeenCalled();
@@ -710,7 +721,7 @@ test('Studio previews framing locally and submits structured values without inst
  expect((view.container.querySelector('.studio-video') as HTMLElement).style.aspectRatio).toBe('16 / 9');
  expect((video as HTMLVideoElement).style.objectFit).toBe('contain');
  expect(mocks.mutations.get('generate:requestEdit')).not.toHaveBeenCalled();
- fireEvent.click(screen.getByText('Apply framing · 1 generation'));
+ fireEvent.click(screen.getByText('Apply framing'));
  await waitFor(()=>expect(mocks.mutations.get('generate:requestEdit')).toHaveBeenCalledWith({sourceJobId:'source-job',transforms:{aspect:'16:9',fit:'fit'},music:undefined,requestId:expect.any(String)}));
 });
 
@@ -723,7 +734,7 @@ test('framing selection resets to the opened version and late structured request
  mocks.queries.set('generate:versions',[{_id:'other',prompt:'Other version',status:'done',original:true,createdAt:1}]);
  render(React.createElement(MemoryRouter,{initialEntries:['/studio/source-job']},React.createElement(Routes,{},React.createElement(Route,{path:'/studio/:id',element:React.createElement(Studio)}))));
  fireEvent.change(screen.getByLabelText('Output ratio'),{target:{value:'16:9'}});
- fireEvent.click(screen.getByText('Apply framing · 1 generation'));
+ fireEvent.click(screen.getByText('Apply framing'));
  fireEvent.click(screen.getByRole('link',{name:/Original/}));
  await waitFor(()=>expect((screen.getByLabelText('Output ratio') as HTMLSelectElement).value).toBe('1:1'));
  await act(async()=>{resolve({jobId:'late-job'});});
@@ -735,6 +746,7 @@ test('framing selection resets to the opened version and late structured request
 test('conversational edits retain the instruction API without adding transforms', async () => {
  mocks.queries.set('generate:getJob',{_id:'source-job',status:'done',mode:'edit',prompt:'A video',hasOutput:true});
  render(React.createElement(MemoryRouter,{initialEntries:['/studio/source-job']},React.createElement(Routes,{},React.createElement(Route,{path:'/studio/:id',element:React.createElement(Studio)}))));
+ fireEvent.click(screen.getByRole('button', { name: 'Describe an edit', exact: true }));
  fireEvent.change(screen.getByLabelText('Describe an edit'),{target:{value:'Add my studio watermark'}});
  fireEvent.click(screen.getByRole('button',{name:'Edit',exact:true}));
  await waitFor(()=>expect(mocks.mutations.get('generate:requestEdit')).toHaveBeenCalledWith({sourceJobId:'source-job',instruction:'Add my studio watermark',music:undefined,requestId:expect.any(String)}));
@@ -749,7 +761,7 @@ test('a structured edit response from the previous account cannot navigate the n
  const page=()=>React.createElement(MemoryRouter,{initialEntries:['/studio/source-job']},React.createElement(Routes,{},React.createElement(Route,{path:'/studio/:id',element:React.createElement(Studio)})));
  const view=render(page());
  fireEvent.change(screen.getByLabelText('Output ratio'),{target:{value:'16:9'}});
- fireEvent.click(screen.getByText('Apply framing · 1 generation'));
+ fireEvent.click(screen.getByText('Apply framing'));
  expect(submit).toHaveBeenCalledOnce();
  mocks.userId='second-account';
  mocks.queries.set('generate:getJob',null);
@@ -833,12 +845,14 @@ test('studio shows the claims panel for a finished video that has a claims resul
  mocks.queries.set('generate:getJob', { _id: 'source-job', status: 'done', mode: 'generate', prompt: 'Space video', hasOutput: true,
   claims: { status: 'checked', claims: [{ text: 'The Moon orbits Earth.', verdict: 'supported', reason: 'NASA says so.', sources: [], searches: [] }] } });
  const view = render(React.createElement(MemoryRouter, { initialEntries: ['/studio/source-job'] }, React.createElement(Routes, {}, React.createElement(Route, { path: '/studio/:id', element: React.createElement(Studio) }))));
+ fireEvent.click(screen.getByRole('button', { name: 'Check claims', exact: true }));
  expect(await screen.findByRole('heading', { name: 'Claims' })).toBeTruthy();
  expect(screen.getByText('Supported')).toBeTruthy();
  view.unmount();
  mocks.queries.set('generate:getJob', { _id: 'source-job', status: 'done', mode: 'generate', prompt: 'Space video', hasOutput: true, claims: null });
  render(React.createElement(MemoryRouter, { initialEntries: ['/studio/source-job'] }, React.createElement(Routes, {}, React.createElement(Route, { path: '/studio/:id', element: React.createElement(Studio) }))));
  await screen.findByRole('heading', { name: 'Space video' });
+ expect(screen.queryByRole('button', { name: 'Check claims', exact: true })).toBeNull();
  expect(screen.queryByRole('heading', { name: 'Claims' })).toBeNull();
 });
 

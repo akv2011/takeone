@@ -103,7 +103,7 @@ test('creates once with the exact rounded payload and displays the returned revi
   await act(async () => resolve(project));
   expect(screen.getByText('Launch cut')).toBeTruthy();
   expect(screen.getByText('Revision 2')).toBeTruthy();
-  expect(screen.getByText('Saved draft · no generation used')).toBeTruthy();
+  expect(screen.getByText('Saved draft')).toBeTruthy();
 });
 
 test('uses a valid request ID fallback when randomUUID is unavailable', async () => {
@@ -170,7 +170,7 @@ test('summarizes an existing project without spending a generation', () => {
   expect(screen.getByText('Launch cut')).toBeTruthy();
   expect(screen.getByText('Revision 2')).toBeTruthy();
   expect(screen.getByText('8.125s total · 2 clips')).toBeTruthy();
-  expect(screen.getByText('Saved draft · no generation used')).toBeTruthy();
+  expect(screen.getByText('Saved draft')).toBeTruthy();
   expect(mocks.create).not.toHaveBeenCalled();
   expect(mocks.edit).not.toHaveBeenCalled();
 });

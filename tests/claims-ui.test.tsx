@@ -30,11 +30,13 @@ afterEach(cleanup);
 
 test('each claim shows its verdict as text and colour, its reason and its sources in a new tab, with no search chip or query links', () => {
   const view = render(<ClaimsPanel claims={checked} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Check claims' }));
+  fireEvent.click(screen.getByRole('button', { name: 'How this works' }));
   expect(screen.getByRole('heading', { name: 'Claims' })).toBeTruthy();
-  expect(screen.getByText(/Gemini with Google Search checked the factual claims.*Verdicts can be wrong/)).toBeTruthy();
+  expect(screen.getByText(/Gemini with Google Search checked factual claims.*Verdicts can be wrong/)).toBeTruthy();
   const items = screen.getAllByRole('listitem').filter(item => item.parentElement?.tagName === 'OL');
   expect(items).toHaveLength(3);
-  for (const [item, label, colour] of [[items[0], 'Supported', 'text-go'], [items[1], 'Disputed', 'text-warn'], [items[2], 'Unverified', 'text-cueInk']] as const) {
+  for (const [item, label, colour] of [[items[0], 'Supported', 'text-go'], [items[1], 'Disputed', 'text-grease'], [items[2], 'Unclear', 'text-wait']] as const) {
     expect(within(item).getByText(label).className).toContain(colour);
   }
   expect(within(items[0]).getByText('The operator lists 330 m.')).toBeTruthy();
@@ -50,10 +52,11 @@ test('each claim shows its verdict as text and colour, its reason and its source
 
 
 test.each([
-  [{ status: 'unavailable' } as const, 'The claims check could not finish for this video.'],
+  [{ status: 'unavailable' } as const, 'The claims check could not finish for this video. Check its claims before sharing.'],
   [{ status: 'checked', claims: [] } as const, 'Gemini found no factual claims to check in this video.'],
 ])('shows a plain message for %j', (claims, message) => {
   render(<ClaimsPanel claims={claims} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Check claims' }));
   expect(screen.getByText(message)).toBeTruthy();
   expect(screen.queryAllByRole('link')).toHaveLength(0);
 });

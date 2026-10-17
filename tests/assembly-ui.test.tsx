@@ -120,7 +120,7 @@ test('project route wins over the job route and local operations stay free until
   fireEvent.click(screen.getByRole('button', { name: /Move clip 2 Product demo earlier/ }));
   expect(screen.getAllByTestId('clip-card')[0].textContent).toContain('Product demo');
   expect(screen.getByText('Unsaved changes')).toBeTruthy();
-  expect((screen.getByRole('button', { name: 'Export saved revision · 1 generation' }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('button', { name: 'Export revision' }) as HTMLButtonElement).disabled).toBe(true);
 });
 
 test('trim, split, duplicate, remove, replace, fit, mute, and transition recalculate deterministic timing', () => {
@@ -163,7 +163,7 @@ test('save uses optimistic concurrency and export sends only the returned saved 
   fireEvent.click(screen.getByRole('button', { name: 'Save draft · free' }));
   await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ projectId: 'project-one', parentRevisionId: 'revision-one', requestId: expect.any(String) })));
   await screen.findByText('Saved revision 2');
-  fireEvent.click(screen.getByRole('button', { name: 'Export saved revision · 1 generation' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Export revision' }));
   await waitFor(() => expect(exportRevision).toHaveBeenCalledWith({ projectId: 'project-one', revisionId: 'revision-two', requestId: expect.any(String) }));
 });
 
@@ -199,7 +199,7 @@ test('pending export freezes edits and never navigates after the account scope c
   let resolve!: (value: any) => void;
   mocks.mutations.set('projects:requestExport', vi.fn(() => new Promise(done => { resolve = done; })));
   const view = renderStudio();
-  fireEvent.click(screen.getByRole('button', { name: 'Export saved revision · 1 generation' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Export revision' }));
   expect((screen.getByLabelText('Clip 1 out (seconds)').closest('fieldset') as HTMLFieldSetElement).disabled).toBe(true);
   mocks.userId = 'other';
   view.rerender(<MemoryRouter initialEntries={['/studio/project/project-one']}><Routes>
@@ -296,7 +296,7 @@ test('a revision conflict keeps local edits visible and blocks export', async ()
   fireEvent.click(screen.getByRole('button', { name: 'Save draft · free' }));
   expect(await screen.findByText(/changed elsewhere/)).toBeTruthy();
   expect(screen.getByText('Unsaved changes')).toBeTruthy();
-  expect((screen.getByRole('button', { name: 'Export saved revision · 1 generation' }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('button', { name: 'Export revision' }) as HTMLButtonElement).disabled).toBe(true);
 });
 
 test('account loss hides private project data and the full editor remains operable at mobile width', () => {

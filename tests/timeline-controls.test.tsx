@@ -7,21 +7,23 @@ afterEach(cleanup);
 test('preview is separate from a paid submission and carries the selected speed', () => {
  const onApply = vi.fn(), onPreview = vi.fn();
  render(<TimelineControls duration={90} disabled={false} onApply={onApply} onPreview={onPreview} />);
+ fireEvent.click(screen.getByText('Trim controls'));
  fireEvent.change(screen.getByLabelText('Start (seconds)'), { target: { value: '65' } });
  fireEvent.change(screen.getByLabelText('End (seconds)'), { target: { value: '75' } });
  fireEvent.change(screen.getByLabelText('Playback speed'), { target: { value: '2' } });
  fireEvent.click(screen.getByText('Preview selection'));
  expect(onPreview).toHaveBeenCalledWith(65, 75, 2);
  expect(onApply).not.toHaveBeenCalled();
- fireEvent.click(screen.getByText('Apply trim & speed · 1 generation'));
+ fireEvent.click(screen.getByRole('button', { name: 'Apply edit' }));
  expect(onApply).toHaveBeenCalledWith('Trim 01:05 to 01:15 and speed 2x');
 });
 test.each(['0', '31', '1.0001', '-1'])('invalid end %s cannot preview or spend', end => {
  const onApply = vi.fn(), onPreview = vi.fn();
  render(<TimelineControls duration={30} disabled={false} onApply={onApply} onPreview={onPreview} />);
+ fireEvent.click(screen.getByText('Trim controls'));
  fireEvent.change(screen.getByLabelText('End (seconds)'), { target: { value: end } });
  fireEvent.click(screen.getByText('Preview selection'));
- fireEvent.click(screen.getByText('Apply trim & speed · 1 generation'));
+ fireEvent.click(screen.getByRole('button', { name: 'Apply edit' }));
  expect(onPreview).not.toHaveBeenCalled(); expect(onApply).not.toHaveBeenCalled();
  expect(screen.getByRole('alert')).toBeTruthy();
 });
@@ -29,11 +31,12 @@ test.each(['0', '31', '1.0001', '-1'])('invalid end %s cannot preview or spend',
 test('fractional cuts preserve milliseconds in preview and render instructions', () => {
  const onApply = vi.fn(), onPreview = vi.fn();
  render(<TimelineControls duration={90} disabled={false} onApply={onApply} onPreview={onPreview} />);
+ fireEvent.click(screen.getByText('Trim controls'));
  fireEvent.change(screen.getByLabelText('Start (seconds)'), { target: { value: '65.125' } });
  fireEvent.change(screen.getByLabelText('End (seconds)'), { target: { value: '75.375' } });
  fireEvent.click(screen.getByText('Preview selection'));
  expect(onPreview).toHaveBeenCalledWith(65.125, 75.375, 1);
- fireEvent.click(screen.getByText('Apply trim & speed · 1 generation'));
+ fireEvent.click(screen.getByRole('button', { name: 'Apply edit' }));
  expect(onApply).toHaveBeenCalledWith('Trim 01:05.125 to 01:15.375');
 });
 
@@ -41,6 +44,7 @@ test('seeking and marking read the player without submitting a generation', () =
  const onApply = vi.fn(), onPreview = vi.fn(), onSeek = vi.fn();
  const readCurrentTime = vi.fn().mockReturnValue(2.1254);
  render(<TimelineControls duration={10} currentTime={1} disabled={false} onSeek={onSeek} readCurrentTime={readCurrentTime} onApply={onApply} onPreview={onPreview} />);
+ fireEvent.click(screen.getByText('Trim controls'));
  fireEvent.change(screen.getByLabelText('Seek video'), { target: { value: '2.125' } });
  expect(onSeek).toHaveBeenCalledWith(2.125);
  fireEvent.click(screen.getByText('Set start here'));
@@ -49,13 +53,14 @@ test('seeking and marking read the player without submitting a generation', () =
  expect((screen.getByLabelText('Start (seconds)') as HTMLInputElement).value).toBe('2.125');
  expect((screen.getByLabelText('End (seconds)') as HTMLInputElement).value).toBe('7.875');
  expect(onApply).not.toHaveBeenCalled(); expect(onPreview).not.toHaveBeenCalled();
- fireEvent.click(screen.getByText('Apply trim & speed · 1 generation'));
+ fireEvent.click(screen.getByRole('button', { name: 'Apply edit' }));
  expect(onApply).toHaveBeenCalledWith('Trim 00:02.125 to 00:07.875');
 });
 
 test('range controls synchronize numeric boundaries and seek their preview', () => {
  const onApply = vi.fn(), onSeek = vi.fn();
  render(<TimelineControls duration={10} disabled={false} onSeek={onSeek} onApply={onApply} onPreview={vi.fn()} />);
+ fireEvent.click(screen.getByText('Trim controls'));
  fireEvent.change(screen.getByLabelText('Selection end'), { target: { value: '8' } });
  fireEvent.change(screen.getByLabelText('Selection start'), { target: { value: '3' } });
  expect(onSeek.mock.calls).toEqual([[8], [3]]);
@@ -69,6 +74,7 @@ test('range controls synchronize numeric boundaries and seek their preview', () 
 test.each([undefined, NaN, Infinity, 0])('unknown duration %s disables seeking and marking', duration => {
  const onSeek = vi.fn(), readCurrentTime = vi.fn();
  render(<TimelineControls duration={duration} disabled={false} onSeek={onSeek} readCurrentTime={readCurrentTime} onApply={vi.fn()} onPreview={vi.fn()} />);
+ fireEvent.click(screen.getByText('Trim controls'));
  expect((screen.getByLabelText('Seek video') as HTMLInputElement).disabled).toBe(true);
  fireEvent.click(screen.getByText('Set start here'));
  expect(readCurrentTime).not.toHaveBeenCalled(); expect(onSeek).not.toHaveBeenCalled();
@@ -77,10 +83,11 @@ test.each([undefined, NaN, Infinity, 0])('unknown duration %s disables seeking a
 test('marking an end before the start is visible but cannot spend', () => {
  const onApply = vi.fn();
  render(<TimelineControls duration={10} disabled={false} onSeek={vi.fn()} readCurrentTime={() => 1} onApply={onApply} onPreview={vi.fn()} />);
+ fireEvent.click(screen.getByText('Trim controls'));
  fireEvent.change(screen.getByLabelText('Start (seconds)'), { target: { value: '2' } });
  fireEvent.click(screen.getByText('Set end here'));
  expect(screen.getByRole('alert')).toBeTruthy();
- fireEvent.click(screen.getByText('Apply trim & speed · 1 generation'));
+ fireEvent.click(screen.getByRole('button', { name: 'Apply edit' }));
  expect(onApply).not.toHaveBeenCalled();
 });
 
@@ -88,10 +95,11 @@ test('marking an end before the start is visible but cannot spend', () => {
 test('structured application preserves fractional seconds and never also submits an instruction', () => {
  const onApply=vi.fn(), onApplyTransforms=vi.fn();
  render(<TimelineControls duration={20} disabled={false} onPreview={vi.fn()} onApply={onApply} onApplyTransforms={onApplyTransforms} />);
+ fireEvent.click(screen.getByText('Trim controls'));
  fireEvent.change(screen.getByLabelText('Start (seconds)'), {target:{value:'1.125'}});
  fireEvent.change(screen.getByLabelText('End (seconds)'), {target:{value:'3.875'}});
  fireEvent.change(screen.getByLabelText('Playback speed'), {target:{value:'3'}});
- fireEvent.click(screen.getByText('Apply trim & speed · 1 generation'));
+ fireEvent.click(screen.getByRole('button', { name: 'Apply edit' }));
  expect(onApplyTransforms).toHaveBeenCalledWith({trim:{start:1.125,end:3.875},speed:3});
  expect(onApply).not.toHaveBeenCalled();
 });
@@ -99,9 +107,10 @@ test('structured application preserves fractional seconds and never also submits
 test('slowdown permits exactly 300 output seconds and blocks longer exports while keeping free preview', () => {
  const onApplyTransforms=vi.fn(), onPreview=vi.fn();
  render(<TimelineControls duration={200} disabled={false} onPreview={onPreview} onApplyTransforms={onApplyTransforms} />);
+ fireEvent.click(screen.getByText('Trim controls'));
  fireEvent.change(screen.getByLabelText('End (seconds)'), {target:{value:'150'}});
  fireEvent.change(screen.getByLabelText('Playback speed'), {target:{value:'0.5'}});
- const apply=screen.getByText('Apply trim & speed · 1 generation') as HTMLButtonElement;
+ const apply=screen.getByRole('button', { name: 'Apply edit' }) as HTMLButtonElement;
  expect(apply.disabled).toBe(false);
  fireEvent.click(apply);
  expect(onApplyTransforms).toHaveBeenCalledOnce();

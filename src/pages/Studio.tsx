@@ -15,7 +15,7 @@ import type {
   OutputFit,
 } from "../lib/editTransforms";
 import { GenerationCost, InspectorSection, PanelState, StudioWorkspace } from "../components/StudioWorkspace";
-import { PreviousVersionPlayer, VersionThumbnail } from "../components/PreviousVersionPlayer";
+import { PreviousVersionPlayer } from "../components/PreviousVersionPlayer";
 import TelegramDeliveryStatus from "../components/TelegramDeliveryStatus";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -530,7 +530,7 @@ function StudioInner() {
                           }
                           className="text-ink"
                         >
-                          <VersionThumbnail jobId={version._id} ready={version.status === 'done'} />
+                          <span className="version-thumbnail" aria-hidden="true"><FilmStrip size={18} weight="regular" /></span>
                           <span className="version-copy">
                             <span>{version.original ? "Original" : version.prompt}</span>
                             <span>{VERSION_STATUS[version.status] ?? version.status} · <time dateTime={new Date(version.createdAt).toISOString()} title={new Date(version.createdAt).toLocaleString()}>{relativeVersionTime(version.createdAt)}</time></span>

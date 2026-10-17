@@ -75,6 +75,7 @@ test('a failed scene query leaves the video and transcript usable', async () => 
  mocks.sceneError = true;
  render(page());
  expect(await screen.findByLabelText('Current video')).toBeTruthy();
+ fireEvent.click(screen.getByRole('button', { name: 'Scene plan', exact: true }));
  expect(screen.getByRole('button', { name: 'Retry scene details' })).toBeTruthy();
  fireEvent.click(screen.getByRole('button', { name: 'Load transcript · free' }));
  expect(await screen.findByLabelText('Search transcript')).toBeTruthy();
@@ -84,9 +85,10 @@ test('a failed scene query leaves the video and transcript usable', async () => 
 
 test('Studio brand selection is free and its explicit render sends the selected immutable revision', async () => {
  mocks.mutation.mockResolvedValue({ jobId: 'brand-output' }); render(page()); await screen.findByLabelText('Current video');
+ fireEvent.click(screen.getByRole('button', { name: 'Brand kit', exact: true }));
  fireEvent.change(screen.getByLabelText('Saved brand kit'), { target: { value: 'soap-kit' } });
  expect(mocks.mutation).not.toHaveBeenCalled();
- fireEvent.click(screen.getByRole('button', { name: 'Apply brand kit · 1 generation' }));
+ fireEvent.click(screen.getByRole('button', { name: 'Apply kit' }));
  await act(async () => {});
  expect(mocks.mutation).toHaveBeenCalledExactlyOnceWith({ sourceJobId: 'source', brandKit: { kitId: 'soap-kit', revision: 3 }, requestId: expect.any(String) });
 });
@@ -101,9 +103,11 @@ test('Studio puts the completed source project first while retaining scenes and 
  const project = screen.getByLabelText('Editable project');
  const scenes = screen.getByLabelText('Scene plan');
  const history = screen.getByLabelText('Version history');
- const children = Array.from(aside.children);
- expect(children.indexOf(project)).toBeLessThan(children.indexOf(scenes));
- expect(children.indexOf(project)).toBeLessThan(children.indexOf(history));
+ expect(aside.contains(project)).toBe(true);
+ expect(aside.contains(history)).toBe(true);
+ expect(screen.getByLabelText('Inspector').contains(scenes)).toBe(true);
+ expect(project.compareDocumentPosition(scenes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+ expect(project.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
  expect((screen.getByRole('button', { name: 'Create editable project' }) as HTMLButtonElement).disabled).toBe(false);
  expect(mocks.query).toHaveBeenCalledWith('projects:forSource', {
   sourceJobId: 'source',

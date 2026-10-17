@@ -9,12 +9,14 @@ beforeEach(() => { mocks.kits = [{ _id: 'kit', name: 'Soap', revision: 1, settin
 afterEach(cleanup);
 test('choosing and previewing kit is local and apply is explicit', () => {
  const change = vi.fn(), apply = vi.fn(); const view = render(<BrandKitPanel accountKey="owner" onChange={change} onApply={apply} />);
+ fireEvent.click(screen.getByRole('button', { name: 'Brand kit' }));
  fireEvent.change(screen.getByLabelText('Saved brand kit'), { target: { value: 'kit' } }); expect(change).toHaveBeenCalledWith({ kitId: 'kit', revision: 1 }); expect(apply).not.toHaveBeenCalled(); expect(mocks.save).not.toHaveBeenCalled();
  view.rerender(<BrandKitPanel accountKey="owner" value={{ kitId: 'kit', revision: 1 }} onChange={change} onApply={apply} />);
- fireEvent.click(screen.getByRole('button', { name: 'Apply brand kit · 1 generation' })); expect(apply).toHaveBeenCalledOnce();
+ fireEvent.click(screen.getByRole('button', { name: 'Apply kit' })); expect(apply).toHaveBeenCalledOnce();
 });
 test('save persists palette/font/style and no render is invoked', async () => {
  const apply = vi.fn(), change = vi.fn(); render(<BrandKitPanel accountKey="owner" onChange={change} onApply={apply} />);
+ fireEvent.click(screen.getByRole('button', { name: 'Brand kit' }));
  fireEvent.click(screen.getByRole('button', { name: 'Create kit' }));
  fireEvent.change(screen.getByLabelText('Kit name'), { target: { value: 'My brand' } });
  fireEvent.change(screen.getByLabelText('Caption font'), { target: { value: 'mono' } });
@@ -26,20 +28,23 @@ test('save persists palette/font/style and no render is invoked', async () => {
 test('late save after account change cannot select the prior owner kit', async () => {
  let resolve!: (value: any) => void; mocks.save.mockImplementation(() => new Promise(done => { resolve = done; }));
  const change = vi.fn(); const view = render(<BrandKitPanel accountKey="owner" onChange={change} />);
+ fireEvent.click(screen.getByRole('button', { name: 'Brand kit' }));
  fireEvent.click(screen.getByRole('button', { name: 'Create kit' })); fireEvent.change(screen.getByLabelText('Kit name'), { target: { value: 'Private brand' } }); fireEvent.click(screen.getByRole('button', { name: 'Save kit' }));
  view.rerender(<BrandKitPanel accountKey="other" onChange={change} />);
  await act(async () => resolve({ kitId: 'private-kit', revision: 1 })); expect(change).not.toHaveBeenCalled(); expect(screen.queryByDisplayValue('Private brand')).toBeNull();
 });
 test('unsupported logo and missing archive cannot submit a render', () => {
  const apply = vi.fn(); render(<BrandKitPanel accountKey="owner" value={{ kitId: 'kit', revision: 1 }} onChange={vi.fn()} onApply={apply} unavailable />);
- expect((screen.getByRole('button', { name: 'Apply brand kit · 1 generation' }) as HTMLButtonElement).disabled).toBe(true);
+ fireEvent.click(screen.getByRole('button', { name: 'Brand kit' }));
+ expect((screen.getByRole('button', { name: 'Apply kit' }) as HTMLButtonElement).disabled).toBe(true);
  fireEvent.click(screen.getByRole('button', { name: 'Edit selected kit' }));
  fireEvent.change(screen.getByLabelText(/PNG logo/), { target: { files: [new File(['<svg/>'], 'logo.svg', { type: 'image/svg+xml' })] } });
  expect(screen.getByRole('alert').textContent).toContain('Use a PNG'); expect(apply).not.toHaveBeenCalled();
 });
 test('a changed revision requires reselection before applying', () => {
  render(<BrandKitPanel accountKey="owner" value={{ kitId: 'kit', revision: 0 }} onChange={vi.fn()} onApply={vi.fn()} />);
- expect(screen.getByRole('status').textContent).toContain('changed'); expect((screen.getByRole('button', { name: 'Apply brand kit · 1 generation' }) as HTMLButtonElement).disabled).toBe(true);
+ fireEvent.click(screen.getByRole('button', { name: 'Brand kit' }));
+ expect(screen.getByRole('status').textContent).toContain('changed'); expect((screen.getByRole('button', { name: 'Apply kit' }) as HTMLButtonElement).disabled).toBe(true);
 });
 
 test.each(['invalid', 'cancel'])('a %s logo selection clears a pending file read without adopting its late bytes', async kind => {
@@ -47,6 +52,7 @@ test.each(['invalid', 'cancel'])('a %s logo selection clears a pending file read
  const file = new File(['pending'], 'logo.png', { type: 'image/png' });
  Object.defineProperty(file, 'arrayBuffer', { value: () => new Promise(done => { resolve = done; }) });
  render(<BrandKitPanel accountKey="owner" value={{ kitId: 'kit', revision: 1 }} onChange={vi.fn()} />);
+ fireEvent.click(screen.getByRole('button', { name: 'Brand kit' }));
  fireEvent.click(screen.getByRole('button', { name: 'Edit selected kit' }));
  const input = screen.getByLabelText(/PNG logo/);
  fireEvent.change(input, { target: { files: [file] } });
