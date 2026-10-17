@@ -1,16 +1,20 @@
 import { Link } from "react-router-dom";
+import { button } from "../lib/ui";
+import { InkMark } from "../lib/motion";
 
 export default function FinalCTA() {
   return (
-    <section aria-labelledby="final-heading" className="border-t border-line bg-surface px-4 py-20 sm:px-6 md:px-12 md:py-24">
-      <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-8 md:flex-row md:items-end">
-        <div>
-          <h2 id="final-heading" className="text-balance font-display text-5xl font-black leading-[0.9] text-ink md:text-7xl">Make your first short.</h2>
-          <p className="mt-5 max-w-xl text-lg leading-8 text-muted">Sign in, pick what you are starting from, and get a captioned 9:16 cut back. Your first 5 videos are free.</p>
-        </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-3">
-          <Link to="/create" className="inline-flex items-center rounded-md border border-transparent bg-cue px-6 py-3.5 text-base font-bold text-ink transition-colors hover:border-ink">Make a short</Link>
-          <Link to="/pricing" className="inline-flex items-center rounded-md border border-ink bg-surface px-6 py-3.5 text-base font-semibold text-ink transition-colors hover:bg-paper">See pricing</Link>
+    <section aria-labelledby="final-heading" className="relative overflow-hidden border-y border-ink px-4 py-24 sm:px-6 md:py-32">
+      <div aria-hidden="true" className="cta-halftone pointer-events-none absolute inset-0" />
+      <div className="sheet relative mx-auto flex max-w-2xl flex-col items-center px-6 py-14 text-center shadow-hard-lg sm:px-12">
+        <p className="eyebrow">Start</p>
+        <h2 id="final-heading" className="display mt-5 text-[clamp(44px,7vw,84px)] text-ink">Make your first short.</h2>
+        <p className="mt-5 font-mono text-[11px] uppercase tracking-[0.08em] text-ink2">5 free videos · no card</p>
+        <div className="mt-10 flex flex-wrap items-center justify-center gap-5">
+          <InkMark type="circle" delay={0.3}>
+            <Link to="/create" className={`${button("primary")} px-6 py-3.5 text-base`}>Make a short</Link>
+          </InkMark>
+          <Link to="/pricing" className={`${button("secondary")} px-6 py-3.5 text-base`}>See pricing</Link>
         </div>
       </div>
     </section>

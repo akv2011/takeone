@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { Check } from "lucide-react";
-import { button, panel } from "../lib/ui";
+import { Check } from "@phosphor-icons/react";
+import { button, field, panel } from "../lib/ui";
 
 interface SuggestionChip {
   label: string;
@@ -36,7 +36,7 @@ export default function PromptPlayground() {
     setChatLog([
       {
         type: "bot",
-        text: "This is an example. No file is uploaded, rendered or charged here. Pick an instruction below or type your own.",
+        text: "This is an example. No file is uploaded, rendered or charged here. Pick a sample instruction or type your own.",
         done: true,
       },
     ]);
@@ -128,37 +128,54 @@ export default function PromptPlayground() {
 
 
   return (
-    <section aria-labelledby="try-heading" className="w-full border-t border-line px-4 py-20 sm:px-6 md:px-12 md:py-24">
-      <div className="mx-auto max-w-3xl">
-        <h2 id="try-heading" className="text-balance font-display text-5xl font-extrabold leading-[0.9] text-ink md:text-6xl">Try an editing instruction.</h2>
-        <p className="mt-5 max-w-lg text-lg leading-8 text-muted">See the steps TakeOne runs for a plain instruction, before you upload anything.</p>
+    <section aria-labelledby="try-heading" className="w-full px-4 py-24 sm:px-6 md:px-12 md:py-28">
+      <div className="mx-auto grid max-w-[1360px] gap-12 lg:grid-cols-12">
+        <div className="rule-top pt-6 lg:col-span-5">
+          <p className="eyebrow">Try it here</p>
+          <h2 id="try-heading" className="display mt-4 text-[clamp(44px,5.4vw,76px)] text-ink">Try an editing <em>instruction.</em></h2>
+          <div className="mt-8 flex flex-wrap gap-2.5">
+            {SUGGESTIONS.map((chip) => (
+              <button
+                key={chip.label}
+                type="button"
+                onClick={() => simulateTyping(chip)}
+                disabled={isTypingSim}
+                className="border border-ink bg-surface px-3 py-2 font-mono text-[11px] uppercase tracking-[0.08em] text-ink transition-[transform,box-shadow] duration-200 ease-paper hover:-translate-y-0.5 hover:shadow-hard-sm disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none"
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
-        <div className={`${panel} mt-10 overflow-hidden`}>
-          <div className="h-[340px] space-y-5 overflow-y-auto overscroll-contain p-5 sm:p-6">
+        <div className={`${panel} shadow-hard lg:col-span-7`}>
+          <div className="flex items-center justify-between border-b border-ink px-4 py-2.5 font-mono text-[11px] uppercase tracking-[0.08em] text-ink2">
+            <span>Example · nothing is rendered</span>
+            <span aria-hidden="true" className="flex gap-1"><span className="h-2 w-2 border border-ink" /><span className="h-2 w-2 border border-ink" /><span className="h-2 w-2 bg-ink" /></span>
+          </div>
+          <div className="sheet-ruled h-[340px] space-y-5 overflow-y-auto overscroll-contain p-5 sm:p-6">
             {chatLog.map((log, idx) => (
               <div key={idx} className={`flex ${log.type === "user" ? "justify-end" : "justify-start"}`}>
                 {log.type === "user" ? (
-                  <div className="max-w-[85%] break-words rounded-md bg-paper px-4 py-2.5 text-base text-ink">{log.text}</div>
+                  <div className="max-w-[85%] break-words bg-ink px-4 py-2.5 font-mono text-sm text-surface">{log.text}</div>
                 ) : (
                   <div className="w-full max-w-[85%] space-y-3">
                     <p aria-live="polite" className="text-base leading-7 text-ink2">{log.text}</p>
                     {log.details && (
-                      <div className="rounded-md border border-line p-4">
-                        <div className="flex items-center justify-between text-sm text-muted">
+                      <div className="border border-ink bg-surface p-4">
+                        <div className="flex items-center justify-between font-mono text-[11px] uppercase tracking-[0.08em] text-ink2">
                           <span>Example steps</span>
                           <span className="tabular-nums">{log.progress}%</span>
                         </div>
-                        <div aria-hidden="true" className="mt-2 h-1.5 overflow-hidden rounded-full bg-paper">
-                          <div className="flex h-full w-full transition-[clip-path] duration-150" style={{ clipPath: `inset(0 ${100 - (log.progress ?? 0)}% 0 0)` }}>
-                            {["bg-bar-white", "bg-bar-yellow", "bg-bar-cyan", "bg-bar-green", "bg-bar-magenta", "bg-bar-red", "bg-bar-blue"].map((bar) => <span key={bar} className={`h-full flex-1 ${bar}`} />)}
-                          </div>
+                        <div aria-hidden="true" className="mt-2 h-1.5 overflow-hidden bg-paper2">
+                          <div className="h-full bg-ink transition-[width] duration-150" style={{ width: `${log.progress ?? 0}%` }} />
                         </div>
                         <ol className="mt-4 space-y-2 text-sm">
                           {log.details.pipeline.map((step, sIdx) => {
                             const isDone = (log.progress || 0) >= ((sIdx + 1) / log.details!.pipeline.length) * 100;
                             return (
                               <li key={sIdx} className={`flex items-center gap-2 ${isDone ? "text-ink" : "text-muted"}`}>
-                                {isDone ? <Check aria-hidden="true" className="h-4 w-4 text-go" /> : <span aria-hidden="true" className="mx-[3px] h-2.5 w-2.5 rounded-full border border-muted" />}
+                                {isDone ? <Check aria-hidden="true" size={16} className="text-go" /> : <span aria-hidden="true" className="mx-[3px] h-2.5 w-2.5 border border-muted" />}
                                 {step}
                               </li>
                             );
@@ -179,7 +196,7 @@ export default function PromptPlayground() {
             <div ref={chatBottomRef} />
           </div>
 
-          <div className="flex gap-3 border-t border-line bg-paper p-3 sm:p-4">
+          <div className="flex gap-3 border-t border-ink bg-paper p-3 sm:p-4">
             <input
               type="text"
               name="instruction"
@@ -190,26 +207,12 @@ export default function PromptPlayground() {
               onKeyDown={handleKeyPress}
               disabled={isTypingSim}
               placeholder={isTypingSim ? "Typing…" : "Trim 00:05 to 00:15 and speed 2x…"}
-              className="min-w-0 flex-1 rounded-md border border-line bg-surface px-3 py-2 text-base text-ink placeholder:text-muted hover:border-muted"
+              className={`${field} min-w-0 flex-1 font-mono`}
             />
             <button type="button" onClick={() => submitMessage(inputValue)} disabled={isTypingSim || !inputValue.trim()} className={button("dark")}>
               Show example
             </button>
           </div>
-        </div>
-
-        <div className="mt-6 flex flex-wrap gap-2.5">
-          {SUGGESTIONS.map((chip) => (
-            <button
-              key={chip.label}
-              type="button"
-              onClick={() => simulateTyping(chip)}
-              disabled={isTypingSim}
-              className="rounded-md border border-line bg-surface px-3.5 py-2 text-sm font-semibold text-ink2 transition-colors hover:border-ink hover:text-ink disabled:opacity-50"
-            >
-              {chip.label}
-            </button>
-          ))}
         </div>
       </div>
     </section>

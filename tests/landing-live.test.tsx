@@ -9,8 +9,10 @@ vi.mock('convex/react', () => ({ useQuery: () => ({ rendering: { available: true
 import HeroSection from '../src/components/HeroSection';
 import FinalCTA from '../src/components/FinalCTA';
 
-const stubReducedMotion = (matches: boolean) => { window.matchMedia = vi.fn(() => ({ matches })) as unknown as typeof window.matchMedia; };
-beforeEach(() => stubReducedMotion(true));
+const stubReducedMotion = (matches: boolean) => { window.matchMedia = vi.fn(() => ({ matches, addEventListener: () => {}, removeEventListener: () => {} })) as unknown as typeof window.matchMedia; };
+// jsdom has no IntersectionObserver; InkMark on the final call to action waits for one.
+class NoIntersection { observe() {} unobserve() {} disconnect() {} takeRecords() { return []; } }
+beforeEach(() => { stubReducedMotion(true); vi.stubGlobal('IntersectionObserver', NoIntersection); });
 afterEach(cleanup);
 
 test('the live landing page sends people directly into the product without a waitlist form', () => {
