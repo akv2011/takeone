@@ -2,6 +2,7 @@ import { useAction, useQuery } from 'convex/react';
 import { useEffect, useId, useRef, useState, type FormEvent, type RefObject } from 'react';
 import { CAPTION_LANGUAGES } from '../../convex/captions';
 import { parseYouTubeLink, watchUrl, type Moment, type MomentAnalysis, type MomentTranslation } from '../../convex/youtubeValues';
+import { FilmStrip, LinkSimple, MagnifyingGlass, Translate, WarningCircle } from '@phosphor-icons/react';
 import { api } from '../lib/convexApi';
 import { clock } from '../lib/momentHandOff';
 import { button, field, label } from '../lib/ui';
@@ -38,18 +39,25 @@ export function YouTubeLinkForm() {
     } finally { setBusy(false); }
   };
   // noValidate: the browser's url check rejects links pasted without https://, which parseYouTubeLink accepts.
-  return <form noValidate onSubmit={submit}>
-    <label htmlFor={`${id}-url`} className={`${label} block px-5 pt-4`}>YouTube link</label>
-    <input id={`${id}-url`} name="youtube-link" type="url" inputMode="url" autoComplete="off" spellCheck={false}
-      value={url} onChange={event => setUrl(event.target.value)} placeholder="https://www.youtube.com/watch?v=…"
-      aria-invalid={error ? true : undefined} aria-describedby={`${id}-help ${id}-error`}
-      className="w-full bg-transparent px-5 pb-4 pt-1 text-base outline-none placeholder:text-muted" />
-    <p id={`${id}-error`} role="alert" className={`px-5 text-sm font-semibold text-warn ${error ? 'pb-3' : ''}`}>{error}</p>
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-3 py-3">
-      <p id={`${id}-help`} className="min-w-0 flex-1 basis-56 px-2 text-sm text-muted">Gemini reads public videos up to 45 minutes long on YouTube. Nothing is downloaded. 3 searches an hour.</p>
-      <button type="submit" disabled={busy} className={`${button('primary')} h-10 min-w-32`}>
-        {busy && <span aria-hidden="true" className="h-4 w-4 rounded-full border-2 border-ink/30 border-t-ink motion-safe:animate-spin" />}
-        Find moments
+  return <form noValidate onSubmit={submit} className="sheet-ruled">
+    <label htmlFor={`${id}-url`} className={`${label} block px-4 pt-5 sm:px-6`}>YouTube link</label>
+    <div className="flex items-center gap-3 px-4 pb-5 pt-2 sm:px-6">
+      <LinkSimple aria-hidden="true" size={20} weight="light" className="shrink-0 text-muted" />
+      <input id={`${id}-url`} name="youtube-link" type="url" inputMode="url" autoComplete="off" spellCheck={false}
+        value={url} onChange={event => setUrl(event.target.value)} placeholder="https://www.youtube.com/watch?v=…"
+        aria-invalid={error ? true : undefined} aria-describedby={`${id}-help ${id}-error`}
+        className={`min-w-0 flex-1 border-b bg-transparent pb-1.5 font-mono text-base outline-none placeholder:text-faint ${error ? 'border-signal' : 'border-ink/40 focus:border-ink'}`} />
+    </div>
+    <div className={error ? 'flex items-center gap-3 px-4 pb-4 sm:px-6' : ''}>
+      {error && <span aria-hidden="true" className="stamp -rotate-2 px-2! py-0.5! text-[10px]! text-signal">Check link</span>}
+      <p id={`${id}-error`} role="alert" className="min-w-0 flex-1 text-sm text-signal">{error}</p>
+    </div>
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ink bg-surface px-3 py-2.5">
+      <p id={`${id}-help`} className="flex min-w-0 flex-1 basis-56 flex-wrap gap-1.5">
+        {['Public videos', 'Up to 45 min', 'Nothing downloaded', '3 searches an hour'].map(chip => <span key={chip} className="border border-ink/30 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-ink2">{chip}</span>)}
+      </p>
+      <button type="submit" disabled={busy} className={`${button('primary')} h-10 min-w-36`}>
+        Find moments{busy ? <span aria-hidden="true" className="pat-dots size-4 bg-surface opacity-60 motion-safe:animate-pulse" /> : <MagnifyingGlass aria-hidden="true" size={16} />}
       </button>
     </div>
   </form>;
@@ -61,16 +69,25 @@ export function YouTubeMomentResults({ onRender }: { onRender?: (moment: Moment)
   const heading = useId();
   if (!latest) return null;
   if (latest.status === 'running') return <div>
-    <p role="status" className="text-sm font-semibold">Gemini is watching the video. This usually takes under a minute.</p>
-    <div aria-hidden="true" className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {[0, 1, 2].map(slot => <div key={slot} className="aspect-[9/16] rounded-xl bg-line motion-safe:animate-pulse" />)}
+    <p className="eyebrow">Moments</p>
+    <p role="status" className="display mt-2 text-3xl">Gemini is watching the video. This usually takes under a minute.</p>
+    <div aria-hidden="true" className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+      {[0, 1, 2].map(slot => <div key={slot} className="sheet-ruled flex aspect-[9/16] max-h-[520px] w-full flex-col border border-ink/30 p-4 motion-safe:animate-pulse">
+        <div className="h-3 w-24 bg-ink/15" />
+        <div className="mt-3 h-6 w-3/4 bg-ink/15" />
+        <div className="pat-dots mt-4 aspect-video w-full opacity-15" />
+      </div>)}
     </div>
   </div>;
-  if (latest.status !== 'done' || !latest.moments.length) return <p role="status" className="text-sm">Gemini could not find moments in this video. Check that it is public, then try another link.</p>;
+  if (latest.status !== 'done' || !latest.moments.length) return <div className="flex flex-wrap items-center gap-3 border border-signal/50 bg-warnBg/60 p-3">
+    <span aria-hidden="true" className="stamp -rotate-2 px-2! py-0.5! text-[10px]! text-signal">No moments</span>
+    <p role="status" className="min-w-0 flex-1 basis-56 text-sm">Gemini could not find moments in this video. Check that it is public, then try another link.</p>
+  </div>;
   return <section aria-labelledby={heading}>
-    <h2 id={heading} className="text-lg font-semibold">Moments from this video</h2>
-    <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {latest.moments.map((moment, index) => <MomentCard key={`${latest.id}:${index}`} videoId={latest.videoId} moment={moment}
+    <p className="eyebrow">{latest.moments.length} picked</p>
+    <h2 id={heading} className="display mt-2 text-4xl">Moments from this video</h2>
+    <div className="mt-6 grid items-start gap-6 md:grid-cols-2 xl:grid-cols-3">
+      {latest.moments.map((moment, index) => <MomentCard key={`${latest.id}:${index}`} order={index} videoId={latest.videoId} moment={moment}
         translations={latest.translations.filter(item => item.moment === index)}
         onTranslate={language => translate({ id: latest.id, moment: index, language })}
         onShare={() => share({ id: latest.id, moment: index })}
@@ -131,6 +148,7 @@ const OWNER_BLOCKED = 'The owner turned off playback on other sites.';
 const PLAYER_ERRORS = new Map([[100, 'This video is private, removed or not found.'], [101, OWNER_BLOCKED], [150, OWNER_BLOCKED]]);
 
 type MomentCardProps = {
+  order?: number;
   videoId: string;
   moment: Moment;
   translations?: { language: CaptionLanguage; texts: string[] }[];
@@ -139,7 +157,7 @@ type MomentCardProps = {
   onRender?: () => void;
 };
 
-export function MomentCard({ videoId, moment, translations, onTranslate, onShare, onRender }: MomentCardProps) {
+export function MomentCard({ order, videoId, moment, translations, onTranslate, onShare, onRender }: MomentCardProps) {
   const id = useId();
   const iframe = useRef<HTMLIFrameElement>(null), list = useRef<HTMLOListElement>(null);
   const player = useYouTubePlayer(iframe);
@@ -186,11 +204,13 @@ export function MomentCard({ videoId, moment, translations, onTranslate, onShare
   };
 
   // Policy: nothing sits over the player, and its box holds only the unmodified iframe.
-  // Without overflow-hidden the card keeps 9:16 when its content fits and grows on narrow phones instead of clipping.
-  return <article aria-labelledby={`${id}-hook`} className="flex aspect-[9/16] min-w-0 flex-col rounded-xl border border-line bg-surface">
+  return <article aria-labelledby={`${id}-hook`} className="sheet flex min-w-0 flex-col shadow-hard-sm">
     <div className="px-4 pb-3 pt-4">
-      <h3 id={`${id}-hook`} className="break-words font-display text-2xl font-bold leading-tight text-balance">{moment.hook}</h3>
-      <p className="mt-1 font-mono text-xs text-muted">{clock(start)} to {clock(end)} · {end - start}&nbsp;s</p>
+      <div className="flex items-center justify-between gap-2">
+        {order !== undefined && <span className="eyebrow text-muted">Moment {String(order + 1).padStart(2, '0')}</span>}
+        <span className="border border-ink px-1.5 py-0.5 font-mono text-[11px] tracking-[0.04em]">{clock(start)} to {clock(end)} · {end - start}&nbsp;s</span>
+      </div>
+      <h3 id={`${id}-hook`} className="display mt-2 break-words text-3xl text-balance">{moment.hook}</h3>
     </div>
     <div className="aspect-video min-h-[200px] w-full shrink-0 bg-ink">
       <iframe ref={iframe} title={`YouTube video player: ${moment.hook}`} className="h-full w-full"
@@ -198,45 +218,41 @@ export function MomentCard({ videoId, moment, translations, onTranslate, onShare
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
         referrerPolicy="strict-origin-when-cross-origin" allowFullScreen />
     </div>
-    {playerError && <p role="status" className="px-4 pt-3 text-sm">
+    {playerError && <p role="status" className="border-b border-line px-4 py-3 text-sm">
+      <WarningCircle aria-hidden="true" size={14} className="mr-1.5 inline text-signal" />
       {playerError}
-      {player.error !== 100 && <> <a href={`${watchUrl(videoId)}&t=${start}s`} target="_blank" rel="noopener" className="font-semibold underline underline-offset-4">Watch it on YouTube</a></>}
+      {player.error !== 100 && <> <a href={`${watchUrl(videoId)}&t=${start}s`} target="_blank" rel="noopener" className="font-medium underline underline-offset-4">Watch it on YouTube</a></>}
     </p>}
-    <div className="relative min-h-32 flex-1">
-      <ol ref={list} aria-label="Captions" lang={texts ? language : undefined} className="absolute inset-0 overflow-y-auto p-2">
-        {moment.cues.map((cue, index) => <li key={index} aria-current={index === active ? 'true' : undefined}
-          className={`flex gap-3 rounded-md px-2 py-1 ${index === active ? 'bg-cue text-ink' : 'text-muted'}`}>
-          <span className="shrink-0 font-mono text-xs leading-6">{clock(Math.floor(cue.start_sec))}</span>
-          <span className="min-w-0 break-words text-sm leading-6">{texts?.[index] ?? cue.text}</span>
-        </li>)}
-      </ol>
-    </div>
-    <div className="border-t border-line px-4 py-3">
-      <h4 className="text-xs font-semibold text-muted">Why it works</h4>
-      <p className="mt-1 break-words text-sm">{moment.why}</p>
-    </div>
-    {(onTranslate || onShare || onRender) && <div className="space-y-3 border-t border-line px-4 py-3">
-      {onTranslate && <div>
-        <label htmlFor={`${id}-language`} className="block text-xs font-semibold text-muted">Caption language</label>
+    <p className="border-b border-line px-4 py-3 text-sm leading-snug"><span className="eyebrow mr-2 text-muted">Why it works</span>{moment.why}</p>
+    <ol ref={list} aria-label="Captions" lang={texts ? language : undefined} className="relative max-h-36 overflow-y-auto px-2 py-2">
+      {moment.cues.map((cue, index) => <li key={index} aria-current={index === active ? 'true' : undefined}
+        className={`flex gap-3 px-2 py-0.5 ${index === active ? 'bg-cue text-surface' : 'text-ink2'}`}>
+        <span className={`shrink-0 font-mono text-[11px] leading-6 ${index === active ? '' : 'text-muted'}`}>{clock(Math.floor(cue.start_sec))}</span>
+        <span className="min-w-0 break-words text-sm leading-6">{texts?.[index] ?? cue.text}</span>
+      </li>)}
+    </ol>
+    {(onTranslate || onShare || onRender) && <div className="space-y-3 border-t border-ink px-4 py-3">
+      {onTranslate && <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <label htmlFor={`${id}-language`} className={`${label} inline-flex items-center gap-1.5`}><Translate aria-hidden="true" size={14} />Caption language</label>
         <select id={`${id}-language`} value={language} disabled={translation === 'translating'}
-          onChange={event => void chooseLanguage(event.target.value as CaptionLanguage | '')} className={`${field} mt-1 block w-full`}>
+          onChange={event => void chooseLanguage(event.target.value as CaptionLanguage | '')} className={`${field} min-w-0 flex-1 py-1.5 disabled:opacity-50`}>
           <option value="">Original</option>
           {CAPTION_LANGUAGES.map(option => <option key={option.code} value={option.code}>{option.label}</option>)}
         </select>
-        <p aria-live="polite" className={`mt-1 text-xs ${translation === 'failed' ? 'font-semibold text-warn' : 'text-muted'}`}>
+        <p aria-live="polite" className={`basis-full text-xs ${translation === 'failed' ? 'text-signal' : 'font-mono uppercase tracking-[0.06em] text-muted'}`}>
           {translation === 'translating' ? 'Translating…' : translation === 'failed' ? 'Could not translate the captions. Try again.' : ''}
         </p>
       </div>}
       {(onShare || onRender) && <div>
         <div className="flex flex-wrap gap-2">
-          {onShare && <button type="button" onClick={() => void copyShareLink()} className={button('secondary', 'sm')}>Copy share link</button>}
-          {onRender && <button type="button" onClick={onRender} className={button('primary', 'sm')}>Render as MP4 from your own copy</button>}
+          {onRender && <button type="button" onClick={onRender} className={button('primary', 'sm')}><FilmStrip aria-hidden="true" size={14} />Render as MP4 from your own copy</button>}
+          {onShare && <button type="button" onClick={() => void copyShareLink()} className={button('secondary', 'sm')}><LinkSimple aria-hidden="true" size={14} />Copy share link</button>}
         </div>
-        {onShare && <p aria-live="polite" className={`mt-1 text-xs font-semibold ${shared === 'failed' ? 'text-warn' : 'text-ink'}`}>
+        {onShare && <p aria-live="polite" className={`mt-1 text-xs ${shared === 'failed' ? 'text-signal' : 'font-mono uppercase tracking-[0.06em] text-ink'}`}>
           {shared === 'copied' ? 'Link copied' : shared === 'failed' ? 'Could not make a share link. Try again.' : ''}
         </p>}
         {manualLink && <div className="mt-2">
-          <label htmlFor={`${id}-link`} className="block text-xs font-semibold text-muted">Copy this link</label>
+          <label htmlFor={`${id}-link`} className={`${label} block`}>Copy this link</label>
           <input id={`${id}-link`} readOnly value={manualLink} onFocus={event => event.currentTarget.select()} className={`${field} mt-1 block w-full font-mono`} />
         </div>}
       </div>}
