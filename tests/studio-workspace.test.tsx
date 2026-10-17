@@ -34,10 +34,10 @@ test("workspace keeps editing inputs mounted when switching mobile panels", () =
   fireEvent.change(screen.getByLabelText("Edit wording"), {
     target: { value: "Keep this change" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Versions" }));
+  fireEvent.click(screen.getByRole("button", { name: "Project" }));
   expect(
     screen
-      .getByRole("button", { name: "Versions" })
+      .getByRole("button", { name: "Project" })
       .getAttribute("aria-pressed"),
   ).toBe("true");
   expect(

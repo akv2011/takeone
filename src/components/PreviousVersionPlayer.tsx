@@ -1,7 +1,4 @@
-import { FilmStrip } from "@phosphor-icons/react";
-import { useEffect, useState } from "react";
-import { useAuth } from "../lib/auth";
-import { useAction, useConvexAuth, useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/convexApi";
 import { useVideoUrl } from "../lib/useVideoUrl";
@@ -63,50 +60,5 @@ export function PreviousVersionPlayer({ jobId }: { jobId: string }) {
         </button>
       )}
     </div>
-  );
-}
-
-export function VersionThumbnail({
-  jobId,
-  ready,
-}: {
-  jobId: string;
-  ready: boolean;
-}) {
-  const { isAuthenticated } = useConvexAuth();
-  const { user } = useAuth();
-  const sign = useAction(api.generate.getCover);
-  const scope = `${user?.id ?? ""}:${jobId}`;
-  const [image, setImage] = useState<{ scope: string; url: string }>();
-  useEffect(() => {
-    let active = true;
-    if (!isAuthenticated || !user?.id || !ready) return;
-    void sign({ jobId })
-      .then((result: unknown) => {
-        if (
-          active &&
-          result &&
-          typeof result === "object" &&
-          "url" in result &&
-          typeof result.url === "string" &&
-          result.url.startsWith("https://")
-        )
-          setImage({ scope, url: result.url });
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, [isAuthenticated, user?.id, jobId, ready, scope, sign]);
-  const url =
-    ready && isAuthenticated && image?.scope === scope ? image.url : undefined;
-  return (
-    <span className="version-thumbnail" aria-hidden="true">
-      {url ? (
-        <img src={url} alt="" onError={() => setImage(undefined)} />
-      ) : (
-        <FilmStrip size={18} weight="regular" />
-      )}
-    </span>
   );
 }

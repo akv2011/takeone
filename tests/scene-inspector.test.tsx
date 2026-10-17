@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ authenticated: true, query: vi.fn() }));
 vi.mock('convex/react', () => ({ useConvexAuth: () => ({ isAuthenticated: mocks.authenticated }), useQuery: mocks.query }));
@@ -11,6 +11,7 @@ beforeEach(() => { mocks.authenticated = true; mocks.query.mockReset().mockRetur
 afterEach(cleanup);
 test('queries only owned scope and completed scene click seeks without a render', () => {
  const p = props(); render(<SceneInspector {...p} />);
+ fireEvent.click(screen.getByRole('button', { name: 'Scene plan' }));
  expect(mocks.query.mock.calls[0][1]).toEqual({ jobId: 'source', accountKey: 'owner' });
  const second = screen.getByRole('button', { name: /Daily use/ });
  expect(second.getAttribute('aria-current')).toBe('true');
@@ -20,11 +21,13 @@ test('queries only owned scope and completed scene click seeks without a render'
 test.each(['rendering', 'failed', 'cancelled', 'previous_attempt'])('%s plans never seek the prior completed video', state => {
  mocks.query.mockReturnValue({ ...plan, state });
  const p = props(); render(<SceneInspector {...p} />);
+ fireEvent.click(screen.getByRole('button', { name: 'Scene plan' }));
  const first = screen.getByRole('button', { name: /Soap texture/ }) as HTMLButtonElement;
  expect(first.disabled).toBe(true); fireEvent.click(first); expect(p.onSeek).not.toHaveBeenCalled();
 });
 test('auth loss skips reading and hides previously visible scene cards', () => {
  const p = props(); const view = render(<SceneInspector {...p} />);
+ fireEvent.click(screen.getByRole('button', { name: 'Scene plan' }));
  mocks.authenticated = false;
  view.rerender(<SceneInspector {...p} />);
  expect(mocks.query.mock.calls.at(-1)?.[1]).toBe('skip');
@@ -32,6 +35,7 @@ test('auth loss skips reading and hides previously visible scene cards', () => {
 });
 test('changing job and account binds the query to the new owner and clears old cards', () => {
  const p = props(); const view = render(<SceneInspector {...p} />);
+ fireEvent.click(screen.getByRole('button', { name: 'Scene plan' }));
  mocks.query.mockReturnValue(undefined);
  view.rerender(<SceneInspector {...p} jobId="other" accountKey="second" />);
  expect(mocks.query.mock.calls.at(-1)?.[1]).toEqual({ jobId: 'other', accountKey: 'second' });
@@ -40,17 +44,20 @@ test('changing job and account binds the query to the new owner and clears old c
 });
 test.each([null, { state: 'unavailable', scenes: [] }, { ...plan, scenes: [{ ...scenes[0], endSec: NaN }] }])('unavailable or malformed plans do not expose navigation %#', result => {
  mocks.query.mockReturnValue(result); const p = props(); render(<SceneInspector {...p} />);
- expect(screen.getByText(/no saved scene plan/)).toBeTruthy();
- expect(screen.queryAllByRole('button')).toHaveLength(0);
+ fireEvent.click(screen.getByRole('button', { name: 'Scene plan' }));
+ expect(screen.getByText(/No saved scene plan/)).toBeTruthy();
+ expect(within(screen.getByRole('region', { name: 'Scene plan' })).queryAllByRole('button')).toHaveLength(0);
 });
 test('requires matching loaded video duration before navigating a completed plan', () => {
  const p = props(); render(<SceneInspector {...p} duration={1} />);
+ fireEvent.click(screen.getByRole('button', { name: 'Scene plan' }));
  expect((screen.getByRole('button', { name: /Soap texture/ }) as HTMLButtonElement).disabled).toBe(true);
 });
 test('shows a valid detailed soap search phrase longer than sixty characters', () => {
  const phrase = 'natural handmade soap foam macro botanical ingredients soft daylight clean bathroom hands washing';
  mocks.query.mockReturnValue({ ...plan, scenes: [{ ...scenes[0], searchTerms: [phrase] }, scenes[1]] });
  render(<SceneInspector {...props()} />);
+ fireEvent.click(screen.getByRole('button', { name: 'Scene plan' }));
  expect(screen.getByText(phrase)).toBeTruthy();
 });
 test('failed scene queries have a local retry boundary', () => {
@@ -58,6 +65,7 @@ test('failed scene queries have a local retry boundary', () => {
  try {
   mocks.query.mockImplementation(() => { throw Error('internal provider detail'); });
   render(<SceneInspector {...props()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Scene plan' }));
   expect(screen.getByRole('alert').textContent).not.toContain('internal provider');
   mocks.query.mockReturnValue(plan);
   fireEvent.click(screen.getByRole('button', { name: 'Retry scene details' }));
